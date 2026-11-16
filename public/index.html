@@ -66,22 +66,37 @@
 <div id="house" class="overlay tabbed hidden">
   <h2>Kedi Evi</h2>
   <div class="wallet">🐟 <span id="wallet5">0</span></div>
-  <canvas id="houseCv" class="room" width="600" height="460" aria-label="Kedinin evi"></canvas>
-  <p class="hint small">Eşya al, yerleştir. Kedin odasında keyif yapsın.</p>
+  <canvas id="houseCv" class="room" width="600" height="600" aria-label="Kedinin evi"></canvas>
+  <div class="petbars">
+    <div><span>🍗</span><b><i id="pet_food"></i></b></div>
+    <div><span>🛁</span><b><i id="pet_clean"></i></b></div>
+    <div><span>🧶</span><b><i id="pet_fun"></i></b></div>
+    <div><span>💤</span><b><i id="pet_energy"></i></b></div>
+  </div>
+  <div class="petacts">
+    <button data-pet="feed"><span>🐟</span>Besle<small>2 balık</small></button>
+    <button data-pet="wash"><span>🧽</span>Yıka</button>
+    <button data-pet="pet"><span>🤚</span>Sev</button>
+    <button data-pet="play"><span>🎣</span>Oyna</button>
+    <button data-pet="sleep"><span>💡</span>Uyut</button>
+  </div>
+  <p id="petMood" class="hint small"></p>
+  <details class="card housefurn"><summary>🛋️ Evi döşe</summary>
   <div id="houseList" class="ward"></div>
+  </details>
   <button class="toggle" data-act="menu">Ana sayfa</button>
 </div>
 
 <!-- ============ Fotograf ============ -->
 <div id="photo" class="overlay tabbed hidden">
-  <h2>Kedinin fotoğrafı</h2>
+  <h2 id="photoTitle">Kedinin fotoğrafı</h2>
   <img id="photoImg" class="photo" alt="Kedinin fotoğrafı">
   <div class="row">
     <button id="photoShare" class="big buy" data-act="sharePhoto">Paylaş</button>
     <a id="photoSave" class="big alt" download="patikat-kedim.png">Kaydet</a>
   </div>
   <p class="hint small">Kaydet çalışmazsa fotoğrafa uzun basıp kaydedebilirsin.</p>
-  <button class="toggle" data-act="chars">Geri</button>
+  <button id="photoBack" class="toggle" data-act="chars">Geri</button>
 </div>
 
 <!-- ============ Basarimlar ============ -->
@@ -102,11 +117,17 @@
     <p class="hint small" id="diffInfo"></p>
   </div>
   <div class="card">
+    <h3>Tema</h3>
+    <div class="themes" id="themeGrid"></div>
+    <p class="hint small">Binanın, gökyüzünün ve süslerin görünümü</p>
+  </div>
+  <div class="card">
     <h3>Ses ve titreşim</h3>
     <div class="row">
       <button id="soundBtn" class="toggle"></button>
       <button id="musicBtn" class="toggle"></button>
       <button id="vibBtn" class="toggle"></button>
+      <button id="notifyBtn" class="toggle hidden"></button>
     </div>
   </div>
   <details class="howto card">
@@ -132,7 +153,7 @@
       <li><b>Miyav:</b> Heismark (kamu malı), George Miquilena (CC0)</li>
       <li><b>Siyam miyavı:</b> freemaster2 (CC0)</li>
       <li><b>Mırlama:</b> Mysid (kamu malı)</li>
-      <li><b>Müzik:</b> Erik Satie, Gymnopédie No.1, yorum Robin Alciatore (kamu malı)</li>
+      <li><b>Oyun müziği:</b> Zane Little Music, congusbongus, SubspaceAudio (OpenGameArt, CC0)</li>
       <li>Köpek, yemek, oyuncak ve diğer bütün efektler oyunun içinde kodla üretilir.</li>
     </ul>
   </details>
@@ -212,6 +233,7 @@
   <p id="newBest" class="badge hidden">Yeni rekor!</p>
   <p class="best" id="overInfo"></p>
   <button id="reviveBtn" class="big resume hidden" data-act="revive">İkinci şans <small id="reviveInfo"></small></button>
+  <button id="challengeBtn" class="big buy" data-act="challenge">🏆 Meydan oku, paylaş</button>
   <p class="tap" id="overTap">Tekrar için dokun</p>
   <button class="toggle" data-act="menu">Ana sayfa</button>
 </div>

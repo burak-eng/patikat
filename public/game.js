@@ -78,6 +78,20 @@
     { id: 'zeytin',  name: 'Zeytin',  price: 600, fur: '#34353c', fur2: '#34353c', belly: '#f4f1ea', paws: '#f4f1ea', eyes: ['#9bd27a', '#9bd27a'], pattern: 'tuxedo', ability: 'Hızlı enerji: Pati enerjisi 6 sn\'de dolar', rim: true },
     { id: 'van',     name: 'Van',     price: 700, fur: '#f4f1ea', fur2: '#c9884d', belly: '#ffffff', eyes: ['#6fa8dc', '#d9a441'], pattern: 'van',    ability: 'Yüzücü: Fıskiyeler ıslatamaz' },
   ];
+  // Kedi albumu: her kedinin kisa hikayesi
+  const CAT_STORY = {
+    sarman: 'Kadıköy çarşısında balıkçının en sevdiği kedi. Her sabah ilk balık onun.',
+    tekir: 'Eski bir kitapçının vitrininde büyüdü. Temkinli ama meraklı.',
+    pamuk: 'Bir çatı katında, çamaşır sepetinde uyurken bulundu. Hiç acele etmez.',
+    kara: 'Gece bekçisinin can dostu. Karanlıkta yolunu hep bulur.',
+    duman: 'Bir buharlı fırının sıcak duvarında ısınırken sessiz adımlarını öğrendi.',
+    benekli: 'Moda sahilinde martılarla yarışan, kıl payı kaçmayı seven bir kedi.',
+    siyam: "Galata'da bir müzisyenin evinde yaşıyor. Sesi bütün sokakta duyulur.",
+    karamel: 'Bir pastanenin önünde büyüdü. Tatlı yemeye bayılır.',
+    benek: 'Şansına inanan üç renkli bir kedi. Bulduğu her balık iki kat değerli.',
+    zeytin: 'Vapur iskelesinin smokinli beyefendisi. Hep hazır, hep enerjik.',
+    van: 'Van Gölü kıyısından geldi. Suyu seven nadir kedilerden.',
+  };
   const CAT_BY_ID = Object.fromEntries(CATS.map((c) => [c.id, c]));
   const OLD_CHAR = {
     kubo: 'sarman', kedi: 'tekir', robot: 'pamuk', hayalet: 'kara', ninja: 'siyam', uzayli: 'benek',
@@ -297,6 +311,10 @@
     house: store.get('house', { owned: [], placed: {} }),
     events: store.get('events', {}),
     tourDone: store.get('tourDone', false),
+    theme: store.get('theme', 'klasik'),
+    notify: store.get('notify', false),
+    rival: store.get('rival', null),
+    pet: store.get('pet', { food: 70, clean: 55, fun: 65, energy: 80, t: Date.now(), sleep: false }),
     play: store.get('play', { date: '', catches: 0, rewarded: 0 }),
     playerName: store.get('playerName', ''),
     playerId: store.get('playerId', ''),
@@ -351,11 +369,31 @@
 
   // ================= Palet (yumusak gecisli) =================
   const hexRgb = (h) => { const n = parseInt(h.slice(1), 16); return [n >> 16, (n >> 8) & 255, n & 255]; };
-  const PAL_NUM = PALETTES.map((p) => {
-    const o = {};
-    for (const k in p) if (k !== 'name') o[k] = typeof p[k] === 'string' ? hexRgb(p[k]) : p[k];
-    return o;
-  });
+  // Temalar: oyuncu ayarlardan secer. mix = paletin hangi rengini hangi renge ne kadar yaklastiracagi.
+  const THEMES = [
+    { id: 'klasik',   name: 'Klasik',    icon: '🏙️', fx: null,     mix: {} },
+    { id: 'ilkbahar', name: 'İlkbahar',  icon: '🌸', fx: 'petals', mix: { skyBot: ['#fde3ec', 0.3], wall: ['#f0b9c4', 0.22], city: ['#bcd3b4', 0.3], mark: ['#fbe1e6', 0.2] } },
+    { id: 'yaz',      name: 'Yaz',       icon: '☀️', fx: 'bfly',   mix: { skyTop: ['#55b2ef', 0.3], skyBot: ['#fff1c2', 0.32], wall: ['#f4cd84', 0.22], city: ['#9fc7e0', 0.2] } },
+    { id: 'sonbahar', name: 'Sonbahar',  icon: '🍂', fx: 'leaves', mix: { skyBot: ['#f6c493', 0.32], wall: ['#d98f62', 0.28], city: ['#c3a28c', 0.3], mark: ['#f1c7a3', 0.2] } },
+    { id: 'kis',      name: 'Kış',       icon: '❄️', fx: 'snow',   mix: { skyTop: ['#9db4d6', 0.25], skyBot: ['#eef3fa', 0.4], wall: ['#d9dfe9', 0.3], city: ['#c3cfdf', 0.38], mark: ['#f4f7fb', 0.3] } },
+    { id: 'istanbul', name: 'İstanbul',  icon: '🕌', fx: 'gulls',  mix: { skyBot: ['#fad3b6', 0.22], wall: ['#dcb79a', 0.3], city: ['#8e8bb0', 0.35], mark: ['#efd8c4', 0.25], edge: ['#a77e62', 0.25] } },
+  ];
+  const THEME_BY_ID = Object.fromEntries(THEMES.map((x) => [x.id, x]));
+  let PAL_NUM = [];
+  function buildPalettes() {
+    const th = THEME_BY_ID[save.theme] || THEMES[0];
+    PAL_NUM = PALETTES.map((p) => {
+      const o = {};
+      for (const k in p) {
+        if (k === 'name') continue;
+        if (typeof p[k] !== 'string') { o[k] = p[k]; continue; }
+        const c = hexRgb(p[k]), m = th.mix[k];
+        o[k] = m ? c.map((v, i) => Math.round(v + (hexRgb(m[0])[i] - v) * m[1])) : c;
+      }
+      return o;
+    });
+  }
+  const theme = () => THEME_BY_ID[save.theme] || THEMES[0];
   let palFrom = 0, palTo = 0, palT = 1, P = null;
   function computeP() {
     const a = PAL_NUM[palFrom], b = PAL_NUM[palTo], o = {};
@@ -386,6 +424,55 @@
     for (let ly = 10; ly < h - 8; ly += 12) for (let lx = 5; lx < w - 6; lx += 9) if (Math.random() < 0.3) lights.push([lx, ly]);
     SKYLINE.push({ x, w, h, lights });
     x += w + 3;
+  }
+
+  // Istanbul silueti: kubbeler, minareler, Galata Kulesi, deniz ve vapur
+  const IST = [];
+  { let x = WALL - 6; let k = 0;
+    while (x < W - WALL) {
+      const kind = k === 2 ? 'galata' : (k % 3 === 0 ? 'cami' : 'ev');
+      const w = kind === 'cami' ? 78 : kind === 'galata' ? 26 : Math.round(rand(20, 34));
+      IST.push({ kind, x, w, h: kind === 'ev' ? Math.round(rand(26, 48)) : 0 });
+      x += w + (kind === 'cami' ? 6 : 2); k++;
+    }
+  }
+  function drawIstanbul(sy) {
+    const g = ctx;
+    g.fillStyle = P.city;
+    for (const b of IST) {
+      if (b.kind === 'ev') { g.fillRect(b.x, sy - b.h, b.w, b.h + H); continue; }
+      if (b.kind === 'galata') {
+        const cx = b.x + b.w / 2;
+        g.fillRect(cx - 10, sy - 92, 20, 92 + H);
+        g.fillRect(cx - 12, sy - 98, 24, 7);
+        g.beginPath(); g.moveTo(cx - 12, sy - 98); g.lineTo(cx, sy - 128); g.lineTo(cx + 12, sy - 98); g.closePath(); g.fill();
+        continue;
+      }
+      const cx = b.x + b.w / 2; // cami
+      g.fillRect(b.x + 8, sy - 34, b.w - 16, 34 + H);
+      g.beginPath(); g.arc(cx, sy - 34, 22, Math.PI, 0); g.fill();
+      g.fillRect(cx - 1.5, sy - 64, 3, 9);
+      for (const s of [-1, 1]) {
+        g.beginPath(); g.arc(cx + s * 22, sy - 34, 10, Math.PI, 0); g.fill();
+        const mx = cx + s * (b.w / 2 - 3);
+        g.fillRect(mx - 2.5, sy - 92, 5, 92);
+        g.fillRect(mx - 3.5, sy - 70, 7, 3);
+        g.beginPath(); g.moveTo(mx - 2.5, sy - 92); g.lineTo(mx, sy - 108); g.lineTo(mx + 2.5, sy - 92); g.closePath(); g.fill();
+      }
+    }
+    // pencere isiklari (aksam/gece)
+    if (P.stars > 0.05) { g.fillStyle = `rgba(${P.winA},0.5)`; for (const b of IST) if (b.kind === 'ev') for (let ly = 8; ly < b.h - 6; ly += 11) g.fillRect(b.x + 5, sy - b.h + ly, 3, 4); }
+    // deniz ve yavas giden vapur
+    const sea = g.createLinearGradient(0, sy, 0, sy + 60);
+    sea.addColorStop(0, `rgba(${P.skyBotA},0.95)`); sea.addColorStop(1, `rgba(${P.skyTopA},0.95)`);
+    g.fillStyle = sea; g.fillRect(0, sy, W, H);
+    g.fillStyle = 'rgba(255,255,255,0.35)';
+    for (let i = 0; i < 6; i++) g.fillRect(WALL + ((i * 53 + clock * 6) % (W - WALL * 2)), sy + 10 + (i % 3) * 12, 14, 1.5);
+    const fx = WALL + ((clock * 9) % (W - WALL * 2 + 80)) - 40, fy = sy + 22;
+    g.fillStyle = '#ffffff'; rr(g, fx - 18, fy - 6, 36, 8, 3); g.fill();
+    g.fillStyle = '#3b3552'; g.fillRect(fx - 16, fy + 1, 32, 3);
+    g.fillStyle = '#ffffff'; g.fillRect(fx - 8, fy - 11, 14, 5);
+    g.fillStyle = '#d9534f'; g.fillRect(fx + 1, fy - 16, 4, 6);
   }
 
   // ================= Ekran olcekleme =================
@@ -593,7 +680,7 @@
   }
 
   const SFX = {
-    jump() { tone(380, 0.1, { vol: 0.13, slide: 760, attack: 0.004 }); hiss(0.06, { freq: 2400, q: 0.7, vol: 0.035 }); },
+    jump() { tone(330, 0.09, { vol: 0.12, slide: 820, attack: 0.003, type: 'triangle' }); hiss(0.12, { freq: 900, sweep: 3200, q: 0.9, vol: 0.06 }); }, // hizli 'fiyuv'
     land() { hiss(0.06, { freq: 500, q: 0.8, vol: 0.09, type: 'lowpass' }); tone(150, 0.08, { vol: 0.1, slide: 85 }); },
     coin() { // balik yeme: sevimli, yumusak "nyam" ve kucuk bir zil
       const p = jitter(0.06);
@@ -601,7 +688,13 @@
         tone(f * p, 0.07, { vol: 0.09, slide: f * p * 0.7, delay: d, attack: 0.004 }); // "nyam"
         hiss(0.03, { freq: 2600, q: 1.2, vol: 0.025, delay: d + 0.01 });             // minik isirik
       }
-      bell(2093 * p, 0.22, 0.035, 0.05);
+      // pes pese toplayinca yukselen parlak 'bling' (heyecan icin)
+      const n = performance.now();
+      coinStreak = n - coinLastT < 1300 ? Math.min(coinStreak + 1, 9) : 0;
+      coinLastT = n;
+      const SCALE = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21];
+      const f0 = midi(84 + SCALE[coinStreak]);
+      bell(f0, 0.2, 0.05, 0.02); bell(f0 * 1.5, 0.16, 0.025, 0.07);
     },
     near() { hiss(0.2, { freq: 700, sweep: 2600, q: 1.2, vol: 0.08 }); tone(1760, 0.12, { vol: 0.035, delay: 0.05 }); },
     hit() { tone(170, 0.32, { vol: 0.32, slide: 55, attack: 0.003 }); hiss(0.15, { freq: 300, q: 0.7, vol: 0.12, type: 'lowpass' }); },
@@ -638,32 +731,62 @@
     buy() { bell(1047, 0.3, 0.07); bell(1568, 0.4, 0.07, 0.08); },
     nope() { tone(220, 0.14, { type: 'triangle', vol: 0.08, slide: 180 }); },
   };
+  let coinStreak = 0, coinLastT = 0;
   function sfx(name) {
     if (!save.sound || DEMO) return;
     try { if (ac()) SFX[name](); } catch { /* ses desteklenmiyor */ }
   }
 
-  // ---------- Arka plan muzigi: Erik Satie, Gymnopedie No. 1 (kamu mali kayit), sakin ve dongulu ----------
-  // Uzun parca belleği sisirmesin diye <audio> ogesiyle akarak calinir.
-  let musicEl = null, musicTry = 0;
+  // ---------- Oyun muzigi: yalnizca kosu sirasinda calar, menulerde sessiz (sadece efektler) ----------
+  // Telifsiz (CC0) hareketli parcalar; her turda biri secilir. <audio> ile akarak calinir.
+  const GAME_TRACKS = ['sounds/oyun1.mp3', 'sounds/oyun2.mp3', 'sounds/oyun3.mp3'];
+  let musicEl = null, musicTry = 0, trackIdx = -1, appAsleep = false;
+  function nextTrack() { // her yeni turda farkli parca
+    trackIdx = (trackIdx + 1 + Math.floor(Math.random() * (GAME_TRACKS.length - 1))) % GAME_TRACKS.length;
+    if (musicEl) { musicEl.src = GAME_TRACKS[trackIdx]; musicEl.volume = 0; }
+  }
   function musicTick() {
-    const want = save.music && !DEMO && state !== 'pause' && !document.hidden && !!audio.ctx; // ctx: kullanici dokundu demek
-    if (!want) { if (musicEl && !musicEl.paused) musicEl.pause(); return; }
+    const playing = state === 'play' || state === 'count' || state === 'hint';
+    const want = save.music && !DEMO && playing && !appAsleep && !document.hidden && !!audio.ctx; // ctx: kullanici dokundu demek
+    if (!want) {
+      if (musicEl && !musicEl.paused) {
+        musicEl.volume = Math.max(0, musicEl.volume - 0.06); // yumusakca sus
+        if (musicEl.volume <= 0.01 || appAsleep || document.hidden) musicEl.pause();
+      }
+      return;
+    }
     if (!musicEl) {
       if (typeof Audio !== 'function') return;
-      musicEl = new Audio('sounds/muzik.mp3');
+      if (trackIdx < 0) trackIdx = Math.floor(Math.random() * GAME_TRACKS.length);
+      musicEl = new Audio(GAME_TRACKS[trackIdx]);
       musicEl.loop = true;
       musicEl.preload = 'auto';
       musicEl.volume = 0;
     }
-    const target = state === 'play' || state === 'count' ? 0.28 : 0.45; // oyunda biraz daha kisik
-    musicEl.volume = Math.max(0, Math.min(1, musicEl.volume + (target - musicEl.volume) * 0.04));
+    const target = state === 'hint' ? 0.12 : 0.4;
+    musicEl.volume = Math.max(0, Math.min(1, musicEl.volume + (target - musicEl.volume) * 0.05));
     const now = performance.now();
-    if (musicEl.paused && now - musicTry > 2000) {
+    if (musicEl.paused && now - musicTry > 1500) {
       musicTry = now;
       const p = musicEl.play();
       if (p && p.catch) p.catch(() => { /* tarayici izin vermedi; sonraki dokunusta tekrar denenir */ });
     }
+  }
+  // Uygulama arka plana gecince / ekran kilitlenince butun sesi hemen kes (kare dongusu o an durdugu icin burada)
+  function audioSleep(sleep) {
+    if (sleep && !appAsleep) scheduleReminders();
+    appAsleep = sleep;
+    try {
+      if (sleep) {
+        if (musicEl) musicEl.pause();
+        if (audio.ctx && audio.ctx.state === 'running' && audio.ctx.suspend) audio.ctx.suspend();
+      } else if (audio.ctx && audio.ctx.state === 'suspended' && audio.ctx.resume) audio.ctx.resume();
+    } catch { /* yoksay */ }
+  }
+  function capPlugin(name) { // Capacitor eklentisi (yalnizca APK icinde var)
+    const C = window.Capacitor;
+    if (!C || !C.isNativePlatform || !C.isNativePlatform()) return null;
+    return (C.Plugins && C.Plugins[name]) || (C.registerPlugin ? C.registerPlugin(name) : null);
   }
 
   // ---------- Her kedinin kendi ses tonu ----------
@@ -1255,6 +1378,7 @@
 
   // ================= Tur baslat / bitir / kaydet =================
   function startRun(mode, lv = 0, opts = {}) {
+    nextTrack();
     if (mode === 'daily' && !opts.resume && dailyLeft() <= 0) return;
     if (!opts.resume) discardResume();
     if (mode === 'daily' && !opts.resume) { dailyState().used++; persist('daily'); }
@@ -1389,6 +1513,13 @@
   function die(kind) {
     state = 'over';
     if (!isTutorial()) { recordLife(); eventProgress(meters()); checkAchievements(); }
+    lastRunM = meters();
+    $('challengeBtn').classList.toggle('hidden', isTutorial() || lastRunM < 20);
+    const rv = save.rival; // arkadasinin meydan okumasini gectin mi?
+    if (rv && !rv.beaten && run.mode === 'endless' && lastRunM > rv.m) {
+      rv.beaten = true; save.wallet += 30; persist('rival'); persist('wallet');
+      setTimeout(() => showNote('Arkadaşını geçtin! 🏆', rv.m + ' m rekorunu kırdın · +30 balık'), 600);
+    }
     overAt = performance.now();
     chase = null;
     const c = CAT_BY_ID[save.char];
@@ -2000,7 +2131,7 @@
   // ================= 3B kedi (karsilama ekrani) =================
   // Oturan kedi uzayda noktalarla tanimlanir; aci kadar dondurulup arkadan one dogru cizilir.
   // x saga, y asagi, z izleyiciye dogru. aci 0 = kedi bize bakar.
-  function drawCat3D(g, c, ang, t, wear, hop = 0, paw = 0) {
+  function drawCat3D(g, c, ang, t, wear, hop = 0, paw = 0, mood = null) { // mood: { eyes: 'closed'|'happy', mouth: 0..1 }
     const ca = Math.cos(ang), sa = Math.sin(ang);
     const lift = -Math.sin(Math.min(1, hop) * Math.PI) * 7;
     const P3 = (x, y, z) => ({ x: x * ca + z * sa, y: y + lift, z: -x * sa + z * ca });
@@ -2130,19 +2261,33 @@
         if (c.pattern !== 'points') ell(g, mu.x, mu.y, 3.6 * Math.max(0.3, ca), 2.6, 0, c.belly);
         const n = P3(0, -4.4, 10.4);
         tri(g, [n.x - 1.3 * Math.max(0.3, ca), n.y], [n.x + 1.3 * Math.max(0.3, ca), n.y], [n.x, n.y + 1.4], '#e48a9a');
+        if (mood && mood.mouth > 0.05) { // agiz acik (yemek yerken / miyavlarken)
+          const m = P3(0, -1.9, 10.2), o = mood.mouth;
+          ell(g, m.x, m.y, 1.7 * Math.max(0.4, ca), 1.5 * o + 0.2, 0, '#6b2f3c');
+          ell(g, m.x, m.y + 0.8 * o, 1.1 * Math.max(0.4, ca), 0.6 * o, 0, '#e9879b');
+        }
         g.globalAlpha = 1;
       }
-      const blink = t % 4.3 < 0.12;
+      const eyeMode = mood && mood.eyes;
+      const blink = !eyeMode && t % 4.3 < 0.12;
       [[-3.2, 0], [3.2, 1]].forEach(([ex, i]) => {
         const e = P3(ex, -7, 9.4), ev = vis(e);
         if (ev < 0.08) return;
         const w = Math.max(0.35, ev);
         g.globalAlpha = Math.min(1, ev * 1.5);
-        if (blink) { g.strokeStyle = '#2a2328'; g.lineWidth = 1.2; g.beginPath(); g.moveTo(e.x - 1.8 * w, e.y); g.lineTo(e.x + 1.8 * w, e.y); g.stroke(); }
+        if (eyeMode) { // uyku: asagi kavis, mutlu: yukari kavis (^ ^)
+          g.strokeStyle = '#2a2328'; g.lineWidth = 1.1; g.lineCap = 'round';
+          g.beginPath();
+          if (eyeMode === 'closed') g.arc(e.x, e.y - 0.8, 1.9 * w, 0.15 * Math.PI, 0.85 * Math.PI);
+          else g.arc(e.x, e.y + 1, 1.9 * w, 1.15 * Math.PI, 1.85 * Math.PI);
+          g.stroke();
+        } else if (blink) { g.strokeStyle = '#2a2328'; g.lineWidth = 1.2; g.beginPath(); g.moveTo(e.x - 1.8 * w, e.y); g.lineTo(e.x + 1.8 * w, e.y); g.stroke(); }
         else {
-          ell(g, e.x, e.y, 2.1 * w, 2.5, 0, c.eyes[i]);
-          ell(g, e.x + sa * 0.6, e.y, 0.8 * w, 2, 0, '#1d1a1f');
-          dot(g, e.x - 0.6 * w, e.y - 1, 0.55, 'rgba(255,255,255,0.9)');
+          const es = mood && mood.big ? 1.3 : 1; // yakin planda iri, sevimli gozler
+          ell(g, e.x, e.y, 2.1 * w * es, 2.5 * es, 0, c.eyes[i]);
+          ell(g, e.x + sa * 0.6, e.y, 0.8 * w * es * (mood && mood.wide ? 1.5 : 1), 2 * es, 0, '#1d1a1f');
+          dot(g, e.x - 0.6 * w * es, e.y - 1 * es, 0.55 * es, 'rgba(255,255,255,0.9)');
+          if (es > 1) dot(g, e.x + 0.7 * w, e.y + 0.9, 0.3, 'rgba(255,255,255,0.75)');
         }
         g.globalAlpha = 1;
       });
@@ -2302,15 +2447,23 @@
     }
 
     const sy = H * 0.82 + bgOff * 0.12;
-    if (sy < H + 5) {
+    if (sy < H + 5 && save.theme === 'istanbul') drawIstanbul(sy);
+    else if (sy < H + 5) {
       ctx.fillStyle = P.city;
       for (const b of SKYLINE) ctx.fillRect(b.x, sy - b.h, b.w, b.h + H);
+      if (save.theme === 'kis') { ctx.fillStyle = 'rgba(255,255,255,0.85)'; for (const b of SKYLINE) rr(ctx, b.x - 1, sy - b.h - 2, b.w + 2, 5, 2.5), ctx.fill(); }
       ctx.fillStyle = `rgba(${P.winA},0.45)`;
       for (const b of SKYLINE) for (const [lx, ly] of b.lights) ctx.fillRect(b.x + lx, sy - b.h + ly, 3, 4);
     }
   }
 
+  function archWin(g, x, y, w, h) { // ust kismi kemerli pencere (Istanbul temasi)
+    const r = w / 2;
+    g.beginPath(); g.moveTo(x, y + h); g.lineTo(x, y + r); g.arc(x + r, y + r, r, Math.PI, 0); g.lineTo(x + w, y + h); g.closePath();
+  }
   function drawWalls() {
+    const ist = save.theme === 'istanbul', kis = save.theme === 'kis';
+    const win = ist ? (g, x, y, w, h) => archWin(g, x, y, w, h) : (g, x, y, w, h, r) => rr(g, x, y, w, h, r);
     const step = 170;
     for (const side of [0, 1]) {
       const x = side === 0 ? 0 : W - WALL;
@@ -2333,21 +2486,28 @@
           ctx.fillRect(wx - 24, y - 16, 64, 62);
         }
         ctx.fillStyle = P.mark;
-        rr(ctx, wx - 2, y - 2, WALL - 8, 34, 5); ctx.fill();
+        win(ctx, wx - 2, y - 2, WALL - 8, 34, 5); ctx.fill();
         if (night) {
           ctx.fillStyle = lit ? `rgba(${P.winA},0.65)` : shadeA(P.wallA, -0.25);
-          rr(ctx, wx, y, WALL - 12, 30, 4); ctx.fill();
+          win(ctx, wx, y, WALL - 12, 30, 4); ctx.fill();
         } else { // gunduz: gokyuzunu yansitan cam
           const gg = ctx.createLinearGradient(0, y, 0, y + 30);
           gg.addColorStop(0, P.win); gg.addColorStop(1, shadeA(P.winA, -0.18));
-          ctx.fillStyle = gg; rr(ctx, wx, y, WALL - 12, 30, 4); ctx.fill();
+          ctx.fillStyle = gg; win(ctx, wx, y, WALL - 12, 30, 4); ctx.fill();
           ctx.fillStyle = 'rgba(255,255,255,0.55)';
           ctx.beginPath(); ctx.moveTo(wx + 3, y + 22); ctx.lineTo(wx + 9, y + 4); ctx.lineTo(wx + 12, y + 4); ctx.lineTo(wx + 6, y + 22); ctx.closePath(); ctx.fill();
         }
         if (lit) { ctx.fillStyle = 'rgba(255,255,255,0.14)'; rr(ctx, wx + 2, y + 2, 5, 26, 2.5); ctx.fill(); }
         ctx.fillStyle = P.edge;
         rr(ctx, wx - 3, y + 31, WALL - 6, 3.5, 1.75); ctx.fill();
-        if (hsh === 1 || hsh === 4) { // pencere onunde cicek saksisi (susleme, tehlikeli degil)
+        if (ist) { // mavi cini seridi
+          const ty = y + 58;
+          ctx.fillStyle = 'rgba(255,255,255,0.75)'; ctx.fillRect(x + 1, ty, WALL - 2, 9);
+          for (let i = 0; i < 3; i++) { const cx = x + 4 + i * ((WALL - 8) / 2); dot(ctx, cx, ty + 4.5, 2.6, '#4f7fbf'); dot(ctx, cx, ty + 4.5, 1, '#d9534f'); }
+        }
+        if (kis) { ctx.fillStyle = 'rgba(235,245,255,0.9)'; for (let i = 0; i < 4; i++) { const ix = wx - 1 + i * ((WALL - 8) / 3); ctx.beginPath(); ctx.moveTo(ix - 1.5, y + 34.5); ctx.lineTo(ix, y + 39 + (i % 2) * 3); ctx.lineTo(ix + 1.5, y + 34.5); ctx.closePath(); ctx.fill(); } }
+        if (save.theme === 'kis') { ctx.fillStyle = 'rgba(255,255,255,0.92)'; rr(ctx, wx - 4, y + 28.5, WALL - 4, 4, 2); ctx.fill(); rr(ctx, wx - 3, y - 4, WALL - 6, 3, 1.5); ctx.fill(); }
+        if (hsh === 1 || hsh === 4 || (save.theme === 'ilkbahar' && hsh === 2)) { // pencere onunde cicek saksisi (susleme, tehlikeli degil)
           ctx.fillStyle = '#c8724f'; rr(ctx, wx - 2, y + 34, WALL - 8, 6, 2); ctx.fill();
           for (let i = 0; i < 3; i++) {
             const fx = wx + 2 + i * 6, fy = y + 31 - (i % 2) * 2;
@@ -2942,6 +3102,11 @@
     L.runs++; L.near += stats.near; L.dogs += stats.dogs; L.fish += stats.fish;
     L.maxM = Math.max(L.maxM, meters());
     persist('life');
+    if (stats.fish > 0 && petHappy()) { // bakimli, mutlu kedi: %10 fazla balik
+      const bonus = Math.ceil(stats.fish * 0.1);
+      save.wallet += bonus; persist('wallet');
+      showNote('Mutlu kedi bonusu 😺', `+${bonus} balık`);
+    }
   }
   function checkAchievements() {
     let got = false;
@@ -2989,14 +3154,245 @@
   const EVFX = Array.from({ length: 22 }, () => ({ x: rand(0, W), y: rand(0, 900), s: rand(0.7, 1.3), ph: rand(0, 6.28), c: Math.floor(rand(0, 3)) }));
   function drawSeason() {
     const ev = currentEvent();
-    if (!ev) return;
-    const LEAF = ['#e8915a', '#d9663f', '#e9b44c'];
+    const fx = theme().fx || (ev && ev.fx);
+    if (!fx) return;
+    const LEAF = ['#e8915a', '#d9663f', '#e9b44c'], PETAL = ['#f6b8c8', '#fbd3dd', '#ffffff'], WING = ['#f6c35b', '#9cc3e6', '#f2a6b8'];
+    if (fx === 'gulls' || fx === 'bfly') { // yavas suzulen martilar / kelebekler (az sayida, sakin)
+      for (let i = 0; i < 5; i++) {
+        const p = EVFX[i];
+        const x = ((p.x + clock * (fx === 'gulls' ? 14 : 9) * p.s) % (W + 60)) - 30;
+        const y = (p.y % (H * 0.55)) + 40 + Math.sin(clock * 0.7 + p.ph) * 10;
+        if (fx === 'gulls') {
+          const f = Math.sin(clock * 3 + p.ph) * 2.2;
+          ctx.strokeStyle = 'rgba(70,70,95,0.55)'; ctx.lineWidth = 1.4; ctx.lineCap = 'round';
+          ctx.beginPath(); ctx.moveTo(x - 7 * p.s, y - f); ctx.quadraticCurveTo(x - 3 * p.s, y - 4, x, y); ctx.quadraticCurveTo(x + 3 * p.s, y - 4, x + 7 * p.s, y - f); ctx.stroke();
+        } else {
+          const f = Math.abs(Math.sin(clock * 6 + p.ph));
+          ell(ctx, x - 2.4 * f, y, 2.6 * f + 0.4, 3, 0, WING[p.c]); ell(ctx, x + 2.4 * f, y, 2.6 * f + 0.4, 3, 0, WING[p.c]);
+          ell(ctx, x, y, 0.7, 2.4, 0, '#5a4a4a');
+        }
+      }
+      return;
+    }
     for (const p of EVFX) {
       const y = (p.y + clock * 22 * p.s + bgOff * 0.05) % (H + 30) - 15;
       const x = p.x + Math.sin(clock * 0.8 + p.ph) * 14;
-      if (ev.fx === 'snow') dot(ctx, x, y, 1.6 * p.s, 'rgba(255,255,255,0.85)');
-      else { ctx.save(); ctx.translate(x, y); ctx.rotate(Math.sin(clock * 1.3 + p.ph) * 0.8); ell(ctx, 0, 0, 3.4 * p.s, 1.8 * p.s, 0, LEAF[p.c]); ctx.restore(); }
+      if (fx === 'snow') dot(ctx, x, y, 1.6 * p.s, 'rgba(255,255,255,0.85)');
+      else { ctx.save(); ctx.translate(x, y); ctx.rotate(Math.sin(clock * 1.3 + p.ph) * 0.8); ell(ctx, 0, 0, 3.4 * p.s, (fx === 'petals' ? 2.3 : 1.8) * p.s, 0, (fx === 'petals' ? PETAL : LEAF)[p.c]); ctx.restore(); }
     }
+  }
+
+  // ================= Kedi bakimi: besle, yika, sev, oyna, uyut =================
+  // Gostergeler gercek zamanla azalir (oyun kapaliyken de). Saat: kac saatte 100'den 0'a iner.
+  const PET_HOURS = { food: 10, clean: 18, fun: 8, energy: 14 };
+  const PET_ICON = { food: '🍗', clean: '🛁', fun: '🧶', energy: '💤' };
+  const pet = { tool: '', px: 150, py: 120, down: false, foam: [], drops: [], hearts: [], zz: [], sparkles: [],
+    mouth: 0, eatT: 0, flyT: -1, rubT: 0, purr: 0, saveT: 0, sayT: 0, say: '', paw: 0, lastMove: 0, dirtFade: 0 };
+  const DIRT = [[-5, 4, 3.2], [6, 10, 2.6], [-3, 15, 2.8], [4, -10, 2.2], [-6, -4, 2.4], [3, 3, 2]];
+  const snd = (fn) => { if (!save.sound || DEMO) return; try { if (ac()) fn(); } catch { /* ses yok */ } };
+  function petTick(force) {
+    const p = save.pet, now = Date.now();
+    const dt = Math.min(7 * 86400, Math.max(0, (now - p.t) / 1000));
+    if (dt < 1 && !force) return;
+    p.t = now;
+    for (const k of ['food', 'clean', 'fun']) p[k] = Math.max(0, p[k] - (dt * 100) / (PET_HOURS[k] * 3600));
+    if (p.sleep) p.energy = Math.min(100, p.energy + (dt * 100) / (1.5 * 3600));
+    else p.energy = Math.max(0, p.energy - (dt * 100) / (PET_HOURS.energy * 3600));
+    persist('pet');
+  }
+  const petHappy = () => { petTick(); const p = save.pet; return p.food >= 50 && p.clean >= 50 && p.fun >= 50 && p.energy >= 30; };
+  function petAdd(k, v) { save.pet[k] = Math.max(0, Math.min(100, save.pet[k] + v)); }
+  function petSay(text, sec = 1.8) { pet.say = text; pet.sayT = sec; }
+  function petBars() {
+    const p = save.pet;
+    for (const k of ['food', 'clean', 'fun', 'energy']) {
+      const el = $('pet_' + k);
+      if (!el) continue;
+      el.style.width = Math.round(p[k]) + '%';
+      el.classList.toggle('low', p[k] < 30);
+    }
+    $('petMood').textContent = petHappy() ? '😺 Kedin çok mutlu: oyunda %10 fazla balık!' : '😿 Kedinin bakıma ihtiyacı var';
+    document.querySelectorAll('[data-pet]').forEach((b) => b.classList.toggle('on', b.dataset.pet === pet.tool || (b.dataset.pet === 'sleep' && p.sleep)));
+  }
+  // mirlama: kedi sevilirken dongude calar, sesi yavasca acilip kapanir
+  let purrSrc = null, purrGain = null;
+  function purrSet(on) {
+    if (!save.sound || DEMO || !audio.ctx || !samples.mirlama) return;
+    const c = audio.ctx;
+    if (on && !purrSrc) {
+      purrSrc = c.createBufferSource(); purrSrc.buffer = samples.mirlama; purrSrc.loop = true;
+      purrGain = c.createGain(); purrGain.gain.setValueAtTime(0.0001, c.currentTime);
+      purrGain.gain.exponentialRampToValueAtTime(0.7, c.currentTime + 0.4);
+      purrSrc.connect(purrGain).connect(audio.sfx); purrSrc.start();
+    } else if (!on && purrSrc) {
+      purrGain.gain.setValueAtTime(Math.max(0.0001, purrGain.gain.value), c.currentTime);
+      purrGain.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + 0.5);
+      purrSrc.stop(c.currentTime + 0.55); purrSrc = null;
+    }
+  }
+  function petTool(tool) {
+    petTick(true);
+    const p = save.pet;
+    if (tool === 'sleep') {
+      p.sleep = !p.sleep; pet.tool = '';
+      persist('pet'); sfx('ui');
+      petSay(p.sleep ? 'İyi geceler...' : 'Günaydın!');
+      if (!p.sleep) sfx('meowHappy');
+      petBars();
+      return;
+    }
+    if (p.sleep) { petSay('Şşş... uyuyor. Önce lambayı aç.'); sfx('nope'); return; }
+    if (tool === 'feed') {
+      if (p.food >= 95) { petSay('Tokum, teşekkürler!'); sfx('meowShort'); return; }
+      if (save.wallet < 2) { petSay('Mama için 2 balık lazım'); sfx('nope'); return; }
+      save.wallet -= 2; persist('wallet'); $('wallet5').textContent = save.wallet;
+      pet.flyT = 0; pet.tool = '';
+      petBars();
+      return;
+    }
+    if (tool === 'play' && p.energy < 15) { petSay('Çok yorgunum... biraz uyuyayım mı?'); sfx('meowSad'); return; }
+    pet.tool = pet.tool === tool ? '' : tool;
+    if (pet.tool === 'wash') { pet.foam = []; pet.dirtFade = 0; petSay('Süngerle kedini köpürt!'); }
+    if (pet.tool === 'pet') petSay('Başını ve sırtını okşa');
+    if (pet.tool === 'play') petSay('Tüyü parmağınla gezdir');
+    sfx('click');
+    petBars();
+  }
+  // kedi uzerinde mi? (oda koordinatlari: kedi merkezi 150,228; olcek 3.4)
+  const CAT_X = 150, CAT_Y = 228, CAT_S = 3.4;
+  function onCat(x, y) {
+    const hx = (x - CAT_X) / CAT_S, hy = (y - CAT_Y) / CAT_S;
+    return Math.hypot(hx, hy + 6) < 10 || Math.hypot(hx / 1.05, (hy - 8) / 1.1) < 10;
+  }
+  function petPointer(kind, e) {
+    const cv = $('houseCv'), r = cv.getBoundingClientRect();
+    if (!r.width) return;
+    const x = ((e.clientX - r.left) * 300) / r.width, y = ((e.clientY - r.top) * 300) / r.height;
+    const moved = Math.hypot(x - pet.px, y - pet.py);
+    pet.px = x; pet.py = y;
+    if (kind === 'down') { pet.down = true; if (save.sound || save.music) ac(); }
+    if (kind === 'up') { pet.down = false; purrSet(false); return; }
+    if (!pet.down && kind !== 'down') return;
+    const p = save.pet;
+    if (!pet.tool && kind === 'down' && onCat(x, y) && !p.sleep) { sfx('meowShort'); pet.mouth = 1; pet.hearts.push({ x, y, t: 0 }); return; }
+    if (pet.tool === 'wash' && onCat(x, y) && moved > 1.5) {
+      if (pet.foam.length < 40 && Math.random() < 0.6) pet.foam.push({ x: x + rand(-6, 6), y: y + rand(-6, 6), r: rand(3, 6.5), t: 0 });
+      pet.dirtFade = Math.min(1, pet.dirtFade + 0.012);
+      if (Math.random() < 0.25) snd(() => hiss(0.08, { freq: 3200, q: 0.8, vol: 0.02 }));
+      if (pet.foam.length >= 28 && pet.tool === 'wash') { pet.tool = 'rinse'; petSay('Harika! Şimdi duşla durula 🚿'); snd(() => bell(1568, 0.2, 0.04)); petBars(); }
+    } else if (pet.tool === 'rinse' && moved > 1) {
+      for (let i = 0; i < 2; i++) pet.drops.push({ x: x + rand(-8, 8), y: y + rand(-4, 4), vy: rand(80, 140), t: 0 });
+      if (Math.random() < 0.3) snd(() => hiss(0.1, { freq: 1800, q: 0.5, vol: 0.03 }));
+      pet.foam = pet.foam.filter((f) => Math.hypot(f.x - x, f.y - y) > 14);
+      if (!pet.foam.length) {
+        p.clean = 100; pet.tool = ''; pet.dirtFade = 0; persist('pet');
+        for (let i = 0; i < 10; i++) pet.sparkles.push({ x: CAT_X + rand(-40, 40), y: CAT_Y + rand(-60, 60), t: rand(-0.3, 0) });
+        petSay('Pırıl pırıl oldum!'); sfx('meowHappy'); sfx('power'); petBars();
+      }
+    } else if (pet.tool === 'pet' && onCat(x, y) && moved > 0.8) {
+      pet.rubT = 0.5; petAdd('fun', 0.12);
+      purrSet(true);
+      if (Math.random() < 0.05) pet.hearts.push({ x, y: y - 6, t: 0 });
+    } else if (pet.tool === 'play' && moved > 1) {
+      pet.lastMove = clock;
+      petAdd('fun', 0.18); petAdd('energy', -0.04);
+      if (Math.hypot(x - CAT_X, y - (CAT_Y - 30)) < 45 && pet.paw <= 0) { pet.paw = 1; toySound('catch'); if (Math.random() < 0.35) pet.hearts.push({ x, y, t: 0 }); }
+      else toySound('move');
+    }
+  }
+  function updatePet(dt) {
+    if (state !== 'house') { if (purrSrc) purrSet(false); return; }
+    const p = save.pet;
+    pet.saveT += dt;
+    if (pet.saveT > 2) { pet.saveT = 0; petTick(); petBars(); }
+    pet.mouth = Math.max(0, pet.mouth - dt * 2.5);
+    pet.sayT = Math.max(0, pet.sayT - dt);
+    pet.paw = Math.max(0, pet.paw - dt * 3);
+    if (pet.rubT > 0) { pet.rubT -= dt; if (pet.rubT <= 0) purrSet(false); }
+    if (pet.flyT >= 0) { // balik kaptan agza ucar, sonra 3 kez cignenir
+      pet.flyT += dt;
+      if (pet.flyT > 0.55 && pet.eatT <= 0) { pet.eatT = 1.2; sfx('coin'); }
+      if (pet.flyT > 0.55) pet.flyT = -1;
+    }
+    if (pet.eatT > 0) {
+      pet.eatT -= dt;
+      pet.mouth = Math.abs(Math.sin(pet.eatT * 8));
+      if (pet.eatT <= 0) { petAdd('food', 30); persist('pet'); pet.hearts.push({ x: CAT_X + 20, y: CAT_Y - 50, t: 0 }); sfx('meowHappy'); petSay('Nefis!'); petBars(); }
+    }
+    for (const f of pet.foam) f.t += dt;
+    for (const d of pet.drops) { d.t += dt; d.y += d.vy * dt; }
+    pet.drops = pet.drops.filter((d) => d.t < 0.5);
+    for (const h of pet.hearts) { h.t += dt; h.y -= 22 * dt; }
+    pet.hearts = pet.hearts.filter((h) => h.t < 1.2);
+    for (const s of pet.sparkles) s.t += dt;
+    pet.sparkles = pet.sparkles.filter((s) => s.t < 1);
+    if (p.sleep && Math.random() < dt * 0.8) pet.zz.push({ x: CAT_X + 18, y: CAT_Y - 52, t: 0 });
+    for (const z of pet.zz) { z.t += dt; z.y -= 12 * dt; z.x += 6 * dt; }
+    pet.zz = pet.zz.filter((z) => z.t < 2.4);
+  }
+  function drawPet(g) {
+    const p = save.pet, c = CAT_BY_ID[save.char];
+    // kedi nereye bakar: oyunda tuye, digerlerinde hafifce salinir
+    let ang = -0.2 + Math.sin(clock * 0.45) * 0.25;
+    if (pet.tool === 'play') ang = Math.max(-0.9, Math.min(0.9, -(pet.px - CAT_X) / 120));
+    if (p.sleep || pet.tool === 'wash' || pet.tool === 'rinse' || pet.rubT > 0 || pet.eatT > 0) ang = -0.12;
+    const mood = { eyes: p.sleep ? 'closed' : pet.rubT > 0 || pet.tool === 'rinse' ? 'happy' : pet.tool === 'wash' ? 'closed' : '', mouth: pet.mouth, big: true, wide: pet.tool === 'play' };
+    const hop = pet.tool === 'play' && clock - pet.lastMove < 0.4 ? Math.abs(Math.sin(clock * 6)) * 0.35 : 0;
+    g.save(); g.translate(CAT_X, CAT_Y); g.scale(CAT_S, CAT_S);
+    if (p.sleep) { g.translate(0, 2); g.scale(1, 0.97 + Math.sin(clock * 1.6) * 0.02); }
+    drawCat3D(g, c, ang, clock, save.wardrobe, hop, pet.paw, mood);
+    // kir lekeleri (temizlik dustukce artar)
+    const n = Math.round((100 - p.clean) / 17);
+    for (let i = 0; i < Math.min(n, DIRT.length); i++) {
+      const [dx, dy, r] = DIRT[i];
+      g.globalAlpha = 0.38 * (1 - pet.dirtFade);
+      ell(g, dx, dy, r, r * 0.75, i, '#7a5a3a');
+    }
+    g.globalAlpha = 1;
+    g.restore();
+    // kopukler, damlalar, kalpler, pirilti, Zzz
+    for (const f of pet.foam) { const s = Math.min(1, f.t * 6); dot(g, f.x, f.y, f.r * s, 'rgba(255,255,255,0.92)'); dot(g, f.x - f.r * 0.3, f.y - f.r * 0.3, f.r * 0.3 * s, 'rgba(190,220,255,0.9)'); }
+    for (const d of pet.drops) ell(g, d.x, d.y, 1.3, 3, 0, `rgba(120,180,240,${1 - d.t * 2})`);
+    for (const h of pet.hearts) { g.globalAlpha = 1 - h.t / 1.2; g.font = '14px sans-serif'; g.textAlign = 'center'; g.fillText('💗', h.x, h.y); }
+    for (const s of pet.sparkles) if (s.t > 0) { g.globalAlpha = 1 - s.t; g.font = '12px sans-serif'; g.textAlign = 'center'; g.fillText('✨', s.x, s.y); }
+    g.globalAlpha = 1;
+    if (p.sleep) {
+      g.fillStyle = 'rgba(30,30,70,0.45)'; g.fillRect(0, 0, 300, 300);
+      g.fillStyle = '#ffffff'; g.textAlign = 'center';
+      for (const z of pet.zz) { g.globalAlpha = Math.max(0, 1 - z.t / 2.4); g.font = `800 ${10 + z.t * 4}px ${FONT}`; g.fillText('z', z.x, z.y); }
+      g.globalAlpha = 1;
+    }
+    // ucan balik (besleme)
+    if (pet.flyT >= 0) {
+      const k = Math.min(1, pet.flyT / 0.55), x = lerp(60, CAT_X, k), y = lerp(250, CAT_Y - 20, k) - Math.sin(k * Math.PI) * 50;
+      g.save(); g.translate(x, y); g.scale(1.6, 1.6); drawFish(g, 0, 0, 1, false); g.restore();
+    }
+    // oyun tuyu parmagi izler
+    if (pet.tool === 'play') {
+      g.strokeStyle = 'rgba(80,70,90,0.5)'; g.lineWidth = 1; g.beginPath(); g.moveTo(pet.px, 0); g.lineTo(pet.px, pet.py); g.stroke();
+      ell(g, pet.px, pet.py + 6, 3, 9, Math.sin(clock * 5) * 0.4, '#f2a6b8'); ell(g, pet.px + 3, pet.py + 8, 2.4, 7, 0.5 + Math.sin(clock * 5) * 0.4, '#9cc3e6');
+    }
+    // sunger / dus imleci
+    if ((pet.tool === 'wash' || pet.tool === 'rinse') && pet.down) { g.font = '22px sans-serif'; g.textAlign = 'center'; g.fillText(pet.tool === 'wash' ? '🧽' : '🚿', pet.px, pet.py - 10); }
+    // dusunce balonu: en cok neye ihtiyaci var
+    const need = p.sleep ? '' : ['food', 'clean', 'fun', 'energy'].filter((k) => p[k] < 30).sort((a, b) => p[a] - p[b])[0];
+    const text = pet.sayT > 0 ? pet.say : '';
+    if (text) {
+      g.font = `700 11px ${FONT}`; const w = Math.min(200, g.measureText(text).width + 18);
+      g.fillStyle = 'rgba(255,255,255,0.95)'; rr(g, 150 - w / 2, 120, w, 24, 12); g.fill();
+      g.fillStyle = '#3b3552'; g.textAlign = 'center'; g.fillText(text, 150, 136);
+    } else if (need) {
+      const by = 140 + Math.sin(clock * 2) * 2;
+      dot(g, 196, by, 15, 'rgba(255,255,255,0.95)'); dot(g, 182, by + 18, 4, 'rgba(255,255,255,0.95)'); dot(g, 176, by + 25, 2.4, 'rgba(255,255,255,0.95)');
+      g.font = '15px sans-serif'; g.textAlign = 'center'; g.fillText(PET_ICON[need], 196, by + 5);
+    }
+  }
+  const houseCvEl = $('houseCv');
+  if (houseCvEl && houseCvEl.addEventListener) {
+    houseCvEl.addEventListener('pointerdown', (e) => { if (houseCvEl.setPointerCapture) try { houseCvEl.setPointerCapture(e.pointerId); } catch { /* yoksay */ } petPointer('down', e); });
+    houseCvEl.addEventListener('pointermove', (e) => petPointer('move', e));
+    houseCvEl.addEventListener('pointerup', (e) => petPointer('up', e));
+    houseCvEl.addEventListener('pointercancel', (e) => petPointer('up', e));
   }
 
   // ================= Kedi evi =================
@@ -3012,9 +3408,9 @@
     const wg = g.createLinearGradient(0, 0, 0, 160); wg.addColorStop(0, '#fbe7d6'); wg.addColorStop(1, '#f6d5bd');
     g.fillStyle = wg; g.fillRect(0, 0, 300, 160);
     g.fillStyle = 'rgba(255,255,255,0.35)'; for (let x = 12; x < 300; x += 24) g.fillRect(x, 0, 2, 160);
-    const fg = g.createLinearGradient(0, 160, 0, 230); fg.addColorStop(0, '#d9a77a'); fg.addColorStop(1, '#c58f62');
-    g.fillStyle = fg; g.fillRect(0, 160, 300, 70);
-    g.strokeStyle = 'rgba(120,70,40,0.18)'; g.lineWidth = 1; for (let y = 172; y < 230; y += 14) { g.beginPath(); g.moveTo(0, y); g.lineTo(300, y); g.stroke(); }
+    const fg = g.createLinearGradient(0, 160, 0, 300); fg.addColorStop(0, '#d9a77a'); fg.addColorStop(1, '#c58f62');
+    g.fillStyle = fg; g.fillRect(0, 160, 300, 140);
+    g.strokeStyle = 'rgba(120,70,40,0.18)'; g.lineWidth = 1; for (let y = 172; y < 300; y += 14) { g.beginPath(); g.moveTo(0, y); g.lineTo(300, y); g.stroke(); }
     g.fillStyle = '#e9c4a4'; g.fillRect(0, 156, 300, 6);
     // pencere
     const sk = g.createLinearGradient(0, 30, 0, 110); sk.addColorStop(0, '#8ec5ea'); sk.addColorStop(1, '#fde2c8');
@@ -3031,6 +3427,7 @@
       if (pl.tablo === 'tablo_ay') { dot(g, 140, 56, 8, '#fff3d0'); dot(g, 144, 53, 7, '#34406b'); for (const [sx, sy] of [[112, 50], [124, 72], [150, 76]]) dot(g, sx, sy, 1.3, '#fff3d0'); }
       else { g.save(); g.translate(131, 64); g.scale(2.2, 2.2); drawFish(g, 0, 0, 1, false); g.restore(); }
     }
+    g.save(); g.translate(0, 50); // zemindeki esyalar kedinin arkasinda, biraz asagida
     // hali
     if (pl.hali === 'hali_pembe') { ell(g, 150, 200, 78, 16, 0, '#f2a6b8'); ell(g, 150, 200, 60, 11, 0, '#f6c3cf'); }
     if (pl.hali === 'hali_cizgi') { g.fillStyle = '#9cc3e6'; rr(g, 70, 186, 160, 28, 6); g.fill(); g.fillStyle = '#ffffff'; for (let x = 82; x < 222; x += 20) g.fillRect(x, 186, 8, 28); }
@@ -3058,13 +3455,11 @@
       if (gold) { g.save(); g.translate(112, 201); g.scale(0.9, 0.9); drawFish(g, 0, 0, 1, false); g.restore(); }
       else for (let i = 0; i < 6; i++) dot(g, 104 + i * 3, 203 - (i % 2), 1.6, '#b57a46');
     }
-    // kedi (3B, odanin ortasinda oturur)
-    g.save();
-    g.translate(150, 168); g.scale(2.6, 2.6);
-    drawCat3D(g, CAT_BY_ID[save.char], -0.45 + Math.sin(clock * 0.5) * 0.35, clock, save.wardrobe, 0, 0);
     g.restore();
+    drawPet(g); // kedi ve bakim etkilesimleri
   }
   function renderHouse() {
+    petTick(true); petBars();
     $('wallet5').textContent = save.wallet;
     const H2 = save.house;
     $('houseList').innerHTML = Object.keys(HOUSE_SLOTS).map((slot) => {
@@ -3089,46 +3484,95 @@
   }
 
   // ================= Fotograf modu: giydirdigin kedinin fotografini cek, paylas =================
-  let photoBlob = null;
-  function makePhoto() {
+  // kind: 'cat' (kedinin fotografi) | 'challenge' (rekor karti: "Beni gecebilir misin?")
+  const SITE_URL = 'https://burak-eng.github.io/patikat/';
+  let photoUrl = '', shareText = '', shareLink = '', lastRunM = 0;
+  function makePhoto(kind = 'cat') {
+    const ch = kind === 'challenge', m = ch ? lastRunM : 0;
     const cv = document.createElement('canvas');
     cv.width = 1080; cv.height = 1350;
     const g = cv.getContext('2d');
     const bg = g.createLinearGradient(0, 0, 0, 1350);
-    bg.addColorStop(0, '#ffe3d3'); bg.addColorStop(0.6, '#fdf1e4'); bg.addColorStop(1, '#dfeaff');
+    if (ch) { bg.addColorStop(0, '#ffc9b0'); bg.addColorStop(0.55, '#ffe9d6'); bg.addColorStop(1, '#cfe0ff'); }
+    else { bg.addColorStop(0, '#ffe3d3'); bg.addColorStop(0.6, '#fdf1e4'); bg.addColorStop(1, '#dfeaff'); }
     g.fillStyle = bg; g.fillRect(0, 0, 1080, 1350);
     g.globalAlpha = 0.12;
     for (let i = 0; i < 14; i++) { g.save(); g.translate(80 + (i * 173) % 980, 120 + ((i * 271) % 1100)); g.rotate(i); g.scale(6, 6); drawPaw(g, 0, 0, '#c4537a'); g.restore(); }
     g.globalAlpha = 1;
-    const halo = g.createRadialGradient(540, 700, 40, 540, 700, 470);
+    const cy = ch ? 820 : 720;
+    const halo = g.createRadialGradient(540, cy, 40, 540, cy, 470);
     halo.addColorStop(0, 'rgba(255,214,190,0.9)'); halo.addColorStop(1, 'rgba(255,214,190,0)');
-    g.fillStyle = halo; g.fillRect(0, 200, 1080, 1000);
-    g.save(); g.translate(540, 720); g.scale(15, 15);
-    drawCat3D(g, CAT_BY_ID[save.char], state === 'chars' ? pv.ang : -0.4, clock, save.wardrobe, 0, 0);
+    g.fillStyle = halo; g.fillRect(0, cy - 500, 1080, 1000);
+    g.save(); g.translate(540, cy); g.scale(ch ? 12 : 15, ch ? 12 : 15);
+    drawCat3D(g, CAT_BY_ID[save.char], state === 'chars' ? pv.ang : -0.4, clock, save.wardrobe, 0, 0, ch ? { eyes: 'happy', mouth: 0.6, big: true } : { big: true });
     g.restore();
     g.textAlign = 'center';
     g.fillStyle = '#ff8f70'; g.font = '900 120px ' + FONT; g.fillText('Patikat', 540, 170);
-    g.fillStyle = '#3b3552'; g.font = '800 70px ' + FONT; g.fillText(CAT_BY_ID[save.char].name, 540, 1150);
-    g.fillStyle = '#7a7391'; g.font = '600 40px ' + FONT; g.fillText('duvardan duvara, kat kat yukarı', 540, 1225);
-    const url = cv.toDataURL('image/png');
-    $('photoImg').src = url;
-    photoBlob = null;
-    if (cv.toBlob) cv.toBlob((b) => { photoBlob = b; }, 'image/png');
-    $('photoShare').classList.toggle('hidden', !(navigator.share && navigator.canShare));
-    $('photoSave').href = url;
+    if (ch) {
+      g.fillStyle = '#3b3552'; g.font = '900 150px ' + FONT; g.fillText(m + ' m', 540, 360);
+      g.font = '800 64px ' + FONT; g.fillText('Beni geçebilir misin?', 540, 460);
+      g.fillStyle = '#7a7391'; g.font = '700 44px ' + FONT; g.fillText(CAT_BY_ID[save.char].name + ' ile tırmandım', 540, 1170);
+      g.fillStyle = '#ff8f70'; g.font = '800 40px ' + FONT; g.fillText(SITE_URL.replace('https://', ''), 540, 1250);
+      shareLink = SITE_URL + '?vs=' + m;
+      shareText = 'Patikat\'ta ' + m + ' metre tırmandım! 🐾 Beni geçebilir misin? ' + shareLink;
+    } else {
+      g.fillStyle = '#3b3552'; g.font = '800 70px ' + FONT; g.fillText(CAT_BY_ID[save.char].name, 540, 1150);
+      g.fillStyle = '#7a7391'; g.font = '600 40px ' + FONT; g.fillText('duvardan duvara, kat kat yukarı', 540, 1225);
+      shareLink = SITE_URL;
+      shareText = 'Kedim ' + CAT_BY_ID[save.char].name + ' 🐾 #Patikat ' + SITE_URL;
+    }
+    photoUrl = cv.toDataURL('image/png');
+    $('photoImg').src = photoUrl;
+    $('photoTitle').textContent = ch ? 'Meydan oku!' : 'Kedinin fotoğrafı';
+    $('photoBack').dataset.act = ch ? 'menu' : 'chars';
+    $('photoBack').textContent = ch ? 'Ana sayfa' : 'Geri';
+    $('photoShare').classList.toggle('hidden', !(capPlugin('Share') || navigator.share));
+    $('photoSave').href = photoUrl;
     sfx('click');
     showScreen('photo');
   }
   async function sharePhoto() {
     try {
-      if (!photoBlob) return;
-      const file = new File([photoBlob], 'patikat-kedim.png', { type: 'image/png' });
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({ files: [file], title: 'Patikat', text: `Kedim ${CAT_BY_ID[save.char].name} 🐾 #Patikat` });
+      const Sh = capPlugin('Share'), Fs = capPlugin('Filesystem');
+      if (Sh && Fs) { // APK: resmi onbellege yaz, sistemin paylas penceresini ac
+        const w = await Fs.writeFile({ path: 'patikat-paylas.png', data: photoUrl.split(',')[1], directory: 'CACHE' });
+        await Sh.share({ title: 'Patikat', text: shareText, files: [w.uri], dialogTitle: 'Paylaş' });
+        return;
+      }
+      if (navigator.share) {
+        const blob = await (await fetch(photoUrl)).blob();
+        const file = new File([blob], 'patikat.png', { type: 'image/png' });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) await navigator.share({ files: [file], title: 'Patikat', text: shareText });
+        else await navigator.share({ title: 'Patikat', text: shareText, url: shareLink });
       }
     } catch { /* kullanici vazgecti */ }
   }
 
+  // ================= Bildirimler (yalnizca APK): kedin acikti, gunluk odul, ozledim =================
+  async function scheduleReminders() {
+    const LN = capPlugin('LocalNotifications');
+    if (!LN || !save.notify) return;
+    try {
+      await LN.cancel({ notifications: [{ id: 1 }, { id: 2 }, { id: 3 }] });
+      petTick(true);
+      const name = CAT_BY_ID[save.char].name, now = Date.now();
+      const hungrySec = Math.max(1800, ((save.pet.food - 25) * PET_HOURS.food * 3600) / 100);
+      const noon = new Date(); noon.setDate(noon.getDate() + 1); noon.setHours(12, 0, 0, 0);
+      await LN.schedule({ notifications: [
+        { id: 1, title: name + ' acıktı 🐟', body: 'Mama kabı boş kaldı. Gelip besler misin?', schedule: { at: new Date(now + hungrySec * 1000), allowWhileIdle: true } },
+        { id: 2, title: 'Günlük ödülün hazır 🎁', body: 'Serini bozma, bugünkü balıklarını al!', schedule: { at: noon, allowWhileIdle: true } },
+        { id: 3, title: name + ' seni özledi 😿', body: 'Karabaş uyurken bir tur atalım mı?', schedule: { at: new Date(now + 3 * 86400000), allowWhileIdle: true } },
+      ] });
+    } catch { /* izin yok ya da desteklenmiyor */ }
+  }
+  async function askNotify() {
+    const LN = capPlugin('LocalNotifications');
+    if (!LN) return;
+    try {
+      const r = await LN.requestPermissions();
+      save.notify = r.display === 'granted'; persist('notify'); renderMenu();
+    } catch { /* yoksay */ }
+  }
 
   // ================= Ana sayfa turu: onemli yerleri tek tek gosterir =================
   const TOUR = [
@@ -3169,6 +3613,7 @@
     tourStep = -1;
     $('coach').classList.add('hidden');
     save.tourDone = true; persist('tourDone');
+    setTimeout(askNotify, 2500);
     showNote('Hazırsın!', 'İyi eğlenceler. Ayarlardan eğitimi tekrar oynayabilirsin.');
   }
   $('coach').addEventListener('click', (e) => { e.stopPropagation && e.stopPropagation(); if (e.target && e.target.id === 'coachSkip') endTour(); else nextTour(); });
@@ -3236,8 +3681,11 @@
     $('menuBest').textContent = save.bestByDiff[save.diff] || 0;
     $('diffName').textContent = DIFFS[save.diff].name;
     $('diffSeg').querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.diff === save.diff));
+    $('themeGrid').innerHTML = THEMES.map((x) => `<button class="${x.id === save.theme ? 'on' : ''}" data-theme="${x.id}"><span>${x.icon}</span>${x.name}</button>`).join('');
     $('soundBtn').textContent = 'Efekt: ' + (save.sound ? 'Açık' : 'Kapalı');
     $('musicBtn').textContent = 'Müzik: ' + (save.music ? 'Açık' : 'Kapalı');
+    $('notifyBtn').textContent = 'Bildirim: ' + (save.notify ? 'Açık' : 'Kapalı');
+    $('notifyBtn').classList.toggle('hidden', !capPlugin('LocalNotifications'));
     $('vibBtn').textContent = 'Titreşim: ' + (save.vibrate ? 'Açık' : 'Kapalı');
     $('levelsInfo').textContent = `${save.stars.filter((s) => s > 0).length}/${LEVELS.length}`;
     const left = dailyLeft();
@@ -3294,7 +3742,7 @@
     if (state === 'chars') {
       const c = CAT_BY_ID[pv.cat], owned = save.owned.includes(c.id);
       $('charPvName').textContent = c.name;
-      $('charPvDesc').textContent = c.ability;
+      $('charPvDesc').textContent = c.ability + (CAT_STORY[c.id] ? ' · ' + CAT_STORY[c.id] : '');
       if (owned) { btn.textContent = save.char === c.id ? 'Seçili ✓' : 'Bu kediyi seç'; btn.disabled = save.char === c.id; btn.dataset.mode = 'select'; }
       else if (save.wallet >= c.price) { btn.textContent = `Satın al · 🐟 ${c.price}`; btn.disabled = false; btn.dataset.mode = 'buy'; }
       else { btn.textContent = `🐟 ${c.price} gerekli (sende ${save.wallet})`; btn.disabled = true; btn.dataset.mode = ''; }
@@ -3506,6 +3954,7 @@
     else if (a === 'retry' && run) startRun(run.mode, run.level);
     else if (a === 'next' && run) startRun('level', Math.min(LEVELS.length - 1, run.level + 1));
     else if (a === 'refreshBoard') { apiOk = null; renderBoard(); }
+    else if (b.dataset.theme) { save.theme = b.dataset.theme; persist('theme'); buildPalettes(); computeP(); sfx('ui'); renderMenu(); }
     else if (b.dataset.diff) { save.diff = b.dataset.diff; persist('diff'); sfx('ui'); renderMenu(); }
     else if (b.dataset.level !== undefined) { const i = Number(b.dataset.level); if (levelUnlocked(i)) startRun('level', i); }
     else if (b.dataset.char) charClick(b.dataset.char);
@@ -3516,11 +3965,14 @@
     else if (a === 'toyMode') setToyMode(!toy.on);
     else if (a === 'pvAction') pvAction();
     else if (a === 'claimLogin') claimLogin();
-    else if (a === 'photo') makePhoto();
+    else if (a === 'photo') makePhoto('cat');
+    else if (a === 'challenge') makePhoto('challenge');
     else if (a === 'sharePhoto') sharePhoto();
     else if (a === 'ach' || a === 'house') showScreen(a);
     else if (b.dataset.house) houseClick(b.dataset.house);
+    else if (b.dataset.pet) petTool(b.dataset.pet);
     else if (b.id === 'soundBtn') { save.sound = !save.sound; persist('sound'); renderMenu(); sfx('coin'); }
+    else if (b.id === 'notifyBtn') { if (save.notify) { save.notify = false; persist('notify'); renderMenu(); } else askNotify(); }
     else if (b.id === 'musicBtn') { save.music = !save.music; persist('music'); if (save.music) ac(); renderMenu(); }
     else if (b.id === 'vibBtn') { save.vibrate = !save.vibrate; persist('vibrate'); renderMenu(); vibrate(40); }
   });
@@ -3539,7 +3991,10 @@
     }
   });
   window.addEventListener('contextmenu', (e) => e.preventDefault());
-  document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); audioSleep(document.hidden); });
+  window.addEventListener('pagehide', () => { pause(); audioSleep(true); });
+  window.addEventListener('pageshow', () => audioSleep(false));
+  try { const A = capPlugin('App'); if (A) A.addListener('appStateChange', (s) => { if (!s.isActive) pause(); audioSleep(!s.isActive); }); } catch { /* yoksay */ }
   window.addEventListener('pagehide', pause);
   if (!DEMO) window.addEventListener('blur', pause);
 
@@ -3552,6 +4007,7 @@
     if (state !== 'pause') update(dt);
     updateHero(dt);
     updatePreview(dt);
+    updatePet(dt);
     // oyun sirasinda kare suresini olc; surekli yavassa cozunurlugu dusur
     if (state === 'play' && !DEMO && document.visibilityState !== 'hidden') {
       perfAcc += dt; perfN++;
@@ -3579,6 +4035,10 @@
     requestAnimationFrame(frame);
   }
 
+  if (THEME_BY_ID[params.get('theme')]) save.theme = params.get('theme'); // test icin
+  const vs = Math.floor(Number(params.get('vs'))); // meydan okuma linkiyle gelindi
+  if (vs > 0 && vs < 100000 && !DEMO) { save.rival = { m: vs, beaten: false }; persist('rival'); setTimeout(() => showNote('Meydan okuma! 🏆', 'Arkadaşın ' + vs + ' m tırmandı. Sonsuz Koşuda onu geçebilir misin?'), 1500); }
+  buildPalettes();
   setPalette(0, true);
   resize();
   window.addEventListener('resize', resize);

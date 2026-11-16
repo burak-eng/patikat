@@ -1,5 +1,11 @@
 {
   "appId": "com.duvarzipla.oyun",
   "appName": "Patikat",
-  "webDir": "public"
+  "webDir": "public",
+  "plugins": {
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_patikat",
+      "iconColor": "#FF8F70"
+    }
+  }
 }

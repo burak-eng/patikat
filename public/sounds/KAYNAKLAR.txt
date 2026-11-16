@@ -13,8 +13,12 @@ siyam.mp3               <- "Meow of a Siamese cat - freemaster2.wav", freemaster
     https://commons.wikimedia.org/wiki/File:Meow_of_a_Siamese_cat_-_freemaster2.wav
 mirlama.mp3             <- "Purring cat.oga", Mysid, kamu mali
     https://commons.wikimedia.org/wiki/File:Purring_cat.oga
-muzik.mp3               <- Erik Satie, Gymnopedie No. 1, yorum: Robin Alciatore, kamu mali
-    https://commons.wikimedia.org/wiki/File:Erik_Satie_-_gymnopedies_-_la_1_ere._lent_et_douloureux.ogg
+oyun1.mp3               <- "Starlight City", Zane Little Music, CC0
+    https://opengameart.org/node/143960
+oyun2.mp3               <- "Keep your dream alive!", congusbongus, CC0
+    https://opengameart.org/node/112056
+oyun3.mp3               <- "Retro Sports bgm_stage_3" (12 Music Loops), SubspaceAudio, CC0
+    https://opengameart.org/node/170803
 
 Yapilan islemler: kesme, filtre, giris/cikis sonumlemesi, ses seviyesi esitleme,
 MP3'e donusturme (ffmpeg).
