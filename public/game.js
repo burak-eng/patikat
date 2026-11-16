@@ -390,6 +390,7 @@
 
   // ================= Ekran olcekleme =================
   let H = 640, scale = 1, dpr = 1, safeTop = 0;
+  let dprCap = 2, perfAcc = 0, perfN = 0; // yavas telefonda cizim cozunurlugu kendiliginden duser
   const playerY = () => H * 0.72;
 
   function resize() {
@@ -397,7 +398,7 @@
     const gw = Math.min(vw, Math.round(vh * 0.62));
     scale = gw / W;
     H = vh / scale;
-    dpr = Math.min(window.devicePixelRatio || 1, 3);
+    dpr = Math.min(window.devicePixelRatio || 1, dprCap);
     canvas.style.width = gw + 'px';
     canvas.style.height = vh + 'px';
     canvas.width = Math.round(gw * dpr);
@@ -3544,13 +3545,26 @@
 
   // ================= Dongu =================
   let last = performance.now();
+  let frameNo = 0;
   function frame(now) {
     const dt = Math.min(0.05, Math.max(0, (now - last) / 1000));
     last = now;
     if (state !== 'pause') update(dt);
     updateHero(dt);
     updatePreview(dt);
-    draw();
+    // oyun sirasinda kare suresini olc; surekli yavassa cozunurlugu dusur
+    if (state === 'play' && !DEMO && document.visibilityState !== 'hidden') {
+      perfAcc += dt; perfN++;
+      if (perfN >= 120) {
+        const avg = perfAcc / perfN;
+        if (avg > 0.022 && dprCap > 1) { dprCap = dprCap > 1.5 ? 1.5 : 1; resize(); }
+        perfAcc = 0; perfN = 0;
+      }
+    }
+    // menuler acikken arka plan perdenin altinda kalir: her karede degil, 4 karede bir ciz
+    const behind = MENU_STATES.includes(state);
+    frameNo++;
+    if (!behind || frameNo % 4 === 0) draw();
     drawHero();
     drawPreview();
     drawHouse();
