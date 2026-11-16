@@ -23,7 +23,7 @@
 <div id="menu" class="overlay tabbed home">
   <div class="topbar">
     <div class="wallet">🐟 <span id="wallet">0</span></div>
-    <button class="iconbtn" data-act="settings" aria-label="Ayarlar">
+    <button id="settingsBtn" class="iconbtn" data-act="settings" aria-label="Ayarlar">
       <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Zm8.6 4.6-.1-1.1 1.8-1.4-1.8-3.1-2.2.8a7.7 7.7 0 0 0-1.9-1.1L16 4h-3.6l-.4 2.2a7.7 7.7 0 0 0-1.9 1.1l-2.2-.8-1.8 3.1 1.8 1.4-.1 1.1.1 1.1-1.8 1.4 1.8 3.1 2.2-.8c.6.5 1.2.8 1.9 1.1L12.4 20H16l.4-2.2c.7-.3 1.3-.6 1.9-1.1l2.2.8 1.8-3.1-1.8-1.4.1-1.1Z" transform="translate(-2 0)"/></svg>
     </button>
   </div>
@@ -39,14 +39,56 @@
     <button id="toyBtn" class="chip main" data-act="toyMode">🎣 Oyuncakla oyna</button>
     <div id="toyChips" class="chips hidden"></div>
   </div>
+  <div id="loginCard" class="card login hidden">
+    <b id="loginTitle">Günlük ödül</b>
+    <div id="loginDays" class="days"></div>
+    <button class="big buy" data-act="claimLogin">Ödülü al</button>
+  </div>
+  <div id="eventCard" class="card event hidden">
+    <b id="eventName"></b>
+    <small id="eventText"></small>
+    <div class="bar"><i id="eventBar"></i></div>
+  </div>
   <button id="resumeBtn" class="big resume hidden" data-act="resume">Kaldığın yerden devam <small id="resumeInfo"></small></button>
-  <button class="big play" data-act="endless">Sonsuz Koşu</button>
+  <button id="endlessBtn" class="big play" data-act="endless">Sonsuz Koşu</button>
   <p class="best">En iyi (<span id="diffName"></span>): <span id="menuBest">0</span></p>
   <div class="row">
     <button id="dailyBtn" class="big alt" data-act="daily">Günün Seferi <small id="dailyInfo"></small></button>
-    <button class="big alt" data-act="levels">Bölümler <small id="levelsInfo"></small></button>
+    <button id="levelsBtn" class="big alt" data-act="levels">Bölümler <small id="levelsInfo"></small></button>
   </div>
-  <button id="tutorialBtn" class="big alt wide" data-act="tutorial">Eğitim</button>
+  <div class="row">
+    <button id="houseBtn" class="big alt" data-act="house">🏠 Kedi Evi</button>
+    <button id="tutorialBtn" class="big alt" data-act="tutorial">Eğitim</button>
+  </div>
+</div>
+
+<!-- ============ Kedi evi ============ -->
+<div id="house" class="overlay tabbed hidden">
+  <h2>Kedi Evi</h2>
+  <div class="wallet">🐟 <span id="wallet5">0</span></div>
+  <canvas id="houseCv" class="room" width="600" height="460" aria-label="Kedinin evi"></canvas>
+  <p class="hint small">Eşya al, yerleştir. Kedin odasında keyif yapsın.</p>
+  <div id="houseList" class="ward"></div>
+  <button class="toggle" data-act="menu">Ana sayfa</button>
+</div>
+
+<!-- ============ Fotograf ============ -->
+<div id="photo" class="overlay tabbed hidden">
+  <h2>Kedinin fotoğrafı</h2>
+  <img id="photoImg" class="photo" alt="Kedinin fotoğrafı">
+  <div class="row">
+    <button id="photoShare" class="big buy" data-act="sharePhoto">Paylaş</button>
+    <a id="photoSave" class="big alt" download="patikat-kedim.png">Kaydet</a>
+  </div>
+  <p class="hint small">Kaydet çalışmazsa fotoğrafa uzun basıp kaydedebilirsin.</p>
+  <button class="toggle" data-act="chars">Geri</button>
+</div>
+
+<!-- ============ Basarimlar ============ -->
+<div id="ach" class="overlay tabbed hidden">
+  <div class="seg sub"><button data-act="missions">Görevler</button><button class="on" data-act="ach">Başarımlar</button><button data-act="board">Sıralama</button></div>
+  <p class="hint">Kazanılan başarım: <span id="achCount">0</span></p>
+  <div id="achList" class="grid"></div>
 </div>
 
 <!-- ============ Ayarlar ============ -->
@@ -86,12 +128,12 @@
   <details class="howto card">
     <summary>Ses kaynakları</summary>
     <ul>
-      <li>Kedi, köpek ve yemek sesleri Wikimedia Commons'taki telifsiz (CC0 / kamu malı) kayıtlardan düzenlendi:</li>
+      <li>Kedi sesleri ve müzik telifsiz (CC0 / kamu malı) kayıtlardan düzenlendi:</li>
       <li><b>Miyav:</b> Heismark (kamu malı), George Miquilena (CC0)</li>
+      <li><b>Siyam miyavı:</b> freemaster2 (CC0)</li>
       <li><b>Mırlama:</b> Mysid (kamu malı)</li>
-      <li><b>Havlama:</b> Kineticsquid (CC0)</li>
-      <li><b>Yemek:</b> earthcalling (kamu malı)</li>
-      <li>Müzik ve diğer bütün efektler oyunun içinde kodla üretilir.</li>
+      <li><b>Müzik:</b> Erik Satie, Gymnopédie No.1, yorum Robin Alciatore (kamu malı)</li>
+      <li>Köpek, yemek, oyuncak ve diğer bütün efektler oyunun içinde kodla üretilir.</li>
     </ul>
   </details>
   <button class="big alt wide" data-act="tutorial">Eğitimi tekrar oyna</button>
@@ -106,6 +148,7 @@
     <canvas id="charPv" width="300" height="300" aria-label="Kedi önizlemesi: parmağınla çevir"></canvas>
     <div class="pvinfo"><b id="charPvName"></b><small id="charPvDesc"></small></div>
     <button id="charPvBtn" class="big buy" data-act="pvAction"></button>
+    <button class="chip" data-act="photo">📸 Fotoğrafını çek</button>
   </div>
   <p class="hint small">Bir kediye dokun, önce burada gör. Beğenirsen satın al.</p>
   <div id="charGrid" class="grid chars-grid"></div>
@@ -142,13 +185,13 @@
 
 <!-- ============ Gorevler ve siralama ============ -->
 <div id="missions" class="overlay tabbed hidden">
-  <div class="seg sub"><button class="on" data-act="missions">Görevler</button><button data-act="board">Sıralama</button></div>
+  <div class="seg sub"><button class="on" data-act="missions">Görevler</button><button data-act="ach">Başarımlar</button><button data-act="board">Sıralama</button></div>
   <p class="hint">Tamamlanan görev: <span id="missionDone">0</span> · Görevler giderek zorlaşır, ödülü artar.</p>
   <div id="missionList" class="grid"></div>
 </div>
 
 <div id="board" class="overlay tabbed hidden">
-  <div class="seg sub"><button data-act="missions">Görevler</button><button class="on" data-act="board">Sıralama</button></div>
+  <div class="seg sub"><button data-act="missions">Görevler</button><button data-act="ach">Başarımlar</button><button class="on" data-act="board">Sıralama</button></div>
   <p class="hint small"><span id="boardDate"></span> · Günün Seferi · herkes aynı parkurda</p>
   <label class="name">Adın <input id="nameInput" maxlength="16" placeholder="İsimsiz Kedi" autocomplete="off"></label>
   <div id="boardList" class="board"></div>
@@ -203,6 +246,9 @@
   </button>
 </nav>
 
+<div id="note" class="note"><b id="noteTitle"></b><small id="noteSub"></small></div>
+<div id="hintCard" class="hintcard hidden"><b id="hintTitle"></b><small id="hintSub"></small><em>Devam etmek için dokun</em></div>
+<div id="coach" class="coach hidden"><div id="coachRing" class="ring"></div><div id="coachTip" class="tip"><b id="coachTitle"></b><small id="coachSub"></small><div class="crow"><span id="coachStep"></span><button id="coachSkip" class="chip">Geç</button></div></div></div>
 <div id="safe"></div>
 <script src="game.js"></script>
 </body>

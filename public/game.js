@@ -108,7 +108,61 @@
     { id: 'gunes',    slot: 'face', name: 'Güneş Gözlüğü',    price: 180 },
     { id: 'kalpgoz',  slot: 'face', name: 'Kalp Gözlük',      price: 200 },
     { id: 'maske',    slot: 'face', name: 'Kahraman Maskesi', price: 240 },
+    // Odulle kazanilan ozel esyalar (dukkanda satilmaz)
+    { id: 'yildiz',   slot: 'hat',  name: 'Yıldızlı Taç',     price: 0, reward: '7 gün üst üste giriş ödülü' },
+    { id: 'yaprak',   slot: 'hat',  name: 'Yaprak Taç',       price: 0, reward: 'Sonbahar Şenliği ödülü' },
+    { id: 'noel',     slot: 'hat',  name: 'Noel Şapkası',     price: 0, reward: 'Yılbaşı Şenliği ödülü' },
+    { id: 'madalya',  slot: 'neck', name: 'Şampiyon Madalyası', price: 0, reward: 'İlk 15 bölümü geçme ödülü' },
   ];
+
+  // Gunluk giris odulleri (7 gunluk dongu; 7. gun Yildizli Tac)
+  const LOGIN_REWARDS = [10, 15, 20, 25, 30, 40, 60];
+
+  // Kedi evi esyalari: her yuvaya bir tane
+  const HOUSE_ITEMS = [
+    { id: 'hali_pembe',    slot: 'hali',  name: 'Yuvarlak Halı',   price: 80 },
+    { id: 'hali_cizgi',    slot: 'hali',  name: 'Çizgili Halı',    price: 120 },
+    { id: 'yatak_sepet',   slot: 'yatak', name: 'Hasır Sepet',     price: 150 },
+    { id: 'yatak_bulut',   slot: 'yatak', name: 'Bulut Yatak',     price: 260 },
+    { id: 'agac_kucuk',    slot: 'agac',  name: 'Tırmalama Direği', price: 180 },
+    { id: 'agac_buyuk',    slot: 'agac',  name: 'Kedi Ağacı',      price: 400 },
+    { id: 'mama_mavi',     slot: 'mama',  name: 'Mavi Mama Kabı',  price: 60 },
+    { id: 'mama_altin',    slot: 'mama',  name: 'Altın Mama Kabı', price: 300 },
+    { id: 'bitki_cicek',   slot: 'bitki', name: 'Çiçek Saksısı',   price: 70 },
+    { id: 'bitki_palmiye', slot: 'bitki', name: 'Palmiye',         price: 110 },
+    { id: 'tablo_balik',   slot: 'tablo', name: 'Balık Tablosu',   price: 90 },
+    { id: 'tablo_ay',      slot: 'tablo', name: 'Ay Tablosu',      price: 140 },
+  ];
+  const HOUSE_BY_ID = Object.fromEntries(HOUSE_ITEMS.map((h) => [h.id, h]));
+  const HOUSE_SLOTS = { hali: 'Halı', yatak: 'Yatak', agac: 'Tırmanma', mama: 'Mama kabı', bitki: 'Bitki', tablo: 'Tablo' };
+
+  // Basarimlar: L = omur boyu istatistikler
+  const ACHS = [
+    { id: 'ilk',      name: 'İlk Adım',        text: 'İlk turunu bitir',                 test: (L) => L.runs >= 1, reward: 20 },
+    { id: 'm500',     name: 'Yarım Kilometre', text: "Bir turda 500 m'ye ulaş",           test: (L) => L.maxM >= 500, reward: 40 },
+    { id: 'm1000',    name: 'Bir Kilometre',   text: "Bir turda 1000 m'ye ulaş",          test: (L) => L.maxM >= 1000, reward: 80 },
+    { id: 'm2000',    name: 'Gökdelen',        text: "Bir turda 2000 m'ye ulaş",          test: (L) => L.maxM >= 2000, reward: 150 },
+    { id: 'kil100',   name: 'Kıl Payı Ustası', text: 'Toplam 100 kıl payı yap',           test: (L) => L.near >= 100, reward: 50 },
+    { id: 'kopek10',  name: 'Karabaş Kaçağı',  text: 'Bekçi köpeğini toplam 10 kez atlat', test: (L) => L.dogs >= 10, reward: 60 },
+    { id: 'balik500', name: 'Balık Gurmesi',   text: 'Toplam 500 balık ye',               test: (L) => L.fish >= 500, reward: 60 },
+    { id: 'oyun50',   name: 'Oyun Arkadaşı',   text: 'Oyuncakla 50 kez yakala',           test: (L) => L.catches >= 50, reward: 40 },
+    { id: 'kedi3',    name: 'Kedi Sever',      text: '3 kediye sahip ol',                 test: () => save.owned.length >= 3, reward: 40 },
+    { id: 'kediall',  name: 'Kedi Sarayı',     text: 'Bütün kedilere sahip ol',           test: () => save.owned.length >= CATS.length, reward: 300 },
+    { id: 'esya5',    name: 'Şıklık',          text: '5 aksesuara sahip ol',              test: () => save.wardrobe.owned.length >= 5, reward: 40 },
+    { id: 'ev3',      name: 'Sıcak Yuva',      text: 'Kedi evine 3 eşya yerleştir',       test: () => Object.values(save.house.placed).filter(Boolean).length >= 3, reward: 50 },
+    { id: 'seri7',    name: 'Sadık Dost',      text: '7 gün üst üste giriş yap',          test: () => save.login.streak >= 7, reward: 80 },
+    { id: 'bolum15',  name: 'Çatıya Ulaştın',  text: 'İlk 15 bölümü geç',                 test: () => save.stars.slice(0, 15).filter((s) => s > 0).length >= 15, reward: 150, item: 'madalya' },
+  ];
+
+  // Sezon etkinlikleri (tarihe gore kendiliginden acilir)
+  function currentEvent() {
+    const d = new Date(), m = d.getMonth() + 1, day = d.getDate(), y = d.getFullYear();
+    if ((m === 12 && day >= 15) || (m === 1 && day <= 7)) {
+      return { id: 'yilbasi-' + (m === 12 ? y : y - 1), name: 'Yılbaşı Şenliği', fx: 'snow', item: 'noel', goal: 600, text: "Sonsuz koşuda 600 m'ye ulaş, Noel Şapkası kazan" };
+    }
+    if (m === 11) return { id: 'sonbahar-' + y, name: 'Sonbahar Şenliği', fx: 'leaves', item: 'yaprak', goal: 500, text: "Sonsuz koşuda 500 m'ye ulaş, Yaprak Taç kazan" };
+    return null;
+  }
   const COS_BY_ID = Object.fromEntries(COSMETICS.map((c) => [c.id, c]));
   const SLOT_NAMES = { hat: 'Baş', neck: 'Boyun', face: 'Yüz' };
 
@@ -186,6 +240,10 @@
     { name: 'Klima Kulesi',    goal: 550, speed: 330, ac: 0.5, sticky: 0.3, jets: 0.3, power: true, pal: 2, crows: true, dogs: true },
     { name: 'Gece Yarısı',     goal: 600, speed: 340, dark: true, bars: 0.45, jets: 0.25, react: [0.44, 0.28], power: true, pal: 5, crows: true, dogs: true },
     { name: 'Ay Işığı',        goal: 700, speed: 360, ramp: 0.012, cap: 170, react: [0.4, 0.24], bars: 0.45, jets: 0.25, sticky: 0.25, ac: 0.3, weather: 'rain', len: [90, 170, 300], power: true, pal: 4, crows: true, dogs: true },
+    // Karabas bolumleri: kopek bolum boyunca pesinde; kil payi ve baliklarla onu geride tut
+    { name: 'Karabaş Kovalıyor', goal: 400, speed: 300, react: [0.46, 0.32], bars: 0.2, power: true, pal: 2, crows: true, dogsAll: 1, karabas: true },
+    { name: 'Karabaş Geri Döndü', goal: 520, speed: 320, react: [0.44, 0.3], bars: 0.3, jets: 0.2, power: true, pal: 3, dogsAll: 1.15, karabas: true },
+    { name: 'Büyük Kaçış',      goal: 650, speed: 340, react: [0.42, 0.27], bars: 0.35, jets: 0.25, sticky: 0.2, power: true, pal: 5, dark: true, dogsAll: 1.3, karabas: true },
   ];
 
   // Egitim: her mekanigi sirayla, yavaslatilmis ortamda gosterir (can gitmez)
@@ -233,6 +291,12 @@
     wardrobe: store.get('wardrobe', { owned: [], hat: '', neck: '', face: '' }),
     tutorialDone: store.get('tutorialDone', false),
     toys: store.get('toys', { owned: ['tuy'], sel: 'tuy' }),
+    login: store.get('login', { last: '', streak: 0 }),
+    life: store.get('life', { runs: 0, near: 0, dogs: 0, catches: 0, maxM: 0, fish: 0 }),
+    ach: store.get('ach', []),
+    house: store.get('house', { owned: [], placed: {} }),
+    events: store.get('events', {}),
+    tourDone: store.get('tourDone', false),
     play: store.get('play', { date: '', catches: 0, rewarded: 0 }),
     playerName: store.get('playerName', ''),
     playerId: store.get('playerId', ''),
@@ -373,7 +437,7 @@
     audio.ctx = c;
   }
   // Gercek kayitlar (telifsiz: CC0 / kamu mali, kaynaklar sounds/KAYNAKLAR.txt). Yuklenemezse kodla uretilen ses calar.
-  const SAMPLE_FILES = ['miyav1', 'miyav2', 'miyav3', 'miyav4', 'mirlama', 'havlama', 'yemek1', 'yemek2', 'yemek3'];
+  const SAMPLE_FILES = ['miyav1', 'miyav2', 'miyav3', 'miyav4', 'siyam', 'mirlama'];
   const samples = {};
   let samplesRequested = false;
   function loadSamples() {
@@ -449,7 +513,7 @@
 
   // Kedi miyavlamasi: formant sentezi. Testere dalgasi kaynak, iki bant geciren filtre "i-a-u" unlu gecisini yapar,
   // perde once yukselip sonra iner, hafif titresim (vibrato) ve "m" ile baslayan yumusak giris vardir.
-  function catMeow(kind = 'normal', delay = 0) {
+  function catMeow(kind = 'normal', delay = 0, pitch = 1) {
     const c = audio.ctx, t = c.currentTime + delay;
     const K = {
       normal: { dur: 0.6, f0: 640, peak: 1.32, end: 0.74, vol: 0.32 },
@@ -457,7 +521,7 @@
       sad:    { dur: 0.85, f0: 560, peak: 1.18, end: 0.55, vol: 0.3 },
       happy:  { dur: 0.42, f0: 720, peak: 1.4, end: 1.05, vol: 0.3 },
     }[kind];
-    const f0 = K.f0 * (0.94 + Math.random() * 0.12), d = K.dur;
+    const f0 = K.f0 * pitch * (0.94 + Math.random() * 0.12), d = K.dur;
     const src = c.createOscillator(); src.type = 'sawtooth';
     src.frequency.setValueAtTime(f0 * 0.82, t);
     src.frequency.linearRampToValueAtTime(f0 * K.peak, t + d * 0.32);
@@ -489,24 +553,28 @@
 
   // Kopek havlamasi: sert baslangic, kisa "hav": perde hizla yukselip iner, gogus rezonansi ve nefes gurultusu
   function dogBark(delay = 0, pitch = 1) {
-    const c = audio.ctx, t = c.currentTime + delay, d = 0.17;
+    // Yumusak "huf": "w" ile baslayip "o" unlusune gecen, kisa ve yuvarlak bir havlama.
+    const c = audio.ctx, t = c.currentTime + delay, d = 0.2;
+    const p = 240 * pitch * (0.96 + Math.random() * 0.08);
     const src = c.createOscillator(); src.type = 'sawtooth';
-    const p = 300 * pitch * (0.95 + Math.random() * 0.1);
-    src.frequency.setValueAtTime(p * 0.8, t);
-    src.frequency.exponentialRampToValueAtTime(p * 1.35, t + 0.025);
-    src.frequency.exponentialRampToValueAtTime(p * 0.7, t + d);
+    src.frequency.setValueAtTime(p * 0.7, t);
+    src.frequency.exponentialRampToValueAtTime(p * 1.25, t + 0.035);
+    src.frequency.exponentialRampToValueAtTime(p * 0.75, t + d);
+    const body = c.createOscillator(); body.type = 'triangle';
+    body.frequency.setValueAtTime(p * 0.5, t); body.frequency.exponentialRampToValueAtTime(p * 0.38, t + d);
     const out = c.createGain();
-    env(out, t, 0.45, 0.004, d);
-    const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.setValueAtTime(3200, t); lp.frequency.exponentialRampToValueAtTime(900, t + d);
-    for (const [f, q, gn] of [[650, 3, 1], [1250, 4, 0.7], [2400, 6, 0.3]]) {
+    env(out, t, 0.3, 0.012, d);
+    const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.Q.value = 0.7;
+    lp.frequency.setValueAtTime(900, t); lp.frequency.exponentialRampToValueAtTime(2200, t + 0.03); lp.frequency.exponentialRampToValueAtTime(700, t + d);
+    for (const [f, q, gn] of [[520, 4, 1], [950, 5, 0.6]]) { // "o" unlusu
       const bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = f * pitch; bp.Q.value = q;
       const gg = c.createGain(); gg.gain.value = gn;
       src.connect(bp).connect(gg).connect(lp);
     }
+    const bg = c.createGain(); bg.gain.value = 0.5; body.connect(bg).connect(lp);
     lp.connect(out).connect(audio.sfx);
-    src.start(t); src.stop(t + d + 0.05);
-    hiss(0.07, { freq: 1100, q: 0.8, vol: 0.22, delay, attack: 0.002 }); // nefes patlamasi
-    tone(110 * pitch, 0.12, { vol: 0.18, slide: 70, delay, attack: 0.003 }); // gogus
+    src.start(t); body.start(t); src.stop(t + d + 0.05); body.stop(t + d + 0.05);
+    hiss(0.05, { freq: 800, q: 0.8, vol: 0.06, delay, attack: 0.004 }); // hafif nefes
   }
 
   // Karga: genizden, cizik "gaak"
@@ -526,23 +594,25 @@
   const SFX = {
     jump() { tone(380, 0.1, { vol: 0.13, slide: 760, attack: 0.004 }); hiss(0.06, { freq: 2400, q: 0.7, vol: 0.035 }); },
     land() { hiss(0.06, { freq: 500, q: 0.8, vol: 0.09, type: 'lowpass' }); tone(150, 0.08, { vol: 0.1, slide: 85 }); },
-    coin() { // balik yeme: gercek citirdama + kucuk zil
-      if (!playSample(pickOne(['yemek1', 'yemek2', 'yemek3']), { vol: 0.55, rate: jitter(0.08) })) { bell(1568, 0.35, 0.09); bell(2093, 0.4, 0.07, 0.06); }
-      else bell(2093, 0.25, 0.03, 0.02);
+    coin() { // balik yeme: sevimli, yumusak "nyam" ve kucuk bir zil
+      const p = jitter(0.06);
+      for (const [d, f] of [[0, 330], [0.11, 300]]) {
+        tone(f * p, 0.07, { vol: 0.09, slide: f * p * 0.7, delay: d, attack: 0.004 }); // "nyam"
+        hiss(0.03, { freq: 2600, q: 1.2, vol: 0.025, delay: d + 0.01 });             // minik isirik
+      }
+      bell(2093 * p, 0.22, 0.035, 0.05);
     },
     near() { hiss(0.2, { freq: 700, sweep: 2600, q: 1.2, vol: 0.08 }); tone(1760, 0.12, { vol: 0.035, delay: 0.05 }); },
     hit() { tone(170, 0.32, { vol: 0.32, slide: 55, attack: 0.003 }); hiss(0.15, { freq: 300, q: 0.7, vol: 0.12, type: 'lowpass' }); },
-    meow() { if (!playSample(pickOne(['miyav1', 'miyav3', 'miyav4']), { vol: 0.75, rate: jitter() })) catMeow('normal'); },
-    meowShort() { if (!playSample(pickOne(['miyav2', 'miyav3']), { vol: 0.7, rate: 1.08 * jitter(0.04) })) catMeow('short'); },
-    meowSad() { if (!playSample('miyav1', { vol: 0.8, rate: 0.9 })) catMeow('sad'); },
-    meowHappy() { if (!playSample(pickOne(['miyav3', 'miyav2']), { vol: 0.72, rate: 1.12 })) catMeow('happy'); },
+    meow() { catVoice('normal'); },
+    meowShort() { catVoice('short'); },
+    meowSad() { catVoice('sad'); },
+    meowHappy() { catVoice('happy'); },
     purr() {
-      if (playSample('mirlama', { vol: 0.9 })) return;
+      const v = CAT_VOICE[save.char] || CAT_VOICE.sarman;
+      if (playSample('mirlama', { vol: 0.9, rate: 0.85 + v.rate * 0.15 })) return;
       const c = audio.ctx, t = c.currentTime; const o = c.createOscillator(); o.type = 'sawtooth'; o.frequency.value = 26; const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 260; const g = c.createGain(); env(g, t, 0.18, 0.15, 1.2); o.connect(lp).connect(g).connect(audio.sfx); o.start(t); o.stop(t + 1.3); },
-    bark() { // gercek havlama, iki kez ("hav hav"), ikincisi biraz farkli perdede
-      if (playSample('havlama', { vol: 0.9, rate: jitter(0.04) })) { playSample('havlama', { vol: 0.8, rate: 1.08, delay: 0.24 }); return; }
-      dogBark(0); dogBark(0.21, 1.04);
-    },
+    bark() { dogBark(0); dogBark(0.26, 1.05); }, // "hav hav" (kodla, temiz ve yumusak)
     growlDog() { const c = audio.ctx, t = c.currentTime; const o = c.createOscillator(); o.type = 'sawtooth'; o.frequency.setValueAtTime(95, t); o.frequency.linearRampToValueAtTime(80, t + 0.6); const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 500; const g = c.createGain(); env(g, t, 0.14, 0.08, 0.6); o.connect(lp).connect(g).connect(audio.sfx); o.start(t); o.stop(t + 0.7); },
     caw() { crowCaw(0); crowCaw(0.3); },
     dash() { hiss(0.22, { freq: 500, sweep: 3000, q: 1, vol: 0.12 }); tone(600, 0.15, { vol: 0.04, slide: 1200 }); },
@@ -572,54 +642,102 @@
     try { if (ac()) SFX[name](); } catch { /* ses desteklenmiyor */ }
   }
 
-  // ---------- Muzik: menu icin sakin, oyun icin hafif davullu iki parca (kodla calinir) ----------
-  const SONGS = {
-    menu: { bpm: 72, chords: [[53, 57, 60, 64], [52, 55, 59, 62], [50, 53, 57, 60], [48, 52, 55, 59]], scale: [65, 67, 69, 72, 74, 77], drums: false, mel: 0.22 },
-    game: { bpm: 94, chords: [[57, 60, 64, 67], [53, 57, 60, 64], [48, 52, 55, 59], [55, 59, 62, 65]], scale: [69, 72, 74, 76, 79, 81], drums: true, mel: 0.4 },
-  };
-  const hashStep = (s) => { const x = Math.sin(s * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); };
-  function pad(notes, dur, delay) {
-    for (const n of notes) {
-      tone(midi(n), dur, { type: 'triangle', vol: 0.028, attack: 0.5, delay, dest: audio.music, detune: -6 });
-      tone(midi(n), dur, { type: 'sine', vol: 0.03, attack: 0.6, delay, dest: audio.music, detune: 6 });
+  // ---------- Arka plan muzigi: Erik Satie, Gymnopedie No. 1 (kamu mali kayit), sakin ve dongulu ----------
+  // Uzun parca belleği sisirmesin diye <audio> ogesiyle akarak calinir.
+  let musicEl = null, musicTry = 0;
+  function musicTick() {
+    const want = save.music && !DEMO && state !== 'pause' && !document.hidden && !!audio.ctx; // ctx: kullanici dokundu demek
+    if (!want) { if (musicEl && !musicEl.paused) musicEl.pause(); return; }
+    if (!musicEl) {
+      if (typeof Audio !== 'function') return;
+      musicEl = new Audio('sounds/muzik.mp3');
+      musicEl.loop = true;
+      musicEl.preload = 'auto';
+      musicEl.volume = 0;
+    }
+    const target = state === 'play' || state === 'count' ? 0.28 : 0.45; // oyunda biraz daha kisik
+    musicEl.volume = Math.max(0, Math.min(1, musicEl.volume + (target - musicEl.volume) * 0.04));
+    const now = performance.now();
+    if (musicEl.paused && now - musicTry > 2000) {
+      musicTry = now;
+      const p = musicEl.play();
+      if (p && p.catch) p.catch(() => { /* tarayici izin vermedi; sonraki dokunusta tekrar denenir */ });
     }
   }
-  function pluck(f, delay, vol = 0.07) {
-    tone(f, 0.45, { type: 'triangle', vol, attack: 0.004, delay, dest: audio.music });
-    tone(f * 2, 0.2, { vol: vol * 0.3, attack: 0.003, delay, dest: audio.music });
+
+  // ---------- Her kedinin kendi ses tonu ----------
+  // set: kullanilacak gercek kayitlar, rate: perde (1 = dogal; kucuk sayi daha kalin ses)
+  const CAT_VOICE = {
+    sarman:  { set: ['miyav3', 'miyav4'], rate: 1.0 },
+    tekir:   { set: ['miyav1', 'miyav4'], rate: 0.93 },
+    pamuk:   { set: ['miyav3', 'miyav2'], rate: 1.16 },
+    kara:    { set: ['miyav1', 'miyav4'], rate: 0.82 },
+    duman:   { set: ['miyav4', 'miyav1'], rate: 0.95 },
+    benekli: { set: ['miyav2', 'miyav3'], rate: 1.08 },
+    siyam:   { set: ['siyam'], rate: 1.0 },          // gercek bir Siyam kedisi kaydi
+    karamel: { set: ['miyav3'], rate: 1.1 },
+    benek:   { set: ['miyav4', 'miyav2'], rate: 1.04 },
+    zeytin:  { set: ['miyav1', 'miyav4'], rate: 0.88 },
+    van:     { set: ['miyav2', 'miyav3'], rate: 1.13 },
+  };
+  const KIND_RATE = { normal: 1, short: 1.08, sad: 0.9, happy: 1.12 };
+  function catVoice(kind = 'normal', catId = save.char) {
+    const v = CAT_VOICE[catId] || CAT_VOICE.sarman;
+    const name = kind === 'sad' && v.set.includes('miyav1') ? 'miyav1' : pickOne(v.set);
+    const vol = kind === 'short' ? 0.65 : 0.75;
+    if (!playSample(name, { vol, rate: v.rate * KIND_RATE[kind] * jitter(0.03) })) catMeow(kind, 0, v.rate);
   }
-  function kick(delay) { tone(130, 0.22, { vol: 0.32, slide: 42, attack: 0.002, delay, dest: audio.music }); }
-  function brush(delay, vol = 0.05) { hiss(0.14, { freq: 2600, q: 0.6, vol, delay, dest: audio.music }); }
-  function hat(delay, vol) { hiss(0.04, { freq: 8000, q: 0.5, vol, delay, type: 'highpass', dest: audio.music }); }
-  function musicTick() {
-    const want = save.music && !DEMO && state !== 'pause' && !document.hidden;
-    if (!want || !audio.ctx) { audio.playing = false; return; }
-    const c = audio.ctx;
-    const mode = ['play', 'count', 'over', 'win'].includes(state) ? 'game' : 'menu';
-    if (!audio.playing || mode !== audio.mode) { audio.playing = true; audio.mode = mode; audio.step = 0; audio.nextT = c.currentTime + 0.15; }
-    const S = SONGS[mode], six = 60 / S.bpm / 4;
-    const lvl = mode === 'game' && run ? Math.min(3, stage + (run.mode === 'level' ? 1 : 0)) : 0; // katlar ilerledikce muzik zenginlesir
+
+  // ---------- Oyuncak sesleri (kodla) ----------
+  const TOY_SFX = {
+    tuy:     { move() { hiss(0.12, { freq: 2600, q: 0.6, vol: 0.035, sweep: 4200 }); }, catch() { bell(2637, 0.25, 0.05); bell(3520, 0.2, 0.035, 0.05); } },
+    fare:    { move() { if (Math.random() < 0.4) squeak(1, 0.05); }, catch() { squeak(1.15, 0.08); squeak(1.3, 0.07, 0.11); } },
+    yumak:   { move() { hiss(0.09, { freq: 700, q: 0.8, vol: 0.04 }); }, catch() { tone(170, 0.12, { vol: 0.12, slide: 120 }); hiss(0.08, { freq: 900, q: 0.7, vol: 0.05 }); } },
+    balik:   { move() {}, catch() { rubberSqueak(0); rubberSqueak(0.16); } },
+    kelebek: { move() { flutter(0.18); }, catch() { bell(1760, 0.3, 0.04); flutter(0.3); } },
+    lazer:   { move() { tone(1900, 0.04, { vol: 0.02, slide: 2300 }); }, catch() { tone(1400, 0.08, { vol: 0.05, slide: 2100 }); } },
+  };
+  function squeak(p = 1, vol = 0.06, delay = 0) { // fare cikligi
+    const c = audio.ctx, t = c.currentTime + delay;
+    const o = c.createOscillator(), g = c.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(2900 * p, t);
+    o.frequency.linearRampToValueAtTime(3700 * p, t + 0.05);
+    o.frequency.linearRampToValueAtTime(3200 * p, t + 0.09);
+    env(g, t, vol, 0.006, 0.1);
+    o.connect(g).connect(audio.sfx); o.start(t); o.stop(t + 0.12);
+  }
+  function rubberSqueak(delay = 0) { // pelus oyuncak gicirtisi
+    const c = audio.ctx, t = c.currentTime + delay;
+    const o = c.createOscillator(), g = c.createGain(), bp = c.createBiquadFilter();
+    o.type = 'square'; bp.type = 'bandpass'; bp.frequency.value = 1500; bp.Q.value = 3;
+    o.frequency.setValueAtTime(700, t); o.frequency.exponentialRampToValueAtTime(1150, t + 0.08); o.frequency.exponentialRampToValueAtTime(900, t + 0.13);
+    env(g, t, 0.07, 0.01, 0.14);
+    o.connect(bp).connect(g).connect(audio.sfx); o.start(t); o.stop(t + 0.16);
+  }
+  function flutter(dur) { // kanat cirpma
+    const c = audio.ctx, t = c.currentTime;
+    const s = c.createBufferSource(); s.buffer = audio.noise;
+    const bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1800; bp.Q.value = 0.7;
+    const g = c.createGain(), am = c.createOscillator(), ag = c.createGain();
+    am.frequency.value = 26; ag.gain.value = 0.025;
+    g.gain.setValueAtTime(0.025, t); g.gain.linearRampToValueAtTime(0.0001, t + dur);
+    am.connect(ag).connect(g.gain);
+    s.connect(bp).connect(g).connect(audio.sfx);
+    s.start(t, Math.random()); am.start(t); s.stop(t + dur); am.stop(t + dur);
+  }
+  let toyMoveT = 0;
+  function toySound(kind) {
+    if (!save.sound || DEMO) return;
     try {
-      while (audio.nextT < c.currentTime + 0.25) {
-        const s = audio.step, ch = S.chords[Math.floor(s / 16) % S.chords.length], i = s % 16;
-        const d = Math.max(0, audio.nextT - c.currentTime);
-        if (i === 0) pad(ch, six * 16 + 0.3, d);
-        if (mode === 'menu') {
-          if (i === 0 || i === 8) tone(midi(ch[0] - 12), six * 7, { vol: 0.09, attack: 0.03, delay: d, dest: audio.music });
-          if (i % 4 === 2) pluck(midi(ch[(i / 2) % 4] + 12), d, 0.035);
-        } else {
-          if ([0, 6, 8, 14].includes(i)) tone(midi(ch[0] - 12), six * 2.5, { type: 'triangle', vol: 0.12, attack: 0.01, delay: d, dest: audio.music });
-          if (i === 0 || i === 8 || (lvl >= 2 && i === 11)) kick(d);
-          if (i === 4 || i === 12) brush(d, 0.05);
-          if (lvl >= 1 && i % 2 === 0) hat(d, i % 4 === 2 ? 0.025 : 0.014);
-        }
-        const r = hashStep(s + (mode === 'game' ? 101 : 7));
-        if (i % 2 === 0 && r < S.mel) pluck(midi(S.scale[Math.floor(r * 1000) % S.scale.length]), d, mode === 'game' ? 0.06 : 0.045);
-        audio.nextT += six;
-        audio.step++;
-      }
+      if (!ac()) return;
+      const s = TOY_SFX[save.toys.sel] || TOY_SFX.tuy;
+      if (kind === 'catch') s.catch();
+      else { const n = performance.now(); if (n - toyMoveT > 380) { toyMoveT = n; s.move(); } }
     } catch { /* yoksay */ }
   }
+
+
   // Yagmur sesi: yagmur yagarken kisik, surekli bir hisirti
   let rainSrc = null, rainGain = null;
   function rainAmbience() {
@@ -661,7 +779,7 @@
   let stage = 0, darkAmt = 0, darkTarget = 0, fogAmt = 0, weather = 'clear';
   const toastMsg = { text: '', sub: '', t: 0 };
 
-  const MENU_STATES = ['menu', 'levels', 'chars', 'shop', 'missions', 'wardrobe', 'board', 'settings'];
+  const MENU_STATES = ['menu', 'levels', 'chars', 'shop', 'missions', 'wardrobe', 'board', 'settings', 'ach', 'house', 'photo'];
   const meters = () => Math.floor(dist / METER);
   const score = () => Math.floor(points) + bonus;
   const isRunMode = () => run && (run.mode === 'endless' || run.mode === 'daily');
@@ -831,17 +949,17 @@
     if (chaseCooldown > 0) chaseCooldown -= dt;
     if (!chase) return;
     chase.t += wdt;
-    chase.close = Math.max(0, chase.close + diffOf().dog * (catIs('duman') ? 0.6 : 1) * wdt);
+    chase.close = Math.max(0, chase.close + diffOf().dog * (catIs('duman') ? 0.6 : 1) * ((run && run.cfg.dogsAll) || 1) * wdt);
     chase.hav = Math.max(0, chase.hav - dt);
     chase.barkT -= dt;
     if (chase.barkT <= 0) {
-      chase.barkT = rand(1.8, 2.8); chase.hav = 0.7;
+      chase.barkT = rand(4, 6.5); chase.hav = 0.7; // seyrek havlar, kulak yormaz
       sfx(chase.close > 0.7 ? 'growlDog' : 'bark'); // cok yaklasinca hirlar
       if (chase.close > 0.7) setTimeout(() => sfx('bark'), 650);
     }
     if (chase.close >= 1) {
       chase = null;
-      chaseCooldown = 8;
+      chaseCooldown = run && run.cfg.dogsAll ? 2.5 : 8; // Karabas bolumlerinde kisa sure sonra yine gelir
       loseLife('dog');
     } else if (chase.t >= chase.dur) {
       chase = null;
@@ -1168,10 +1286,18 @@
       }
     }
     fogAmt = weather === 'fog' ? 1 : 0;
+    $('hintCard').classList.add('hidden');
     if (opts.resume) return;
     state = 'play';
     show(null);
     sfx('start');
+    if (mode === 'tutorial' && !DEMO) { // egitimin ilk karti: ne yapacagini soyle
+      state = 'hint';
+      $('hintTitle').textContent = 'Hoş geldin! 🐾';
+      $('hintSub').textContent = 'Kedin duvardan duvara zıplayarak binaya tırmanacak. Ekrana her dokunduğunda zıplar. Hadi dene!';
+      $('hintCard').classList.remove('hidden');
+      $('pauseBtn').classList.add('hidden');
+    }
   }
 
   function snapshot() {
@@ -1261,6 +1387,7 @@
 
   function die(kind) {
     state = 'over';
+    if (!isTutorial()) { recordLife(); eventProgress(meters()); checkAchievements(); }
     overAt = performance.now();
     chase = null;
     const c = CAT_BY_ID[save.char];
@@ -1316,6 +1443,7 @@
 
   function win() {
     state = 'win';
+    if (!isTutorial()) { recordLife(); }
     overAt = performance.now();
     chase = null;
     clearResume();
@@ -1331,7 +1459,9 @@
       $('winTitle').textContent = 'Eğitim tamam!';
       $('winStars').textContent = '🐾';
       $('winInfo').textContent = `Artık her şeyi biliyorsun.\nCüzdana +${earned}${first ? ' (ilk eğitim ödülü dahil)' : ''}`;
-      $('nextBtn').classList.add('hidden');
+      $('nextBtn').classList.remove('hidden');
+      $('nextBtn').textContent = 'Ana sayfaya geç';
+      $('nextBtn').dataset.act = 'menu';
       setTimeout(() => { if (state === 'win') show('win'); }, 500);
       return;
     }
@@ -1346,6 +1476,8 @@
     const last = lv >= LEVELS.length - 1;
     $('winTitle').textContent = last ? 'Tüm bölümler bitti!' : `${lv + 1}. Bölüm tamam!`;
     $('nextBtn').classList.toggle('hidden', last);
+    $('nextBtn').textContent = 'Sonraki bölüm';
+    $('nextBtn').dataset.act = 'next';
     setTimeout(() => { if (state === 'win') show('win'); }, 500);
   }
 
@@ -1423,6 +1555,9 @@
           floater(`Kat ödülü: +${reward} balık`, COIN);
           if (S.dogs && rnd() < 0.35) startChase(0.15, 'Bekçi köpeği uyandı!');
         }
+      } else if (run.mode === 'level' && cfg.dogsAll && !chase && chaseCooldown <= 0) {
+        startChase(dogEventDone ? 0.3 : 0.2, dogEventDone ? 'Karabaş yine peşinde!' : 'Bölüm bitene kadar Karabaş peşinde! Kıl payı geç, balık ye.', Infinity);
+        dogEventDone = true;
       } else if (run.mode === 'level' && cfg.dogs && !dogEventDone && progress() > 0.4) {
         dogEventDone = true;
         startChase(0.15, 'Bekçi köpeği uyandı!');
@@ -1461,8 +1596,15 @@
         if (o.announce && !o.announced && o.y + o.h > 20) { o.announced = true; floater(o.announce, '#c9d8ea'); }
         if (o.hint && !o.hinted && o.y + o.h > 30) {
           o.hinted = true;
-          toast(o.hint[0], o.hint[1], 3.4);
-          hintSlow = 2.4;
+          if (DEMO) { toast(o.hint[0], o.hint[1], 3.4); hintSlow = 2.4; }
+          else { // oyunu durdur, karti goster; dokununca devam
+            state = 'hint';
+            $('hintTitle').textContent = o.hint[0];
+            $('hintSub').textContent = o.hint[1];
+            $('hintCard').classList.remove('hidden');
+            $('pauseBtn').classList.add('hidden');
+            hintSlow = 1.6;
+          }
           if (o.trigger === 'dog') { chaseCooldown = 0; startChase(0.2, 'Kıl payı geç ve balık ye, uzaklaşsın', 9); }
           if (o.trigger === 'crow') crowT = 0.6;
         }
@@ -1536,6 +1678,12 @@
 
   // Aksesuarlar (hepsi bu oyuna ozgu basit cizimler)
   function drawNeckItem(g, id, nx, ny, D, t) {
+    if (id === 'madalya') { // odul: sampiyon madalyasi
+      g.strokeStyle = '#d9534f'; g.lineWidth = 2;
+      g.beginPath(); g.moveTo(nx - 5, ny - 1); g.lineTo(nx, ny + 3); g.lineTo(nx + 5, ny - 1); g.stroke();
+      dot(g, nx, ny + 5.5, 3.2, '#f6c35b'); dot(g, nx, ny + 5.5, 1.8, '#fff1b8');
+      return;
+    }
     if (id === 'papyon') {
       tri(g, [nx, ny], [nx - 5, ny - 3.5], [nx - 5, ny + 3.5], '#c76b6b');
       tri(g, [nx, ny], [nx + 5, ny - 3.5], [nx + 5, ny + 3.5], '#c76b6b');
@@ -1585,6 +1733,28 @@
     g.strokeStyle = 'rgba(0,0,0,0.12)'; g.lineWidth = 1; g.stroke();
   }
   function drawHeadItem(g, id, hx, hy, D, fx) {
+    if (id === 'yildiz') { // odul: yildizli tac
+      g.fillStyle = '#f6c35b';
+      g.beginPath(); g.moveTo(hx - 7, hy - 7); g.lineTo(hx - 7, hy - 12); g.lineTo(hx - 3.5, hy - 9.5); g.lineTo(hx, hy - 15); g.lineTo(hx + 3.5, hy - 9.5); g.lineTo(hx + 7, hy - 12); g.lineTo(hx + 7, hy - 7); g.closePath(); g.fill();
+      g.fillStyle = '#fff6c8';
+      g.beginPath();
+      for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + (i * Math.PI) / 5, r = i % 2 ? 1.6 : 3.6; g.lineTo(hx + Math.cos(a) * r, hy - 17.5 + Math.sin(a) * r); }
+      g.closePath(); g.fill();
+      dot(g, hx - 4, hy - 9, 1, '#9cc3e6'); dot(g, hx + 4, hy - 9, 1, '#e46b8a');
+      return;
+    }
+    if (id === 'yaprak') { // odul: yaprak tac
+      const LC = ['#e8915a', '#d9663f', '#e9b44c', '#c9553a', '#e8915a'];
+      for (let i = 0; i < 5; i++) { const a = Math.PI * (1.12 + i * 0.19); ell(g, hx + Math.cos(a) * 8.5, hy - 1 + Math.sin(a) * 8.5, 3.6, 2, a + Math.PI / 2, LC[i]); }
+      return;
+    }
+    if (id === 'noel') { // odul: noel sapkasi
+      g.fillStyle = '#d9534f';
+      g.beginPath(); g.moveTo(hx - 8, hy - 7); g.quadraticCurveTo(hx - 2, hy - 22, hx + D * 9, hy - 16); g.lineTo(hx + 8, hy - 7); g.closePath(); g.fill();
+      g.fillStyle = '#ffffff'; rr(g, hx - 9.5, hy - 9, 19, 4, 2); g.fill();
+      dot(g, hx + D * 9.5, hy - 16, 2.6, '#ffffff');
+      return;
+    }
     if (id === 'bere') {
       g.fillStyle = '#d9705f';
       g.beginPath(); g.arc(hx, hy - 2, 9.3, Math.PI * 1.02, Math.PI * 1.98); g.closePath(); g.fill();
@@ -1669,11 +1839,28 @@
   }
   function ctxAlpha(g, a, fn) { const o = g.globalAlpha; g.globalAlpha = a; fn(); g.globalAlpha = o; }
 
+  // Hex rengi acar (amt > 0) / koyulastirir (amt < 0)
+  function shadeC(hex, amt) {
+    const n = parseInt(hex.slice(1), 16);
+    const f = (v) => Math.max(0, Math.min(255, Math.round(amt < 0 ? v * (1 + amt) : v + (255 - v) * amt)));
+    return `rgb(${f(n >> 16)},${f((n >> 8) & 255)},${f(n & 255)})`;
+  }
+  // Ustten-soldan isik alan yumusak tuy dolgusu (radyal gecis) ve ince kontur
+  function fur(g, x, y, rx, ry, rot, col, outline = true) {
+    const r = Math.max(rx, ry);
+    const gr = g.createRadialGradient(x - rx * 0.35, y - ry * 0.45, r * 0.08, x, y, r * 1.08);
+    gr.addColorStop(0, shadeC(col, 0.2)); gr.addColorStop(0.62, col); gr.addColorStop(1, shadeC(col, -0.16));
+    g.fillStyle = gr;
+    g.beginPath(); g.ellipse(x, y, rx, ry, rot, 0, Math.PI * 2); g.fill();
+    if (outline) { g.strokeStyle = 'rgba(70,45,45,0.16)'; g.lineWidth = 0.8; g.stroke(); }
+  }
   // Kediyi (0,0) merkezli cizer. dir: bakis yonu (1 = saga), pose: 'wall' | 'jump' | 'idle'
   function drawCat(g, c, dir, pose, t, wear) {
     const D = dir;
-    const sway = Math.sin(t * 2.5) * 1.5;
+    const sway = Math.sin(t * 2.5) * 1.5 + Math.sin(t * 0.9) * 0.8;
     const blink = t % 4.3 < 0.12;
+    const breath = pose === 'jump' ? 1 : 1 + Math.sin(t * 2.3) * 0.03; // nefes alip verme
+    const twitch = (t % 5.3) < 0.18 ? Math.sin(((t % 5.3) / 0.18) * Math.PI) : 0; // ara sira kulak oynatir
     const darkParts = c.pattern === 'points' || c.pattern === 'van';
     let body, head, tail, paws;
     if (pose === 'wall') {
@@ -1697,8 +1884,11 @@
     g.lineJoin = 'round';
 
     g.strokeStyle = darkParts ? c.fur2 : c.fur;
-    g.lineWidth = 4;
+    g.lineWidth = 5;
     g.beginPath(); g.moveTo(tail[0], tail[1]); g.quadraticCurveTo(tail[2], tail[3], tail[4], tail[5]); g.stroke();
+    g.lineWidth = 3.2; g.strokeStyle = shadeC(darkParts ? c.fur2 : c.fur, 0.12);
+    g.beginPath(); g.moveTo(lerp(tail[0], tail[4], 0.35), lerp(tail[1], tail[5], 0.35)); g.quadraticCurveTo(tail[2], tail[3], tail[4], tail[5]); g.stroke();
+    dot(g, tail[4], tail[5], 2.3, c.pattern === 'tabby' ? c.fur2 : darkParts ? c.fur2 : c.fur);
     if (wear && wear.neck === 'pelerin') drawCape(g, lerp(head.x, body.x, 0.5), lerp(head.y, body.y, 0.5) + 1, D, pose, t);
 
     const pawCol = c.paws || (c.pattern === 'points' ? c.fur2 : c.fur);
@@ -1712,7 +1902,7 @@
       dot(g, px, py, 2.6, pawCol);
     }
 
-    ell(g, body.x, body.y, body.rx, body.ry, body.rot, c.fur);
+    fur(g, body.x, body.y, body.rx, body.ry * breath, body.rot, c.fur);
     g.save();
     g.beginPath(); g.ellipse(body.x, body.y, body.rx, body.ry, body.rot, 0, Math.PI * 2); g.clip();
     if (pose === 'jump') ell(g, body.x, body.y + 4, body.rx * 0.7, body.ry * 0.45, 0, c.belly);
@@ -1743,12 +1933,14 @@
     const earCol = darkParts ? c.fur2 : c.fur;
     for (const s of [-1, 1]) {
       g.fillStyle = earCol;
-      g.beginPath(); g.moveTo(hx + s * 7.5, hy - 2); g.lineTo(hx + s * 6, hy - 12.5); g.lineTo(hx + s * 0.5, hy - 7); g.closePath(); g.fill();
+      const tw = s === 1 ? twitch * 1.6 : 0;
+      g.beginPath(); g.moveTo(hx + s * 7.5, hy - 2); g.lineTo(hx + s * 6 + tw, hy - 12.5 + Math.abs(tw) * 0.5); g.lineTo(hx + s * 0.5, hy - 7); g.closePath(); g.fill();
       g.fillStyle = '#e8a0a8';
       g.beginPath(); g.moveTo(hx + s * 6, hy - 4); g.lineTo(hx + s * 5.4, hy - 10); g.lineTo(hx + s * 2.5, hy - 7); g.closePath(); g.fill();
     }
 
-    dot(g, hx, hy, 8.5, c.fur);
+    for (const s of [-1, 1]) { g.fillStyle = c.fur; g.beginPath(); g.moveTo(hx + s * 7.6, hy + 1); g.lineTo(hx + s * 10.2, hy + 3.4); g.lineTo(hx + s * 7.2, hy + 4.4); g.closePath(); g.fill(); } // yanak tuyleri
+    fur(g, hx, hy, 8.5, 8.5, 0, c.fur);
     g.save();
     g.beginPath(); g.arc(hx, hy, 8.5, 0, Math.PI * 2); g.clip();
     if (c.pattern === 'tabby') {
@@ -1781,7 +1973,10 @@
         g.strokeStyle = '#2a2328'; g.lineWidth = 1.2;
         g.beginPath(); g.moveTo(ex - 1.8, hy - 1); g.lineTo(ex + 1.8, hy - 1); g.stroke();
       } else {
-        ell(g, ex, hy - 1, 2.1, 2.5, 0, c.eyes[i]);
+        const ig = g.createRadialGradient(ex, hy - 1.6, 0.2, ex, hy - 1, 2.6);
+        ig.addColorStop(0, shadeC(c.eyes[i], 0.35)); ig.addColorStop(1, shadeC(c.eyes[i], -0.15));
+        g.fillStyle = ig; g.beginPath(); g.ellipse(ex, hy - 1, 2.1, 2.5, 0, 0, Math.PI * 2); g.fill();
+        dot(g, ex + 0.7, hy + 0.3, 0.35, 'rgba(255,255,255,0.7)');
         ell(g, ex + D * 0.5, hy - 1, 0.8, 2, 0, '#1d1a1f');
         dot(g, ex - 0.6, hy - 2, 0.55, 'rgba(255,255,255,0.9)');
       }
@@ -1847,7 +2042,7 @@
     const b = P3(0, 8, -1);
     const bodyRx = Math.sqrt((9 * ca) ** 2 + (10.5 * sa) ** 2);
     add(b.z, () => {
-      ell(g, b.x, b.y, bodyRx, 11, 0, c.fur);
+      fur(g, b.x, b.y, bodyRx, 11 * (1 + Math.sin(t * 2.3) * 0.025), 0, c.fur);
       g.save();
       g.beginPath(); g.ellipse(b.x, b.y, bodyRx, 11, 0, 0, Math.PI * 2); g.clip();
       const bf = P3(0, 10, 8); // gogus/karin one bakar
@@ -1889,7 +2084,7 @@
     // bas
     const hd = P3(0, -6, 2);
     add(hd.z, () => {
-      dot(g, hd.x, hd.y, 8.5, c.fur);
+      fur(g, hd.x, hd.y, 8.5, 8.5, 0, c.fur);
       g.save(); g.beginPath(); g.arc(hd.x, hd.y, 8.5, 0, Math.PI * 2); g.clip();
       if (c.pattern === 'van') { const a = P3(-4.5, -12, 4), bb = P3(4.5, -12, 4); dot(g, a.x, a.y, 4, c.fur2); dot(g, bb.x, bb.y, 4, c.fur2); }
       if (c.pattern === 'calico') { const a = P3(-4, -11, 5); dot(g, a.x, a.y, 4.5, c.fur2); }
@@ -1906,7 +2101,8 @@
     });
     // kulaklar (3B ucgenler: yandan bakinca incelir)
     for (const s of [-1, 1]) {
-      const o = P3(s * 7.6, -9, 1.5), tip = P3(s * 6.2, -17.5, 1.5), inn = P3(s * 1.4, -13, 1.5);
+      const tw3 = s === 1 && (t % 5.3) < 0.18 ? Math.sin(((t % 5.3) / 0.18) * Math.PI) * 1.8 : 0;
+      const o = P3(s * 7.6, -9, 1.5), tip = P3(s * 6.2 + tw3, -17.5 + Math.abs(tw3) * 0.5, 1.5 - tw3), inn = P3(s * 1.4, -13, 1.5);
       const io = P3(s * 6.2, -10.5, 1.8), it = P3(s * 5.6, -15.5, 1.8), ii = P3(s * 2.8, -12.8, 1.8);
       add(o.z + 0.2, () => {
         tri(g, [o.x, o.y], [tip.x, tip.y], [inn.x, inn.y], darkParts ? c.fur2 : c.fur);
@@ -2086,6 +2282,7 @@
     ctx.globalAlpha = 0.18; dot(ctx, mx - 6, my - 5, 6, '#ffffff');
     ctx.globalAlpha = 1;
 
+    drawSeason(); // sezon etkinligi: dusen yapraklar / kar
     // kabarik, yumusak bulutlar
     if (P.cloud > 0.01) {
       for (const c of CLOUDS) {
@@ -2601,7 +2798,9 @@
       if (d < 11 || Math.random() < 0.25) { // yakaladi!
         const ps = playState();
         ps.catches++;
+        save.life.catches++; persist('life'); if (save.life.catches % 10 === 0) checkAchievements();
         for (let i = 0; i < 5; i++) toy.hearts.push({ x: toy.x + rand(-3, 3), y: toy.y, vy: rand(-14, -8), t: 1.2 });
+        toySound('catch');
         sfx(Math.random() < 0.5 ? 'purr' : 'meowHappy');
         let msg = pickOne(['Yakaladım!', 'Hap!', 'Benim bu!', 'Bir daha!']);
         if (ps.catches % 5 === 0 && ps.rewarded < PLAY_DAILY_FISH) { ps.rewarded++; save.wallet++; persist('wallet'); msg += ' 🐟 +1'; $('wallet').textContent = save.wallet; }
@@ -2677,7 +2876,7 @@
     });
     cv.addEventListener('pointermove', (e) => {
       if (!hero.drag) return;
-      if (toy.on) { const u = heroUnits(e); toy.tx = u.x; toy.ty = u.y; return; }
+      if (toy.on) { const u = heroUnits(e); if (Math.hypot(u.x - toy.tx, u.y - toy.ty) > 1.5) toySound('move'); toy.tx = u.x; toy.ty = u.y; return; }
       const dx = e.clientX - hero.lastX, dtm = Math.max(1, e.timeStamp - hero.lastT) / 1000;
       hero.ang += dx * 0.016;
       hero.vel = Math.max(-9, Math.min(9, (dx * 0.016) / dtm));
@@ -2699,9 +2898,283 @@
   })();
 
 
+  // ================= Bildirim, gunluk odul, basarimlar, etkinlik =================
+  let noteTimer = null;
+  function showNote(title, sub = '') {
+    const n = $('note');
+    $('noteTitle').textContent = title;
+    $('noteSub').textContent = sub;
+    n.classList.add('on');
+    if (noteTimer) clearTimeout(noteTimer);
+    noteTimer = setTimeout(() => n.classList.remove('on'), 2800);
+  }
+  function dayKeyOffset(off) {
+    const d = new Date(Date.now() + off * 86400000);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+  const loginDue = () => save.login.last !== todayKey();
+  const nextStreak = () => (save.login.last === dayKeyOffset(-1) ? save.login.streak + 1 : 1);
+  function renderLogin() {
+    const due = loginDue();
+    $('loginCard').classList.toggle('hidden', !due);
+    if (!due) return;
+    const s = nextStreak(), idx = (s - 1) % 7;
+    $('loginTitle').textContent = `Günlük ödül · ${s}. gün`;
+    $('loginDays').innerHTML = LOGIN_REWARDS.map((r, i) =>
+      `<span class="${i < idx ? 'got' : i === idx ? 'now' : ''}"><b>${i + 1}</b>${i === 6 ? '👑' : '🐟'}${r}</span>`).join('');
+  }
+  function claimLogin() {
+    if (!loginDue()) return;
+    const s = nextStreak(), idx = (s - 1) % 7, fish = LOGIN_REWARDS[idx];
+    save.login = { last: todayKey(), streak: s };
+    save.wallet += fish;
+    let extra = '';
+    if (idx === 6 && !save.wardrobe.owned.includes('yildiz')) { save.wardrobe.owned.push('yildiz'); persist('wardrobe'); extra = ' ve Yıldızlı Taç'; }
+    persist('login'); persist('wallet');
+    sfx('win');
+    showNote(`${s}. gün ödülü`, `+${fish} balık${extra}`);
+    checkAchievements();
+    renderMenu();
+  }
+  function recordLife() {
+    const L = save.life;
+    L.runs++; L.near += stats.near; L.dogs += stats.dogs; L.fish += stats.fish;
+    L.maxM = Math.max(L.maxM, meters());
+    persist('life');
+  }
+  function checkAchievements() {
+    let got = false;
+    for (const a of ACHS) {
+      if (save.ach.includes(a.id) || !a.test(save.life)) continue;
+      save.ach.push(a.id);
+      save.wallet += a.reward;
+      if (a.item && !save.wardrobe.owned.includes(a.item)) { save.wardrobe.owned.push(a.item); persist('wardrobe'); }
+      showNote(`Başarım: ${a.name}`, `+${a.reward} balık${a.item ? ' ve ' + COS_BY_ID[a.item].name : ''}`);
+      got = true;
+    }
+    if (got) { persist('ach'); persist('wallet'); }
+  }
+  function eventProgress(m) { // sonsuz kosu bitince etkinlik ilerlemesi
+    const ev = currentEvent();
+    if (!ev || !run || run.mode !== 'endless') return;
+    const e = save.events[ev.id] || (save.events[ev.id] = { best: 0, done: false });
+    e.best = Math.max(e.best, m);
+    if (!e.done && m >= ev.goal) {
+      e.done = true;
+      if (!save.wardrobe.owned.includes(ev.item)) { save.wardrobe.owned.push(ev.item); persist('wardrobe'); }
+      showNote(`${ev.name} tamam!`, `${COS_BY_ID[ev.item].name} kazandın`);
+    }
+    persist('events');
+  }
+  function renderEvent() {
+    const ev = currentEvent();
+    $('eventCard').classList.toggle('hidden', !ev);
+    if (!ev) return;
+    const e = save.events[ev.id] || { best: 0, done: false };
+    $('eventName').textContent = (ev.fx === 'snow' ? '❄️ ' : '🍂 ') + ev.name;
+    $('eventText').textContent = e.done ? `Tamamlandı! ${COS_BY_ID[ev.item].name} gardırobunda.` : `${ev.text} · en iyi ${e.best} m`;
+    $('eventBar').style.width = Math.min(100, Math.round((e.best / ev.goal) * 100)) + '%';
+  }
+  function renderAch() {
+    const L = save.life;
+    $('achCount').textContent = `${save.ach.length}/${ACHS.length}`;
+    $('achList').innerHTML = ACHS.map((a) => {
+      const done = save.ach.includes(a.id);
+      return `<div class="ms ach${done ? ' done' : ''}"><b>${done ? '🏅' : '🔒'} ${a.name}</b><small>${a.text}</small><em>🐟 ${a.reward}${a.item ? ' + ' + COS_BY_ID[a.item].name : ''}</em></div>`;
+    }).join('') + `<p class="hint small">Toplam: ${L.runs} tur · ${L.fish} balık · ${L.near} kıl payı · ${L.dogs} köpek atlatma · en uzak ${L.maxM} m</p>`;
+  }
+
+  // ================= Sezon suslemesi: dusen yapraklar / kar =================
+  const EVFX = Array.from({ length: 22 }, () => ({ x: rand(0, W), y: rand(0, 900), s: rand(0.7, 1.3), ph: rand(0, 6.28), c: Math.floor(rand(0, 3)) }));
+  function drawSeason() {
+    const ev = currentEvent();
+    if (!ev) return;
+    const LEAF = ['#e8915a', '#d9663f', '#e9b44c'];
+    for (const p of EVFX) {
+      const y = (p.y + clock * 22 * p.s + bgOff * 0.05) % (H + 30) - 15;
+      const x = p.x + Math.sin(clock * 0.8 + p.ph) * 14;
+      if (ev.fx === 'snow') dot(ctx, x, y, 1.6 * p.s, 'rgba(255,255,255,0.85)');
+      else { ctx.save(); ctx.translate(x, y); ctx.rotate(Math.sin(clock * 1.3 + p.ph) * 0.8); ell(ctx, 0, 0, 3.4 * p.s, 1.8 * p.s, 0, LEAF[p.c]); ctx.restore(); }
+    }
+  }
+
+  // ================= Kedi evi =================
+  const house = { ang: -0.45, t: 0 };
+  function drawHouse() {
+    if (state !== 'house') return;
+    const cv = $('houseCv'), g = cv.getContext('2d');
+    if (!cv.width) return;
+    const k = cv.width / 300;
+    g.setTransform(k, 0, 0, k, 0, 0);
+    const pl = save.house.placed;
+    // duvar ve zemin
+    const wg = g.createLinearGradient(0, 0, 0, 160); wg.addColorStop(0, '#fbe7d6'); wg.addColorStop(1, '#f6d5bd');
+    g.fillStyle = wg; g.fillRect(0, 0, 300, 160);
+    g.fillStyle = 'rgba(255,255,255,0.35)'; for (let x = 12; x < 300; x += 24) g.fillRect(x, 0, 2, 160);
+    const fg = g.createLinearGradient(0, 160, 0, 230); fg.addColorStop(0, '#d9a77a'); fg.addColorStop(1, '#c58f62');
+    g.fillStyle = fg; g.fillRect(0, 160, 300, 70);
+    g.strokeStyle = 'rgba(120,70,40,0.18)'; g.lineWidth = 1; for (let y = 172; y < 230; y += 14) { g.beginPath(); g.moveTo(0, y); g.lineTo(300, y); g.stroke(); }
+    g.fillStyle = '#e9c4a4'; g.fillRect(0, 156, 300, 6);
+    // pencere
+    const sk = g.createLinearGradient(0, 30, 0, 110); sk.addColorStop(0, '#8ec5ea'); sk.addColorStop(1, '#fde2c8');
+    g.fillStyle = '#ffffff'; rr(g, 200, 26, 76, 88, 8); g.fill();
+    g.fillStyle = sk; rr(g, 205, 31, 66, 78, 6); g.fill();
+    dot(g, 252, 52, 9, '#fff1c1');
+    g.fillStyle = 'rgba(255,255,255,0.85)'; ell(g, 222, 80, 12, 5, 0, 'rgba(255,255,255,0.85)');
+    g.fillStyle = '#ffffff'; g.fillRect(236, 31, 4, 78); g.fillRect(205, 68, 66, 4);
+    g.fillStyle = '#f2a6b8'; rr(g, 194, 22, 14, 96, 6); g.fill(); rr(g, 268, 22, 14, 96, 6); g.fill();
+    // tablo
+    if (pl.tablo) {
+      g.fillStyle = '#b07a48'; rr(g, 96, 36, 70, 54, 4); g.fill();
+      g.fillStyle = pl.tablo === 'tablo_ay' ? '#34406b' : '#bfe3f2'; g.fillRect(102, 42, 58, 42);
+      if (pl.tablo === 'tablo_ay') { dot(g, 140, 56, 8, '#fff3d0'); dot(g, 144, 53, 7, '#34406b'); for (const [sx, sy] of [[112, 50], [124, 72], [150, 76]]) dot(g, sx, sy, 1.3, '#fff3d0'); }
+      else { g.save(); g.translate(131, 64); g.scale(2.2, 2.2); drawFish(g, 0, 0, 1, false); g.restore(); }
+    }
+    // hali
+    if (pl.hali === 'hali_pembe') { ell(g, 150, 200, 78, 16, 0, '#f2a6b8'); ell(g, 150, 200, 60, 11, 0, '#f6c3cf'); }
+    if (pl.hali === 'hali_cizgi') { g.fillStyle = '#9cc3e6'; rr(g, 70, 186, 160, 28, 6); g.fill(); g.fillStyle = '#ffffff'; for (let x = 82; x < 222; x += 20) g.fillRect(x, 186, 8, 28); }
+    // kedi agaci
+    if (pl.agac) {
+      g.fillStyle = '#d8c3a5'; g.fillRect(36, pl.agac === 'agac_buyuk' ? 70 : 118, 10, pl.agac === 'agac_buyuk' ? 130 : 82);
+      g.strokeStyle = 'rgba(120,90,60,0.35)'; for (let y = 76; y < 200; y += 6) { g.beginPath(); g.moveTo(36, y); g.lineTo(46, y + 3); g.stroke(); }
+      g.fillStyle = '#9a7bb3'; rr(g, 16, 194, 50, 10, 4); g.fill(); rr(g, 18, 114, 46, 9, 4); g.fill();
+      if (pl.agac === 'agac_buyuk') { rr(g, 22, 66, 40, 9, 4); g.fill(); g.strokeStyle = '#8a6a4a'; g.beginPath(); g.moveTo(58, 75); g.lineTo(58, 95); g.stroke(); dot(g, 58, 98, 4, '#e46b6b'); }
+    }
+    // bitki
+    if (pl.bitki) {
+      g.fillStyle = '#c8724f'; rr(g, 254, 178, 30, 26, 5); g.fill();
+      if (pl.bitki === 'bitki_palmiye') { for (const a of [-1.2, -0.6, 0, 0.6, 1.2]) ell(g, 269 + Math.sin(a) * 14, 160 - Math.cos(a) * 10, 4, 15, a, '#6fae6b'); }
+      else { for (let i = 0; i < 5; i++) { const fx = 258 + i * 6; dot(g, fx, 170 - (i % 2) * 6, 2.5, '#7fb27a'); dot(g, fx, 164 - (i % 2) * 6, 4, ['#f28fa8', '#f6c35b', '#b99be8', '#ffffff', '#f28fa8'][i]); } }
+    }
+    // yatak
+    if (pl.yatak === 'yatak_sepet') { ell(g, 214, 200, 34, 12, 0, '#c9945a'); ell(g, 214, 196, 28, 8, 0, '#e9b4c0'); g.strokeStyle = 'rgba(110,70,30,0.35)'; for (let x = 186; x < 244; x += 6) { g.beginPath(); g.moveTo(x, 196); g.lineTo(x + 2, 210); g.stroke(); } }
+    if (pl.yatak === 'yatak_bulut') { for (const [bx, r] of [[192, 11], [206, 14], [222, 13], [236, 10]]) dot(g, bx, 198, r, '#ffffff'); ell(g, 214, 206, 34, 7, 0, '#eef3ff'); }
+    // mama kabi
+    if (pl.mama) {
+      const gold = pl.mama === 'mama_altin';
+      ell(g, 112, 208, 16, 6, 0, gold ? '#e9b44c' : '#6fa8dc');
+      ell(g, 112, 204, 13, 4, 0, gold ? '#f6d68a' : '#9cc3e6');
+      if (gold) { g.save(); g.translate(112, 201); g.scale(0.9, 0.9); drawFish(g, 0, 0, 1, false); g.restore(); }
+      else for (let i = 0; i < 6; i++) dot(g, 104 + i * 3, 203 - (i % 2), 1.6, '#b57a46');
+    }
+    // kedi (3B, odanin ortasinda oturur)
+    g.save();
+    g.translate(150, 168); g.scale(2.6, 2.6);
+    drawCat3D(g, CAT_BY_ID[save.char], -0.45 + Math.sin(clock * 0.5) * 0.35, clock, save.wardrobe, 0, 0);
+    g.restore();
+  }
+  function renderHouse() {
+    $('wallet5').textContent = save.wallet;
+    const H2 = save.house;
+    $('houseList').innerHTML = Object.keys(HOUSE_SLOTS).map((slot) => {
+      const items = HOUSE_ITEMS.filter((h) => h.slot === slot).map((h) => {
+        const owned = H2.owned.includes(h.id), on = H2.placed[slot] === h.id;
+        const lbl = on ? 'Yerleşti ✓ (kaldır)' : owned ? 'Yerleştir' : `Satın al · 🐟 ${h.price}`;
+        const cant = !owned && save.wallet < h.price;
+        return `<button class="up hs${cant ? ' cant' : ''}${on ? ' done' : ''}" data-house="${h.id}"><b>${h.name}</b><em>${lbl}</em></button>`;
+      }).join('');
+      return `<h3>${HOUSE_SLOTS[slot]}</h3><div class="grid shop-grid">${items}</div>`;
+    }).join('');
+  }
+  function houseClick(id) {
+    const h = HOUSE_BY_ID[id], H2 = save.house;
+    if (!h) return;
+    if (H2.owned.includes(id)) { H2.placed[h.slot] = H2.placed[h.slot] === id ? '' : id; sfx('ui'); }
+    else if (save.wallet >= h.price) { save.wallet -= h.price; H2.owned.push(id); H2.placed[h.slot] = id; persist('wallet'); sfx('buy'); sfx('meowHappy'); }
+    else { sfx('nope'); return; }
+    persist('house');
+    checkAchievements();
+    renderHouse();
+  }
+
+  // ================= Fotograf modu: giydirdigin kedinin fotografini cek, paylas =================
+  let photoBlob = null;
+  function makePhoto() {
+    const cv = document.createElement('canvas');
+    cv.width = 1080; cv.height = 1350;
+    const g = cv.getContext('2d');
+    const bg = g.createLinearGradient(0, 0, 0, 1350);
+    bg.addColorStop(0, '#ffe3d3'); bg.addColorStop(0.6, '#fdf1e4'); bg.addColorStop(1, '#dfeaff');
+    g.fillStyle = bg; g.fillRect(0, 0, 1080, 1350);
+    g.globalAlpha = 0.12;
+    for (let i = 0; i < 14; i++) { g.save(); g.translate(80 + (i * 173) % 980, 120 + ((i * 271) % 1100)); g.rotate(i); g.scale(6, 6); drawPaw(g, 0, 0, '#c4537a'); g.restore(); }
+    g.globalAlpha = 1;
+    const halo = g.createRadialGradient(540, 700, 40, 540, 700, 470);
+    halo.addColorStop(0, 'rgba(255,214,190,0.9)'); halo.addColorStop(1, 'rgba(255,214,190,0)');
+    g.fillStyle = halo; g.fillRect(0, 200, 1080, 1000);
+    g.save(); g.translate(540, 720); g.scale(15, 15);
+    drawCat3D(g, CAT_BY_ID[save.char], state === 'chars' ? pv.ang : -0.4, clock, save.wardrobe, 0, 0);
+    g.restore();
+    g.textAlign = 'center';
+    g.fillStyle = '#ff8f70'; g.font = '900 120px ' + FONT; g.fillText('Patikat', 540, 170);
+    g.fillStyle = '#3b3552'; g.font = '800 70px ' + FONT; g.fillText(CAT_BY_ID[save.char].name, 540, 1150);
+    g.fillStyle = '#7a7391'; g.font = '600 40px ' + FONT; g.fillText('duvardan duvara, kat kat yukarı', 540, 1225);
+    const url = cv.toDataURL('image/png');
+    $('photoImg').src = url;
+    photoBlob = null;
+    if (cv.toBlob) cv.toBlob((b) => { photoBlob = b; }, 'image/png');
+    $('photoShare').classList.toggle('hidden', !(navigator.share && navigator.canShare));
+    $('photoSave').href = url;
+    sfx('click');
+    showScreen('photo');
+  }
+  async function sharePhoto() {
+    try {
+      if (!photoBlob) return;
+      const file = new File([photoBlob], 'patikat-kedim.png', { type: 'image/png' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: 'Patikat', text: `Kedim ${CAT_BY_ID[save.char].name} 🐾 #Patikat` });
+      }
+    } catch { /* kullanici vazgecti */ }
+  }
+
+
+  // ================= Ana sayfa turu: onemli yerleri tek tek gosterir =================
+  const TOUR = [
+    ['endlessBtn', 'Sonsuz Koşu', 'Ne kadar yükseğe çıkabilirsin? Her 200 metre yeni bir kat.'],
+    ['toyBtn', 'Kedinle oyna', 'Oltayla oyuncak sarkıt, kedin yakalasın. Her 5 yakalamada 1 balık.'],
+    ['dailyBtn', 'Günün Seferi', 'Herkes aynı parkurda yarışır. Günde 3 hakkın var.'],
+    ['levelsBtn', 'Bölümler', '18 kat, Karabaş bölümleri ve yıldızlar seni bekliyor.'],
+    ['houseBtn', 'Kedi Evi', 'Balıklarla eşya al, kedinin odasını döşe.'],
+    ['tab:cat', 'Kedim', 'Yeni kediler ve kıyafetler. Önce dene, beğenirsen satın al.'],
+    ['tab:shop', 'Dükkan', 'Yükseltmeler ve yeni oyuncaklar.'],
+    ['tab:goals', 'Görevler', 'Görevleri ve başarımları tamamla, balık kazan.'],
+    ['settingsBtn', 'Ayarlar', 'Zorluk, ses, müzik ve nasıl oynanır.'],
+  ];
+  let tourStep = -1;
+  function tourEl(key) {
+    return key.startsWith('tab:') ? document.querySelector('[data-tab="' + key.slice(4) + '"]') : $(key);
+  }
+  function showTourStep() {
+    const step = TOUR[tourStep], el = step && tourEl(step[0]);
+    if (!step) { endTour(); return; }
+    $('coach').classList.remove('hidden');
+    $('coachTitle').textContent = step[1];
+    $('coachSub').textContent = step[2];
+    $('coachStep').textContent = `${tourStep + 1}/${TOUR.length} · devam için dokun`;
+    const r = el && el.getBoundingClientRect ? el.getBoundingClientRect() : null;
+    const ring = $('coachRing'), tip = $('coachTip');
+    if (r && r.width) {
+      if (el.scrollIntoView && (r.top < 0 || r.bottom > window.innerHeight)) { el.scrollIntoView({ block: 'center' }); return setTimeout(showTourStep, 250); }
+      ring.style.left = r.left - 6 + 'px'; ring.style.top = r.top - 6 + 'px';
+      ring.style.width = r.width + 12 + 'px'; ring.style.height = r.height + 12 + 'px';
+      const below = r.top < window.innerHeight * 0.55;
+      tip.style.top = (below ? r.bottom + 16 : Math.max(10, r.top - 130)) + 'px';
+    }
+  }
+  function startTour() { if (DEMO) return; tourStep = 0; showTourStep(); }
+  function nextTour() { tourStep++; sfx('click'); showTourStep(); }
+  function endTour() {
+    tourStep = -1;
+    $('coach').classList.add('hidden');
+    save.tourDone = true; persist('tourDone');
+    showNote('Hazırsın!', 'İyi eğlenceler. Ayarlardan eğitimi tekrar oynayabilirsin.');
+  }
+  $('coach').addEventListener('click', (e) => { e.stopPropagation && e.stopPropagation(); if (e.target && e.target.id === 'coachSkip') endTour(); else nextTour(); });
+
   // ================= Ekranlar =================
-  const SCREENS = ['menu', 'levels', 'chars', 'shop', 'missions', 'wardrobe', 'board', 'settings', 'pause', 'over', 'win'];
-  const TAB_OF = { menu: 'home', settings: 'home', levels: 'map', chars: 'cat', wardrobe: 'cat', shop: 'shop', missions: 'goals', board: 'goals' };
+  const SCREENS = ['menu', 'levels', 'chars', 'shop', 'missions', 'wardrobe', 'board', 'settings', 'ach', 'house', 'photo', 'pause', 'over', 'win'];
+  const TAB_OF = { menu: 'home', settings: 'home', house: 'home', photo: 'cat', ach: 'goals', levels: 'map', chars: 'cat', wardrobe: 'cat', shop: 'shop', missions: 'goals', board: 'goals' };
   const TAB_TARGET = { home: 'menu', map: 'levels', cat: 'chars', shop: 'shop', goals: 'missions' };
   function show(id) {
     for (const s of SCREENS) $(s).classList.toggle('hidden', s !== id);
@@ -2724,7 +3197,10 @@
     if (name === 'board') renderBoard();
     if (name !== 'menu' && toy.on) setToyMode(false);
     if (name === 'settings') renderMenu();
+    if (name === 'ach') renderAch();
+    if (name === 'house') renderHouse();
     show(name);
+    if (name === 'menu' && save.tutorialDone && !save.tourDone && tourStep < 0) setTimeout(startTour, 600);
     if (name === 'menu' && !hero.greeted) {
       hero.greeted = true;
       hero.hop = 1;
@@ -2751,6 +3227,9 @@
 
   const MODE_NAMES = { endless: 'Sonsuz Koşu', daily: 'Günün Seferi', level: 'Bölüm' };
   function renderMenu() {
+    renderLogin();
+    renderEvent();
+    checkAchievements();
     refillMissions();
     $('wallet').textContent = save.wallet;
     $('menuBest').textContent = save.bestByDiff[save.diff] || 0;
@@ -2783,7 +3262,7 @@
     const floors = LEVELS.map((lv, i) => {
       const open = levelUnlocked(i), st = save.stars[i] || 0;
       const tags = [lv.hunger && 'Açlık', lv.bars && 'İp', lv.jets && 'Fıskiye', lv.sticky && 'Bal', lv.ac && 'Klima',
-        lv.dark && 'Karanlık', lv.weather === 'rain' && 'Yağmur', lv.weather === 'fog' && 'Sis', lv.dogs && 'Köpek'].filter(Boolean).join(' · ');
+        lv.dark && 'Karanlık', lv.weather === 'rain' && 'Yağmur', lv.weather === 'fog' && 'Sis', (lv.karabas ? 'Karabaş' : lv.dogs && 'Köpek')].filter(Boolean).join(' · ');
       return `<div class="node ${i % 2 ? 'r' : 'l'}${i === cur ? ' cur' : ''}">
         <button class="lv${open ? '' : ' locked'}" data-level="${i}"${open ? '' : ' disabled'}>
         <b>${i + 1}</b><span>${lv.name}</span>
@@ -2829,6 +3308,7 @@
       $('wardPvName').textContent = it.name;
       $('wardPvDesc').textContent = owned ? (on ? 'Şu an giyiyor' : 'Senin, istediğin zaman giydirebilirsin') : `${SLOT_NAMES[it.slot]} · deniyorsun`;
       if (owned) { btn.textContent = on ? 'Çıkar' : 'Giydir'; btn.disabled = false; btn.dataset.mode = 'wear'; }
+      else if (it.reward) { $('wardPvDesc').textContent = it.reward; btn.textContent = 'Ödülle kazanılır'; btn.disabled = true; btn.dataset.mode = ''; }
       else if (save.wallet >= it.price) { btn.textContent = `Satın al · 🐟 ${it.price}`; btn.disabled = false; btn.dataset.mode = 'buy'; }
       else { btn.textContent = `🐟 ${it.price} gerekli (sende ${save.wallet})`; btn.disabled = true; btn.dataset.mode = ''; }
     }
@@ -2841,13 +3321,13 @@
         save.wallet -= c.price; save.owned.push(c.id); save.char = c.id;
         persist('wallet'); persist('owned'); persist('char');
         sfx('buy'); sfx('meowHappy'); vibrate(30);
-        toast('Yeni kedi!', `${c.name} artık senin`, 1.6);
+        showNote('Yeni kedi!', `${c.name} artık senin`);
       } else { sfx('nope'); return; }
       renderChars();
     } else if (state === 'wardrobe' && pv.item) {
       const it = COS_BY_ID[pv.item], wr = save.wardrobe;
       if (wr.owned.includes(it.id)) { wr[it.slot] = wr[it.slot] === it.id ? '' : it.id; sfx('ui'); }
-      else if (save.wallet >= it.price) { save.wallet -= it.price; wr.owned.push(it.id); wr[it.slot] = it.id; persist('wallet'); sfx('buy'); vibrate(30); }
+      else if (!it.reward && save.wallet >= it.price) { save.wallet -= it.price; wr.owned.push(it.id); wr[it.slot] = it.id; persist('wallet'); sfx('buy'); vibrate(30); checkAchievements(); }
       else { sfx('nope'); return; }
       persist('wardrobe');
       renderWardrobe();
@@ -2901,7 +3381,7 @@
   function charClick(id) { // yalnizca onizler; satin alma ayri dugmede
     if (!CAT_BY_ID[id]) return;
     pv.cat = id;
-    sfx('click');
+    if (save.sound && !DEMO) try { if (ac()) catVoice('short', id); } catch { /* yoksay */ } // her kedinin kendi sesi
     renderChars();
   }
 
@@ -2911,8 +3391,8 @@
     $('wardList').innerHTML = Object.keys(SLOT_NAMES).map((slot) => {
       const items = COSMETICS.filter((c) => c.slot === slot).map((c) => {
         const owned = wr.owned.includes(c.id), on = wr[slot] === c.id;
-        const status = on ? 'Giyili' : owned ? 'Senin' : `🐟 ${c.price}`;
-        const cls = (pv.item === c.id ? ' sel' : '') + (!owned && save.wallet < c.price ? ' cant' : '') + (owned ? ' own' : '');
+        const status = on ? 'Giyili' : owned ? 'Senin' : c.reward ? '🏅 Ödül' : `🐟 ${c.price}`;
+        const cls = (pv.item === c.id ? ' sel' : '') + (!owned && (c.reward || save.wallet < c.price) ? ' cant' : '') + (owned ? ' own' : '');
         return `<button class="ch wear${cls}" data-cos="${c.id}"><canvas width="96" height="96"></canvas><b>${c.name}</b><span>${status}</span></button>`;
       }).join('');
       return `<h3>${SLOT_NAMES[slot]}</h3><div class="grid chars-grid">${items}</div>`;
@@ -2994,6 +3474,7 @@
 
   // ================= Girdi =================
   function onTap() {
+    if (state === 'hint') { state = 'play'; last = performance.now(); $('hintCard').classList.add('hidden'); $('pauseBtn').classList.remove('hidden'); sfx('click'); return; }
     if (state === 'play') jump();
     else if (state === 'pause') resume();
     else if (state === 'over' && performance.now() - overAt > 700) {
@@ -3005,7 +3486,7 @@
   window.addEventListener('pointerdown', (e) => {
     if (save.sound || save.music) ac(); // tarayici sesi ilk dokunusta acar
     if (e.target.closest && e.target.closest('button, input, summary')) return;
-    if (state === 'play' || state === 'pause' || state === 'over' || state === 'count') e.preventDefault();
+    if (state === 'play' || state === 'pause' || state === 'over' || state === 'count' || state === 'hint') e.preventDefault();
     onTap();
   }, { passive: false });
 
@@ -3033,6 +3514,11 @@
     else if (b.dataset.toysel) { save.toys.sel = b.dataset.toysel; persist('toys'); renderToyChips(); sfx('meowShort'); }
     else if (a === 'toyMode') setToyMode(!toy.on);
     else if (a === 'pvAction') pvAction();
+    else if (a === 'claimLogin') claimLogin();
+    else if (a === 'photo') makePhoto();
+    else if (a === 'sharePhoto') sharePhoto();
+    else if (a === 'ach' || a === 'house') showScreen(a);
+    else if (b.dataset.house) houseClick(b.dataset.house);
     else if (b.id === 'soundBtn') { save.sound = !save.sound; persist('sound'); renderMenu(); sfx('coin'); }
     else if (b.id === 'musicBtn') { save.music = !save.music; persist('music'); if (save.music) ac(); renderMenu(); }
     else if (b.id === 'vibBtn') { save.vibrate = !save.vibrate; persist('vibrate'); renderMenu(); vibrate(40); }
@@ -3046,7 +3532,7 @@
   window.addEventListener('keydown', (e) => {
     if (e.target && e.target.tagName === 'INPUT') return;
     if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'Enter') {
-      if (state === 'play' || state === 'pause' || state === 'over') { e.preventDefault(); if (!e.repeat) onTap(); }
+      if (state === 'play' || state === 'pause' || state === 'over' || state === 'hint') { e.preventDefault(); if (!e.repeat) onTap(); }
     } else if (e.code === 'Escape' || e.code === 'KeyP') {
       if (state === 'play' || state === 'count') pause(); else if (state === 'pause') resume();
     }
@@ -3067,6 +3553,7 @@
     draw();
     drawHero();
     drawPreview();
+    drawHouse();
     musicTick();
     rainAmbience();
     if (DEMO) {
@@ -3084,6 +3571,7 @@
   reset();
   showScreen('menu');
   if (!DEMO && MENU_STATES.includes(params.get('screen'))) showScreen(params.get('screen')); // dogrudan ekran (test icin)
+  else if (!DEMO && !save.tutorialDone && save.life.runs === 0 && !save.resume) startRun('tutorial'); // yeni oyuncu: dogrudan egitim
   if (DEMO) {
     const lv = Number(params.get('lv'));
     const mode = params.get('mode');
