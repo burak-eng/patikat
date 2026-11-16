@@ -26,26 +26,27 @@
   const RIGHT_X = W - WALL - R;
   const COIN = '#e9b46a', COIN_HI = '#f6dcae';
 
-  // Vakit paletleri: dusuk doygunluk, olculu kontrast, yanip sonme yok.
+  // Vakit paletleri: aydinlik ve ic acici pasteller (neon yok, yanip sonme yok).
+  // hose = supurge hortumu, pipe = islak oluk borusu
   const PALETTES = [
-    { name: 'Gün Batımı',  skyTop: '#3d4a6d', skyBot: '#b98473', city: '#5a4a5c', wall: '#4b3f4a', mark: '#57495a', edge: '#665566', win: '#e8c27a', cactus: '#6fa36b', cactusDark: '#4f7d4c', moon: '#f2c98a', stars: 0,    cloud: 0.16 },
-    { name: 'Akşam',       skyTop: '#2e3657', skyBot: '#6e5f80', city: '#3f3a55', wall: '#3a3448', mark: '#463e55', edge: '#55496a', win: '#e8c27a', cactus: '#6a9e6e', cactusDark: '#4b7a50', moon: '#efe6c8', stars: 0.3,  cloud: 0.11 },
-    { name: 'Gece',        skyTop: '#1d2338', skyBot: '#34405e', city: '#262d44', wall: '#2b2f40', mark: '#353a4d', edge: '#424862', win: '#d9b76e', cactus: '#5f9470', cactusDark: '#447256', moon: '#e9e4d0', stars: 0.6,  cloud: 0.07 },
-    { name: 'Dolunay',     skyTop: '#20294a', skyBot: '#3e4c75', city: '#2a3352', wall: '#2d3347', mark: '#373e55', edge: '#48506c', win: '#d9b76e', cactus: '#629a74', cactusDark: '#46785a', moon: '#f5f0dc', stars: 0.5,  cloud: 0.09 },
-    { name: 'Gece Yarısı', skyTop: '#12151f', skyBot: '#1f2433', city: '#191c27', wall: '#1f222c', mark: '#272a36', edge: '#30343f', win: '#b8995c', cactus: '#567f63', cactusDark: '#3d604a', moon: '#cfcab8', stars: 0.7,  cloud: 0.04 },
-    { name: 'Şafak',       skyTop: '#39466a', skyBot: '#a7868c', city: '#56495e', wall: '#463f4f', mark: '#524a5c', edge: '#625870', win: '#e3c48a', cactus: '#6ea36f', cactusDark: '#4f7f52', moon: '#f3d3a0', stars: 0.12, cloud: 0.18 },
-    { name: 'Sabah',       skyTop: '#5c7fa8', skyBot: '#b6cadb', city: '#7d8ea3', wall: '#5b5d6e', mark: '#686a7c', edge: '#7a7c8f', win: '#cfd8e3', cactus: '#5e9a5f', cactusDark: '#447a47', moon: '#fff4d6', stars: 0,    cloud: 0.28 },
+    { name: 'Sabah',       skyTop: '#8ec5ea', skyBot: '#fde2c8', city: '#b9c9dc', wall: '#e9b48e', mark: '#f6d6b8', edge: '#c98d68', win: '#d9eefa', hose: '#d26a6a', pipe: '#8f9bb0', moon: '#fff1c1', stars: 0,    cloud: 0.85 },
+    { name: 'Öğle',        skyTop: '#7fbbe8', skyBot: '#d6ecf8', city: '#a9c3dd', wall: '#efc785', mark: '#f8dfae', edge: '#cf9f5a', win: '#dff1fb', hose: '#d26a6a', pipe: '#8f9bb0', moon: '#fff6d8', stars: 0,    cloud: 0.8 },
+    { name: 'İkindi',      skyTop: '#9ab8e0', skyBot: '#f6d3b0', city: '#c2b8cc', wall: '#e8a58c', mark: '#f4c6b3', edge: '#c27d66', win: '#fbe7c8', hose: '#c95c6b', pipe: '#8792a8', moon: '#ffe0a8', stars: 0,    cloud: 0.6 },
+    { name: 'Gün Batımı',  skyTop: '#7d86c4', skyBot: '#f7b68f', city: '#9b8aa8', wall: '#c98a8a', mark: '#dba7a4', edge: '#a8696b', win: '#ffd99a', hose: '#b8506a', pipe: '#7c84a0', moon: '#ffc98a', stars: 0.05, cloud: 0.45 },
+    { name: 'Akşam',       skyTop: '#4f5d9c', skyBot: '#b98fb0', city: '#6b6a96', wall: '#8c7aa8', mark: '#a08fbc', edge: '#6f5f8c', win: '#ffe0a0', hose: '#c25d78', pipe: '#7a7fa0', moon: '#fff3d0', stars: 0.3,  cloud: 0.25 },
+    { name: 'Gece',        skyTop: '#283a6b', skyBot: '#4d5d92', city: '#3b4775', wall: '#4f5a85', mark: '#5f6a96', edge: '#3f4870', win: '#ffd98c', hose: '#b95b74', pipe: '#77809e', moon: '#fff6dc', stars: 0.7,  cloud: 0.12 },
+    { name: 'Şafak',       skyTop: '#8fa7d6', skyBot: '#ffd0b5', city: '#b3a9c7', wall: '#d6a3a8', mark: '#e6bfc1', edge: '#b37f86', win: '#ffe7c4', hose: '#c9606e', pipe: '#8a93ac', moon: '#ffe2b0', stars: 0.1,  cloud: 0.55 },
   ];
 
   // Sonsuz modda her 200 m'de bir yeni vakit ve yeni zorluklar
   const ALL = { bars: true, ac: true, power: true, jets: true, weather: true, long: true, sticky: true, crows: true, dogs: true };
   const STAGES = [
-    { pal: 0, sub: 'Kaktüslere değme, balık ye' },
+    { pal: 0, sub: 'Süpürge hortumlarına ve ıslak borulara değme, balık ye' },
     { pal: 1, sub: 'Çamaşır ipleri, klimalar ve kargalar', bars: true, ac: true, crows: true },
     { pal: 2, sub: 'Fıskiyeler açıldı, hava değişebilir', bars: true, ac: true, crows: true, power: true, jets: true, weather: true },
     { pal: 3, sub: 'Bal damlıyor, bekçi köpeği uyanık', bars: true, ac: true, crows: true, power: true, jets: true, weather: true, long: true, sticky: true, dogs: true },
-    { pal: 4, sub: 'Sokak lambaları söndü', ...ALL, dark: true },
-    { pal: 5, sub: 'Hız artıyor', ...ALL },
+    { pal: 4, sub: 'Akşam oldu, her şey bir arada', ...ALL },
+    { pal: 5, sub: 'Sokak lambaları söndü', ...ALL, dark: true },
     { pal: 6, sub: 'Günaydın! Yeni tur başlıyor', ...ALL },
   ];
   const stageAt = (i) => (i < STAGES.length ? STAGES[i] : STAGES[2 + ((i - STAGES.length) % (STAGES.length - 2))]);
@@ -63,14 +64,19 @@
   };
 
   // Kediler: her birinin kendine ozgu yetenegi var
+  // Not: kimlikler (id) kayitlarla uyum icin degismez; 'benek' kimlikli uc renkli kedinin adi artik Irmik.
   const CATS = [
-    { id: 'sarman', name: 'Sarman', price: 0,   fur: '#e3a15e', fur2: '#c47f3f', belly: '#f4dcc0', eyes: ['#9bc46a', '#9bc46a'], pattern: 'tabby',  ability: 'Çevik: +1 pati enerjisi' },
-    { id: 'tekir',  name: 'Tekir',  price: 50,  fur: '#9a8f84', fur2: '#5e554d', belly: '#d9d0c4', eyes: ['#d9b84a', '#d9b84a'], pattern: 'tabby',  ability: 'Tedbirli: Tura kalkanla başlar' },
-    { id: 'pamuk',  name: 'Pamuk',  price: 120, fur: '#f2efe9', fur2: '#e0dbd2', belly: '#ffffff', eyes: ['#7fb3d9', '#7fb3d9'], pattern: 'solid',  ability: 'Sakin: Yavaş Çekim +2 sn' },
-    { id: 'kara',   name: 'Gece',   price: 250, fur: '#45454f', fur2: '#45454f', belly: '#55555f', eyes: ['#e8c547', '#e8c547'], pattern: 'solid',  ability: 'Gece gözü: Karanlık ve sis etkilemez', rim: true },
-    { id: 'siyam',  name: 'Siyam',  price: 400, fur: '#eadfcd', fur2: '#6b4e3d', belly: '#f5eee2', eyes: ['#6fa8dc', '#6fa8dc'], pattern: 'points', ability: 'Dokuz canlı: +1 can' },
-    { id: 'benek',  name: 'Benek',  price: 500, fur: '#f2ece3', fur2: '#d9904a', fur3: '#3a3333', belly: '#ffffff', eyes: ['#9bc46a', '#9bc46a'], pattern: 'calico', ability: 'Şanslı: Balıklar 2 kat değerli' },
-    { id: 'van',    name: 'Van',    price: 700, fur: '#f4f1ea', fur2: '#c9884d', belly: '#ffffff', eyes: ['#6fa8dc', '#d9a441'], pattern: 'van',    ability: 'Yüzücü: Fıskiyeler ıslatamaz' },
+    { id: 'sarman',  name: 'Sarman',  price: 0,   fur: '#e3a15e', fur2: '#c47f3f', belly: '#f4dcc0', eyes: ['#9bc46a', '#9bc46a'], pattern: 'tabby',  ability: 'Çevik: +1 pati enerjisi' },
+    { id: 'tekir',   name: 'Tekir',   price: 50,  fur: '#9a8f84', fur2: '#5e554d', belly: '#d9d0c4', eyes: ['#d9b84a', '#d9b84a'], pattern: 'tabby',  ability: 'Tedbirli: Tura kalkanla başlar' },
+    { id: 'pamuk',   name: 'Pamuk',   price: 120, fur: '#f2efe9', fur2: '#e0dbd2', belly: '#ffffff', eyes: ['#7fb3d9', '#7fb3d9'], pattern: 'solid',  ability: 'Sakin: Yavaş Çekim +2 sn' },
+    { id: 'kara',    name: 'Gece',    price: 250, fur: '#45454f', fur2: '#45454f', belly: '#55555f', eyes: ['#e8c547', '#e8c547'], pattern: 'solid',  ability: 'Gece gözü: Karanlık ve sis etkilemez', rim: true },
+    { id: 'duman',   name: 'Duman',   price: 300, fur: '#8e9bad', fur2: '#7a879a', belly: '#b9c3d0', eyes: ['#8fd18a', '#8fd18a'], pattern: 'solid',  ability: 'Sessiz pati: Köpek daha yavaş yaklaşır' },
+    { id: 'benekli', name: 'Benek',   price: 350, fur: '#f6f3ee', fur2: '#2e2d33', belly: '#ffffff', eyes: ['#7fb3d9', '#7fb3d9'], pattern: 'spots',  ability: 'Kıl payı ustası: Kıl payı puanı 2 kat' },
+    { id: 'siyam',   name: 'Siyam',   price: 400, fur: '#eadfcd', fur2: '#6b4e3d', belly: '#f5eee2', eyes: ['#6fa8dc', '#6fa8dc'], pattern: 'points', ability: 'Dokuz canlı: +1 can' },
+    { id: 'karamel', name: 'Karamel', price: 450, fur: '#e9c9a0', fur2: '#c9935e', belly: '#fbefdf', eyes: ['#d9a441', '#d9a441'], pattern: 'tabby',  ability: 'Tatlı diş: Balık ve mama %50 daha doyurur' },
+    { id: 'benek',   name: 'İrmik',   price: 500, fur: '#f2ece3', fur2: '#d9904a', fur3: '#3a3333', belly: '#ffffff', eyes: ['#9bc46a', '#9bc46a'], pattern: 'calico', ability: 'Şanslı: Balıklar 2 kat değerli' },
+    { id: 'zeytin',  name: 'Zeytin',  price: 600, fur: '#34353c', fur2: '#34353c', belly: '#f4f1ea', paws: '#f4f1ea', eyes: ['#9bd27a', '#9bd27a'], pattern: 'tuxedo', ability: 'Hızlı enerji: Pati enerjisi 6 sn\'de dolar', rim: true },
+    { id: 'van',     name: 'Van',     price: 700, fur: '#f4f1ea', fur2: '#c9884d', belly: '#ffffff', eyes: ['#6fa8dc', '#d9a441'], pattern: 'van',    ability: 'Yüzücü: Fıskiyeler ıslatamaz' },
   ];
   const CAT_BY_ID = Object.fromEntries(CATS.map((c) => [c.id, c]));
   const OLD_CHAR = {
@@ -80,19 +86,42 @@
 
   // Gardirop: kedilere giydirilen aksesuarlar (slot basina bir tane)
   const COSMETICS = [
-    { id: 'bere',   slot: 'hat',  name: 'Örgü Bere',      price: 60 },
-    { id: 'cicek',  slot: 'hat',  name: 'Papatya',        price: 80 },
-    { id: 'kasket', slot: 'hat',  name: 'Kasket',         price: 120 },
-    { id: 'parti',  slot: 'hat',  name: 'Parti Şapkası',  price: 150 },
-    { id: 'tac',    slot: 'hat',  name: 'Minik Taç',      price: 400 },
-    { id: 'papyon', slot: 'neck', name: 'Papyon',         price: 70 },
-    { id: 'zil',    slot: 'neck', name: 'Zilli Tasma',    price: 90 },
-    { id: 'atki',   slot: 'neck', name: 'Kış Atkısı',     price: 140 },
-    { id: 'gozluk', slot: 'face', name: 'Yuvarlak Gözlük', price: 100 },
-    { id: 'gunes',  slot: 'face', name: 'Güneş Gözlüğü',  price: 180 },
+    { id: 'bere',     slot: 'hat',  name: 'Örgü Bere',        price: 60 },
+    { id: 'cicek',    slot: 'hat',  name: 'Papatya',          price: 80 },
+    { id: 'kasket',   slot: 'hat',  name: 'Kasket',           price: 120 },
+    { id: 'beyzbol',  slot: 'hat',  name: 'Beyzbol Şapkası',  price: 140 },
+    { id: 'parti',    slot: 'hat',  name: 'Parti Şapkası',    price: 150 },
+    { id: 'tavsan',   slot: 'hat',  name: 'Tavşan Kulakları', price: 160 },
+    { id: 'korsan',   slot: 'hat',  name: 'Korsan Bandanası', price: 180 },
+    { id: 'kovboy',   slot: 'hat',  name: 'Kovboy Şapkası',   price: 220 },
+    { id: 'cadi',     slot: 'hat',  name: 'Cadı Şapkası',     price: 260 },
+    { id: 'kulaklik', slot: 'hat',  name: 'Kulaklık',         price: 300 },
+    { id: 'tac',      slot: 'hat',  name: 'Minik Taç',        price: 400 },
+    { id: 'papyon',   slot: 'neck', name: 'Papyon',           price: 70 },
+    { id: 'zil',      slot: 'neck', name: 'Zilli Tasma',      price: 90 },
+    { id: 'kravat',   slot: 'neck', name: 'Kravat',           price: 110 },
+    { id: 'kalp',     slot: 'neck', name: 'Kalpli Kolye',     price: 120 },
+    { id: 'atki',     slot: 'neck', name: 'Kış Atkısı',       price: 140 },
+    { id: 'pelerin',  slot: 'neck', name: 'Kahraman Pelerini', price: 350 },
+    { id: 'gozluk',   slot: 'face', name: 'Yuvarlak Gözlük',  price: 100 },
+    { id: 'monokl',   slot: 'face', name: 'Monokl',           price: 160 },
+    { id: 'gunes',    slot: 'face', name: 'Güneş Gözlüğü',    price: 180 },
+    { id: 'kalpgoz',  slot: 'face', name: 'Kalp Gözlük',      price: 200 },
+    { id: 'maske',    slot: 'face', name: 'Kahraman Maskesi', price: 240 },
   ];
   const COS_BY_ID = Object.fromEntries(COSMETICS.map((c) => [c.id, c]));
   const SLOT_NAMES = { hat: 'Baş', neck: 'Boyun', face: 'Yüz' };
+
+  // Ana sayfada kediyle oynanan oyuncaklar (olta ile sarkitilir)
+  const TOYS = [
+    { id: 'tuy',     name: 'Tüylü Olta',   price: 0 },
+    { id: 'fare',    name: 'Oyuncak Fare', price: 80 },
+    { id: 'yumak',   name: 'Yün Yumağı',   price: 120 },
+    { id: 'balik',   name: 'Peluş Balık',  price: 150 },
+    { id: 'kelebek', name: 'Kelebek',      price: 200 },
+    { id: 'lazer',   name: 'Lazer Noktası', price: 300 },
+  ];
+  const TOY_BY_ID = Object.fromEntries(TOYS.map((t) => [t.id, t]));
 
   const POWERS = {
     shield: { name: 'Kalkan',      color: '#6fa8dc' },
@@ -139,29 +168,30 @@
     { id: 'balik', w: 0.1, from: 0, name: 'Balık yolu' },
   ];
   const LONG_LEN = [100, 180, 300];
-  const LEVEL_DEFAULTS = { ramp: 0.005, cap: 80, react: [0.55, 0.38], len: [70, 120, 170], coins: 0.55, sameMax: 2, bars: 0, jets: 0, sticky: 0, ac: 0, power: false, dark: false, weather: 'clear', hunger: false, crows: false, dogs: false };
+  // Bolumler: daha hizli, daha kisa tepki suresi, daha cok engel karisimi (yine de her desen gecilebilir)
+  const LEVEL_DEFAULTS = { ramp: 0.007, cap: 110, react: [0.46, 0.3], len: [70, 130, 200], coins: 0.55, sameMax: 2, bars: 0, jets: 0, sticky: 0, ac: 0, power: false, dark: false, weather: 'clear', hunger: true, crows: false, dogs: false };
   const LEVELS = [
-    { name: 'Bahçe Duvarı',    goal: 150, speed: 215, ramp: 0.003, cap: 40, react: [0.65, 0.5], pal: 0 },
-    { name: 'Balık Pazarı',    goal: 200, speed: 225, coins: 0.95, react: [0.6, 0.45], pal: 5, hunger: true },
-    { name: 'Çatı Katı',       goal: 250, speed: 235, power: true, ac: 0.3, react: [0.58, 0.42], pal: 1, hunger: true, crows: true },
-    { name: 'Çamaşır Günü',    goal: 300, speed: 240, bars: 0.35, power: true, pal: 6, hunger: true, crows: true },
-    { name: 'Fıskiye Sokağı',  goal: 300, speed: 245, jets: 0.3, power: true, pal: 6, hunger: true, crows: true },
-    { name: 'Hızlı Pati',      goal: 350, speed: 290, ramp: 0.008, cap: 110, react: [0.48, 0.32], power: true, pal: 2, hunger: true, crows: true },
-    { name: 'Bal Duvarı',      goal: 350, speed: 255, sticky: 0.35, power: true, pal: 5, hunger: true, crows: true },
-    { name: 'Kaktüs Bahçesi',  goal: 400, speed: 265, len: [140, 220, 320], sameMax: 3, power: true, pal: 0, hunger: true, crows: true, dogs: true },
-    { name: 'Yağmurlu Gece',   goal: 400, speed: 265, weather: 'rain', bars: 0.3, power: true, pal: 2, hunger: true, crows: true, dogs: true },
-    { name: 'Karanlık Sokak',  goal: 400, speed: 255, dark: true, react: [0.58, 0.42], power: true, pal: 4, hunger: true, crows: true, dogs: true },
-    { name: 'Sisli Sabah',     goal: 450, speed: 265, weather: 'fog', jets: 0.25, power: true, pal: 6, hunger: true, crows: true, dogs: true },
-    { name: 'İp Cambazı',      goal: 450, speed: 280, bars: 0.6, react: [0.5, 0.34], power: true, pal: 3, hunger: true, crows: true, dogs: true },
-    { name: 'Klima Kulesi',    goal: 500, speed: 280, ac: 0.5, sticky: 0.25, jets: 0.25, power: true, pal: 1, hunger: true, crows: true, dogs: true },
-    { name: 'Gece Yarısı',     goal: 500, speed: 285, dark: true, bars: 0.4, jets: 0.2, react: [0.52, 0.34], power: true, pal: 4, hunger: true, crows: true, dogs: true },
-    { name: 'Ay Işığı',        goal: 600, speed: 310, ramp: 0.01, cap: 150, react: [0.45, 0.26], bars: 0.4, jets: 0.2, sticky: 0.2, ac: 0.3, weather: 'rain', len: [90, 160, 280], power: true, pal: 3, hunger: true, crows: true, dogs: true },
+    { name: 'Bahçe Duvarı',    goal: 220, speed: 255, ramp: 0.005, cap: 70, react: [0.55, 0.4], pal: 0, ac: 0.15, hunger: false },
+    { name: 'Balık Pazarı',    goal: 260, speed: 265, coins: 0.95, react: [0.5, 0.36], pal: 1, ac: 0.2, crows: true },
+    { name: 'Çatı Katı',       goal: 300, speed: 275, power: true, ac: 0.3, bars: 0.2, pal: 2, crows: true },
+    { name: 'Çamaşır Günü',    goal: 340, speed: 285, bars: 0.45, power: true, pal: 1, crows: true },
+    { name: 'Fıskiye Sokağı',  goal: 360, speed: 290, jets: 0.35, bars: 0.15, power: true, pal: 0, crows: true },
+    { name: 'Hızlı Pati',      goal: 400, speed: 340, ramp: 0.01, cap: 140, react: [0.4, 0.27], power: true, pal: 2, crows: true },
+    { name: 'Bal Duvarı',      goal: 400, speed: 300, sticky: 0.4, jets: 0.15, power: true, pal: 6, crows: true, dogs: true },
+    { name: 'Boru Labirenti',  goal: 450, speed: 310, len: [140, 240, 340], sameMax: 3, bars: 0.2, power: true, pal: 3, crows: true, dogs: true },
+    { name: 'Yağmurlu Akşam',  goal: 450, speed: 310, weather: 'rain', bars: 0.35, jets: 0.15, power: true, pal: 4, crows: true, dogs: true },
+    { name: 'Karanlık Sokak',  goal: 450, speed: 300, dark: true, react: [0.48, 0.32], sticky: 0.2, power: true, pal: 5, crows: true, dogs: true },
+    { name: 'Sisli Sabah',     goal: 500, speed: 315, weather: 'fog', jets: 0.3, bars: 0.2, power: true, pal: 6, crows: true, dogs: true },
+    { name: 'İp Cambazı',      goal: 500, speed: 330, bars: 0.65, react: [0.42, 0.28], power: true, pal: 3, crows: true, dogs: true },
+    { name: 'Klima Kulesi',    goal: 550, speed: 330, ac: 0.5, sticky: 0.3, jets: 0.3, power: true, pal: 2, crows: true, dogs: true },
+    { name: 'Gece Yarısı',     goal: 600, speed: 340, dark: true, bars: 0.45, jets: 0.25, react: [0.44, 0.28], power: true, pal: 5, crows: true, dogs: true },
+    { name: 'Ay Işığı',        goal: 700, speed: 360, ramp: 0.012, cap: 170, react: [0.4, 0.24], bars: 0.45, jets: 0.25, sticky: 0.25, ac: 0.3, weather: 'rain', len: [90, 170, 300], power: true, pal: 4, crows: true, dogs: true },
   ];
 
   // Egitim: her mekanigi sirayla, yavaslatilmis ortamda gosterir (can gitmez)
   const TUTORIAL = { name: 'Eğitim', speed: 200, ramp: 0, cap: 0, react: [0.9, 0.9], len: [70, 84, 84], coins: 0.8, sameMax: 2, hunger: true, power: true, pal: 1, weather: 'clear', bars: 0, jets: 0, sticky: 0, ac: 0, crows: false, dogs: false };
   const TUTORIAL_SCRIPT = [
-    { kind: 'spike', hint: ['Dokun!', 'Kedin karşı duvara zıplar. Kaktüslere değme.'] },
+    { kind: 'spike', hint: ['Dokun!', 'Kedin karşı duvara zıplar. Süpürge hortumlarına ve ıslak borulara değme.'] },
     { kind: 'spike' }, { kind: 'spike' },
     { kind: 'spike', fish: true, hint: ['Balık ye', 'Sol üstteki tokluk barını doldurur. Aç kalırsan can gider.'] },
     { kind: 'spike', fish: true },
@@ -170,7 +200,7 @@
     { kind: 'spike' },
     { kind: 'sticky', hint: ['Bal', 'Bala yapışırsan ayrılmak için iki kez dokun.'] },
     { kind: 'empty', hint: ['Pati atılması', 'Zıplarken tekrar dokun: havada geri dönersin. Sağ üstteki patileri harcar.'] },
-    { kind: 'ac', hint: ['Klima', 'Kaktüs gibi tehlikelidir.'] },
+    { kind: 'ac', hint: ['Klima', 'Süpürge hortumu gibi tehlikelidir.'] },
     { kind: 'power', hint: ['Güçlendirme', 'Kalkan, mıknatıs, yavaş çekim ve mama. Ortadan zıplarken kap.'] },
     { kind: 'spike', fish: true, trigger: 'crow', hint: ['Karga', 'Balık çalar. Balığı taşırken kargaya değersen geri alırsın.'] },
     { kind: 'spike', trigger: 'dog', hint: ['Bekçi köpeği', 'Çarparsan peşine düşer. Kıl payı geçişler ve balıklar onu uzaklaştırır.'] },
@@ -202,6 +232,8 @@
     bestDist: store.get('bestDist', { kolay: 0, normal: 0, zor: 0 }),
     wardrobe: store.get('wardrobe', { owned: [], hat: '', neck: '', face: '' }),
     tutorialDone: store.get('tutorialDone', false),
+    toys: store.get('toys', { owned: ['tuy'], sel: 'tuy' }),
+    play: store.get('play', { date: '', catches: 0, rewarded: 0 }),
     playerName: store.get('playerName', ''),
     playerId: store.get('playerId', ''),
   };
@@ -340,11 +372,40 @@
     audio.noise = nb;
     audio.ctx = c;
   }
+  // Gercek kayitlar (telifsiz: CC0 / kamu mali, kaynaklar sounds/KAYNAKLAR.txt). Yuklenemezse kodla uretilen ses calar.
+  const SAMPLE_FILES = ['miyav1', 'miyav2', 'miyav3', 'miyav4', 'mirlama', 'havlama', 'yemek1', 'yemek2', 'yemek3'];
+  const samples = {};
+  let samplesRequested = false;
+  function loadSamples() {
+    if (samplesRequested || !audio.ctx || typeof fetch !== 'function') return;
+    samplesRequested = true;
+    for (const n of SAMPLE_FILES) {
+      fetch(`sounds/${n}.mp3`)
+        .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(r.status))))
+        .then((b) => new Promise((ok, no) => { const p = audio.ctx.decodeAudioData(b, ok, no); if (p && p.then) p.then(ok, no); }))
+        .then((buf) => { samples[n] = buf; })
+        .catch(() => { /* kodla uretilen yedek ses kullanilir */ });
+    }
+  }
+  function playSample(name, { vol = 0.8, rate = 1, delay = 0 } = {}) {
+    const buf = samples[name];
+    if (!buf) return false;
+    const c = audio.ctx, s = c.createBufferSource(), g = c.createGain();
+    s.buffer = buf;
+    s.playbackRate.value = rate;
+    g.gain.value = vol;
+    s.connect(g).connect(audio.sfx);
+    s.start(c.currentTime + delay);
+    return true;
+  }
+  const pickOne = (arr) => arr[Math.floor(Math.random() * arr.length)];
+  const jitter = (a = 0.06) => 1 - a + Math.random() * 2 * a;
   function ac() {
     if (!audio.ctx) {
       const AC = window.AudioContext || window.webkitAudioContext;
       if (!AC) return null;
       buildAudio(new AC());
+      loadSamples();
     }
     if (audio.ctx.state === 'suspended' && audio.ctx.resume) audio.ctx.resume();
     return audio.ctx;
@@ -465,15 +526,23 @@
   const SFX = {
     jump() { tone(380, 0.1, { vol: 0.13, slide: 760, attack: 0.004 }); hiss(0.06, { freq: 2400, q: 0.7, vol: 0.035 }); },
     land() { hiss(0.06, { freq: 500, q: 0.8, vol: 0.09, type: 'lowpass' }); tone(150, 0.08, { vol: 0.1, slide: 85 }); },
-    coin() { bell(1568, 0.35, 0.09); bell(2093, 0.4, 0.07, 0.06); },
+    coin() { // balik yeme: gercek citirdama + kucuk zil
+      if (!playSample(pickOne(['yemek1', 'yemek2', 'yemek3']), { vol: 0.55, rate: jitter(0.08) })) { bell(1568, 0.35, 0.09); bell(2093, 0.4, 0.07, 0.06); }
+      else bell(2093, 0.25, 0.03, 0.02);
+    },
     near() { hiss(0.2, { freq: 700, sweep: 2600, q: 1.2, vol: 0.08 }); tone(1760, 0.12, { vol: 0.035, delay: 0.05 }); },
     hit() { tone(170, 0.32, { vol: 0.32, slide: 55, attack: 0.003 }); hiss(0.15, { freq: 300, q: 0.7, vol: 0.12, type: 'lowpass' }); },
-    meow() { catMeow('normal'); },
-    meowShort() { catMeow('short'); },
-    meowSad() { catMeow('sad'); },
-    meowHappy() { catMeow('happy'); },
-    purr() { const c = audio.ctx, t = c.currentTime; const o = c.createOscillator(); o.type = 'sawtooth'; o.frequency.value = 26; const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 260; const g = c.createGain(); env(g, t, 0.18, 0.15, 1.2); o.connect(lp).connect(g).connect(audio.sfx); o.start(t); o.stop(t + 1.3); },
-    bark() { dogBark(0); dogBark(0.21, 1.04); },
+    meow() { if (!playSample(pickOne(['miyav1', 'miyav3', 'miyav4']), { vol: 0.75, rate: jitter() })) catMeow('normal'); },
+    meowShort() { if (!playSample(pickOne(['miyav2', 'miyav3']), { vol: 0.7, rate: 1.08 * jitter(0.04) })) catMeow('short'); },
+    meowSad() { if (!playSample('miyav1', { vol: 0.8, rate: 0.9 })) catMeow('sad'); },
+    meowHappy() { if (!playSample(pickOne(['miyav3', 'miyav2']), { vol: 0.72, rate: 1.12 })) catMeow('happy'); },
+    purr() {
+      if (playSample('mirlama', { vol: 0.9 })) return;
+      const c = audio.ctx, t = c.currentTime; const o = c.createOscillator(); o.type = 'sawtooth'; o.frequency.value = 26; const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 260; const g = c.createGain(); env(g, t, 0.18, 0.15, 1.2); o.connect(lp).connect(g).connect(audio.sfx); o.start(t); o.stop(t + 1.3); },
+    bark() { // gercek havlama, iki kez ("hav hav"), ikincisi biraz farkli perdede
+      if (playSample('havlama', { vol: 0.9, rate: jitter(0.04) })) { playSample('havlama', { vol: 0.8, rate: 1.08, delay: 0.24 }); return; }
+      dogBark(0); dogBark(0.21, 1.04);
+    },
     growlDog() { const c = audio.ctx, t = c.currentTime; const o = c.createOscillator(); o.type = 'sawtooth'; o.frequency.setValueAtTime(95, t); o.frequency.linearRampToValueAtTime(80, t + 0.6); const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 500; const g = c.createGain(); env(g, t, 0.14, 0.08, 0.6); o.connect(lp).connect(g).connect(audio.sfx); o.start(t); o.stop(t + 0.7); },
     caw() { crowCaw(0); crowCaw(0.3); },
     dash() { hiss(0.22, { freq: 500, sweep: 3000, q: 1, vol: 0.12 }); tone(600, 0.15, { vol: 0.04, slide: 1200 }); },
@@ -602,6 +671,8 @@
   const diffOf = () => DIFFS[(run && run.diff) || save.diff];
   const jumpTime = () => (weather === 'rain' ? JUMP_RAIN : JUMP_BASE);
   const fishValue = () => (1 + upg('balik')) * (catIs('benek') ? 2 : 1);
+  const feedMult = () => (catIs('karamel') ? 1.5 : 1);
+  const energyTime = () => (catIs('zeytin') ? 6 : 10);
   const hungerOn = () => !!(run && run.cfg.hunger) && (!DEMO || params.has('hunger'));
   const isWallHaz = (o) => o.type === 'spike' || o.type === 'jet';
   const jetPhase = (o) => (jetClock + o.phase) % JET_PERIOD;
@@ -708,7 +779,7 @@
     }
 
     const isJet = k === 'jet' || (!item && !plain && rnd() < F.jets);
-    let len, skin = 'cactus';
+    let len, skin = rnd() < 0.5 ? 'vacuum' : 'pipe';
     if (isJet) len = JET_H;
     else if (k === 'ac' || (!item && !plain && rnd() < F.ac)) { skin = 'ac'; len = rnd() < 0.5 ? 56 : 70; }
     else if (pat === 'zigzag') len = TOOTH * 4;
@@ -760,7 +831,7 @@
     if (chaseCooldown > 0) chaseCooldown -= dt;
     if (!chase) return;
     chase.t += wdt;
-    chase.close = Math.max(0, chase.close + diffOf().dog * wdt);
+    chase.close = Math.max(0, chase.close + diffOf().dog * (catIs('duman') ? 0.6 : 1) * wdt);
     chase.hav = Math.max(0, chase.hav - dt);
     chase.barkT -= dt;
     if (chase.barkT <= 0) {
@@ -834,7 +905,7 @@
     comboT = 3;
     stats.near++;
     const m = comboMult();
-    bonus += 5 * m;
+    bonus += 5 * m * (catIs('benekli') ? 2 : 1);
     if (chase) chase.close = Math.max(0, chase.close - 0.07);
     floater(m > 1 ? `Kıl payı! x${m}` : 'Kıl payı!');
     sfx('near');
@@ -940,7 +1011,7 @@
     if (p.kind === 'shield') shieldHP = upg('kalkan') >= 1 ? 2 : 1;
     else if (p.kind === 'magnet') magnetT = 7 + 2 * upg('miknatis');
     else if (p.kind === 'slow') slowT = 4 + (catIs('pamuk') ? 2 : 0);
-    else if (p.kind === 'mama') { tokluk = Math.min(100, tokluk + 50); energy = Math.min(energyMax, energy + 1); }
+    else if (p.kind === 'mama') { tokluk = Math.min(100, tokluk + 50 * feedMult()); energy = Math.min(energyMax, energy + 1); }
     toast(POWERS[p.kind].name, p.kind === 'mama' ? 'Karın doydu, +1 pati' : '', 1.1);
     burst(p.x, p.y, POWERS[p.kind].color, 6, 110);
     sfx('power');
@@ -948,9 +1019,9 @@
     vibrate(20);
   }
 
-  const HIT_REASON = { spike: 'Kaktüse değdin!', jet: 'Islandın!', bar: 'İpe takıldın!', hunger: 'Aç kaldın!', dog: 'Köpek yakaladı!' };
+  const HIT_REASON = { spike: 'Süpürgeye takıldın!', pipe: 'Borudan ıslandın!', jet: 'Islandın!', bar: 'İpe takıldın!', hunger: 'Aç kaldın!', dog: 'Köpek yakaladı!' };
   function hit(kind) {
-    if (kind === 'jet') sfx('splash');
+    if (kind === 'jet' || kind === 'pipe') sfx('splash');
     if (shieldHP > 0) {
       shieldHP--;
       invulnT = 1.2;
@@ -1306,7 +1377,7 @@
       jetClock += wdt;
 
       // pati enerjisi 10 sn'de bir dolar
-      if (energy < energyMax) { energyT += dt; if (energyT >= 10) { energyT = 0; energy++; sfx('energy'); } } else energyT = 0;
+      if (energy < energyMax) { energyT += dt; if (energyT >= energyTime()) { energyT = 0; energy++; sfx('energy'); } } else energyT = 0;
       // aclik
       if (hungerOn() && runT > 6) {
         const wasFull = tokluk >= 25;
@@ -1375,7 +1446,7 @@
           bonus += 10;
           coinCount++;
           stats.fish++;
-          tokluk = Math.min(100, tokluk + 12);
+          tokluk = Math.min(100, tokluk + 12 * feedMult());
           if (chase) chase.close = Math.max(0, chase.close - 0.025);
           burst(c.x, c.y, COIN, 4, 80);
           sfx('coin');
@@ -1422,7 +1493,7 @@
             if (!jetOn(o) || catIs('van')) continue;
             x0 = o.side === 0 ? WALL : W - WALL - JET_REACH; x1 = x0 + JET_REACH; y0 += 3; y1 -= 3;
           } else { x0 = o.side === 0 ? WALL : W - WALL - SPIKE; x1 = x0 + SPIKE; }
-          if (circleRect(player.x, player.y, hr, x0, y0, x1, y1)) { hit(o.type); break; }
+          if (circleRect(player.x, player.y, hr, x0, y0, x1, y1)) { hit(o.skin === 'pipe' ? 'pipe' : o.type); break; }
         }
       }
 
@@ -1480,7 +1551,38 @@
       g.beginPath(); g.moveTo(nx - D * 3, ny + 1); g.quadraticCurveTo(nx - D * 7, ny + 6, nx - D * 9 + Math.sin(t * 3) * 1.2, ny + 10); g.stroke();
       g.strokeStyle = '#e9e4c9'; g.lineWidth = 1;
       g.beginPath(); g.moveTo(nx - D * 6, ny + 4); g.lineTo(nx - D * 7.5, ny + 6); g.stroke();
+    } else if (id === 'kravat') {
+      tri(g, [nx - 2, ny - 1], [nx + 2, ny - 1], [nx, ny + 2], '#4f7fc4');
+      g.fillStyle = '#5b8bd0';
+      g.beginPath(); g.moveTo(nx - 1.4, ny + 1.5); g.lineTo(nx + 1.4, ny + 1.5); g.lineTo(nx + 2.4, ny + 8); g.lineTo(nx, ny + 10); g.lineTo(nx - 2.4, ny + 8); g.closePath(); g.fill();
+      g.strokeStyle = 'rgba(255,255,255,0.45)'; g.lineWidth = 0.8;
+      g.beginPath(); g.moveTo(nx - 1.6, ny + 4); g.lineTo(nx + 1.8, ny + 3); g.moveTo(nx - 2, ny + 7); g.lineTo(nx + 2, ny + 6); g.stroke();
+    } else if (id === 'kalp') {
+      g.strokeStyle = '#e9c46a'; g.lineWidth = 0.9;
+      g.beginPath(); g.ellipse(nx, ny - 1, 6, 2.2, 0, 0, Math.PI); g.stroke();
+      drawHeart(g, nx, ny + 2.2, 6, '#e46b8a');
+    } else if (id === 'pelerin') {
+      dot(g, nx, ny, 1.8, '#e9c46a'); // pelerinin tokasi (pelerin govdenin arkasinda cizilir)
     }
+  }
+  // Kahraman pelerini: govdenin arkasinda, poza gore dalgalanir
+  function drawCape(g, nx, ny, D, pose, t) {
+    const w = Math.sin(t * 4) * 1.6;
+    g.fillStyle = '#c95c6b';
+    g.beginPath();
+    g.moveTo(nx - 5, ny);
+    g.lineTo(nx + 5, ny);
+    if (pose === 'jump') {
+      g.quadraticCurveTo(nx - D * 8, ny + 4, nx - D * 20, ny + 2 + w);
+      g.lineTo(nx - D * 18, ny + 11 + w);
+      g.quadraticCurveTo(nx - D * 8, ny + 10, nx - 5, ny + 4);
+    } else {
+      g.quadraticCurveTo(nx + 9, ny + 8, nx + 9 + w * 0.5, ny + 17);
+      g.quadraticCurveTo(nx, ny + 19 + w, nx - 9 - w * 0.5, ny + 17);
+      g.quadraticCurveTo(nx - 9, ny + 8, nx - 5, ny);
+    }
+    g.closePath(); g.fill();
+    g.strokeStyle = 'rgba(0,0,0,0.12)'; g.lineWidth = 1; g.stroke();
   }
   function drawHeadItem(g, id, hx, hy, D, fx) {
     if (id === 'bere') {
@@ -1513,8 +1615,59 @@
       g.strokeStyle = '#3a3036'; g.lineWidth = 0.9;
       g.beginPath(); g.arc(fx - 3.2, ys, 3, 0, Math.PI * 2); g.moveTo(fx + 6.2, ys); g.arc(fx + 3.2, ys, 3, 0, Math.PI * 2);
       g.moveTo(fx - 0.2, ys); g.lineTo(fx + 0.2, ys); g.moveTo(fx - D * 6.2, ys); g.lineTo(fx - D * 8.5, ys - 1); g.stroke();
+    } else if (id === 'beyzbol') {
+      g.fillStyle = '#5b9bd5';
+      g.beginPath(); g.arc(hx, hy - 3, 8.8, Math.PI * 1.05, Math.PI * 1.95); g.closePath(); g.fill();
+      ell(g, hx + D * 8, hy - 5.5, 6, 1.8, D * 0.1, '#4a86c0');
+      dot(g, hx, hy - 11.6, 1.2, '#f2efe9');
+      g.fillStyle = '#ffffff'; rr(g, hx - 2.5, hy - 9.5, 5, 3, 1); g.fill();
+    } else if (id === 'tavsan') {
+      for (const s of [-1, 1]) {
+        ell(g, hx + s * 3.4, hy - 17, 2.4, 7.5, s * 0.12, '#f6f3ee');
+        ell(g, hx + s * 3.4, hy - 16.5, 1.2, 5.5, s * 0.12, '#f2a6b8');
+      }
+      g.strokeStyle = '#f2a6b8'; g.lineWidth = 1.4;
+      g.beginPath(); g.arc(hx, hy - 1, 8.6, Math.PI * 1.15, Math.PI * 1.85); g.stroke();
+    } else if (id === 'korsan') {
+      g.fillStyle = '#d9534f';
+      g.beginPath(); g.arc(hx, hy - 1.5, 9, Math.PI * 1.02, Math.PI * 1.98); g.closePath(); g.fill();
+      for (const [ox, oy] of [[-4, -6], [2, -8], [5, -4], [-1, -4]]) dot(g, hx + ox, hy + oy, 0.9, '#fff');
+      g.strokeStyle = '#d9534f'; g.lineWidth = 2; g.lineCap = 'round';
+      g.beginPath(); g.moveTo(hx - D * 8.5, hy - 3); g.lineTo(hx - D * 12, hy + 1); g.moveTo(hx - D * 8.5, hy - 3); g.lineTo(hx - D * 13, hy - 3); g.stroke();
+    } else if (id === 'kovboy') {
+      ell(g, hx, hy - 7.5, 13, 2.8, 0, '#9a6a3e');
+      g.fillStyle = '#b07a48'; rr(g, hx - 6, hy - 16, 12, 9, 3.5); g.fill();
+      g.fillStyle = '#6b4526'; g.fillRect(hx - 6, hy - 10, 12, 2);
+      ell(g, hx, hy - 15.5, 3, 1, 0, '#9a6a3e');
+    } else if (id === 'cadi') {
+      g.fillStyle = '#7a5aa6';
+      g.beginPath(); g.moveTo(hx - 6.5, hy - 8); g.lineTo(hx + 6.5, hy - 8); g.quadraticCurveTo(hx + 1, hy - 20, hx - D * 5, hy - 26); g.quadraticCurveTo(hx - 2, hy - 18, hx - 6.5, hy - 8); g.fill();
+      ell(g, hx, hy - 8, 12, 2.4, 0, '#6a4d94');
+      g.fillStyle = '#e9c46a'; g.fillRect(hx - 5.6, hy - 11, 11.2, 1.8);
+      dot(g, hx + 2, hy - 15, 1.1, '#f6dcae');
+    } else if (id === 'kulaklik') {
+      g.strokeStyle = '#4a4e5c'; g.lineWidth = 2.2;
+      g.beginPath(); g.arc(hx, hy - 1, 9.5, Math.PI * 1.05, Math.PI * 1.95); g.stroke();
+      for (const s of [-1, 1]) { g.fillStyle = '#e46b8a'; rr(g, hx + s * 9.5 - 2.5, hy - 4, 5, 7, 2.5); g.fill(); }
+    } else if (id === 'monokl') {
+      g.strokeStyle = '#e9c46a'; g.lineWidth = 1;
+      g.beginPath(); g.arc(fx + 3.2, hy - 1, 3.1, 0, Math.PI * 2); g.stroke();
+      g.beginPath(); g.moveTo(fx + 3.2, hy + 2); g.quadraticCurveTo(fx + 5, hy + 7, fx + 2, hy + 10); g.stroke();
+      ctxAlpha(g, 0.18, () => dot(g, fx + 3.2, hy - 1, 2.8, '#cfe8ff'));
+    } else if (id === 'kalpgoz') {
+      g.globalAlpha = 0.9;
+      drawHeart(g, fx - 3.3, hy - 2.2, 7, '#f07aa0');
+      drawHeart(g, fx + 3.3, hy - 2.2, 7, '#f07aa0');
+      g.globalAlpha = 1;
+      g.strokeStyle = '#c4537a'; g.lineWidth = 0.8; g.beginPath(); g.moveTo(fx - 0.6, hy - 1.6); g.lineTo(fx + 0.6, hy - 1.6); g.stroke();
+    } else if (id === 'maske') {
+      g.fillStyle = '#3f4a7a'; rr(g, fx - 7.8, hy - 3.6, 15.6, 5.2, 2.6); g.fill();
+      g.strokeStyle = '#3f4a7a'; g.lineWidth = 1.4;
+      g.beginPath(); g.moveTo(fx - D * 7.5, hy - 1); g.lineTo(fx - D * 11, hy + 2); g.stroke();
+      for (const ex of [-3.2, 3.2]) { dot(g, fx + ex, hy - 1, 1.5, '#ffffff'); dot(g, fx + ex + D * 0.4, hy - 1, 0.8, '#1d1a1f'); }
     }
   }
+  function ctxAlpha(g, a, fn) { const o = g.globalAlpha; g.globalAlpha = a; fn(); g.globalAlpha = o; }
 
   // Kediyi (0,0) merkezli cizer. dir: bakis yonu (1 = saga), pose: 'wall' | 'jump' | 'idle'
   function drawCat(g, c, dir, pose, t, wear) {
@@ -1546,8 +1699,9 @@
     g.strokeStyle = darkParts ? c.fur2 : c.fur;
     g.lineWidth = 4;
     g.beginPath(); g.moveTo(tail[0], tail[1]); g.quadraticCurveTo(tail[2], tail[3], tail[4], tail[5]); g.stroke();
+    if (wear && wear.neck === 'pelerin') drawCape(g, lerp(head.x, body.x, 0.5), lerp(head.y, body.y, 0.5) + 1, D, pose, t);
 
-    const pawCol = c.pattern === 'points' ? c.fur2 : c.fur;
+    const pawCol = c.paws || (c.pattern === 'points' ? c.fur2 : c.fur);
     g.strokeStyle = pawCol;
     g.lineWidth = 4.4;
     for (const [px, py] of paws) {
@@ -1574,6 +1728,12 @@
     } else if (c.pattern === 'calico') {
       dot(g, body.x - 3, body.y - 4, 5, c.fur2);
       dot(g, body.x + 4, body.y + 5, 4, c.fur3);
+    } else if (c.pattern === 'spots') { // beyaz uzerine siyah benekler
+      ell(g, body.x - 3.5, body.y - 4, 3.2, 2.6, 0.3, c.fur2);
+      ell(g, body.x + 4, body.y + 2, 2.6, 2.2, -0.2, c.fur2);
+      ell(g, body.x - 1, body.y + 7, 2.2, 1.8, 0, c.fur2);
+    } else if (c.pattern === 'tuxedo') { // smokin: genis beyaz gogus
+      ell(g, body.x + (pose === 'jump' ? 0 : D * 2.5), body.y + 3, body.rx * 0.65, body.ry * 0.75, 0, c.belly);
     }
     g.restore();
 
@@ -1601,6 +1761,9 @@
     } else if (c.pattern === 'calico') {
       dot(g, hx - D * 4, hy - 5, 4.5, c.fur2);
       dot(g, hx + D * 5, hy - 6, 3, c.fur3);
+    } else if (c.pattern === 'spots') {
+      ell(g, hx - D * 4.5, hy - 5.5, 3, 3.6, 0.4, c.fur2);
+      dot(g, hx + D * 5, hy + 1, 1.6, c.fur2);
     } else if (c.pattern === 'van') {
       dot(g, hx - 5, hy - 7, 4, c.fur2);
       dot(g, hx + 5, hy - 7, 4, c.fur2);
@@ -1641,7 +1804,7 @@
   // ================= 3B kedi (karsilama ekrani) =================
   // Oturan kedi uzayda noktalarla tanimlanir; aci kadar dondurulup arkadan one dogru cizilir.
   // x saga, y asagi, z izleyiciye dogru. aci 0 = kedi bize bakar.
-  function drawCat3D(g, c, ang, t, wear, hop = 0) {
+  function drawCat3D(g, c, ang, t, wear, hop = 0, paw = 0) {
     const ca = Math.cos(ang), sa = Math.sin(ang);
     const lift = -Math.sin(Math.min(1, hop) * Math.PI) * 7;
     const P3 = (x, y, z) => ({ x: x * ca + z * sa, y: y + lift, z: -x * sa + z * ca });
@@ -1663,6 +1826,18 @@
       g.strokeStyle = darkParts ? c.fur2 : c.fur; g.lineWidth = 4; g.lineCap = 'round';
       g.beginPath(); g.moveTo(tp[0].x, tp[0].y); g.quadraticCurveTo(tp[1].x, tp[1].y, tp[2].x, tp[2].y); g.stroke();
     });
+    // pelerin: govdenin arkasinda dalgalanir
+    if (wear && wear.neck === 'pelerin') {
+      const n0 = P3(0, 0, -3), a = P3(-9, 17, -8 + sway), bb = P3(9, 17, -8 - sway);
+      add(Math.min(n0.z, a.z, bb.z) - 0.5, () => {
+        g.fillStyle = '#c95c6b';
+        g.beginPath(); g.moveTo(n0.x - 5, n0.y); g.lineTo(n0.x + 5, n0.y);
+        g.quadraticCurveTo(bb.x + 2, (n0.y + bb.y) / 2, bb.x, bb.y);
+        g.quadraticCurveTo((a.x + bb.x) / 2, a.y + 3, a.x, a.y);
+        g.quadraticCurveTo(a.x - 2, (n0.y + a.y) / 2, n0.x - 5, n0.y);
+        g.fill();
+      });
+    }
     // arka kalcalar
     for (const s of [-1, 1]) {
       const h = P3(s * 7, 14, -3);
@@ -1680,6 +1855,14 @@
       if (c.pattern === 'tabby') {
         g.strokeStyle = c.fur2; g.lineWidth = 1.8;
         for (const yy of [2, 6.5, 11]) { g.beginPath(); g.ellipse(b.x, b.y + yy - 6, bodyRx, 2.6, 0, Math.PI * 1.05, Math.PI * 1.95); g.stroke(); }
+      } else if (c.pattern === 'spots') {
+        for (const [sx, sy, sz, r] of [[-5, 4, 5, 3.2], [5, 9, 4, 2.6], [0, 13, 7, 2.2], [6, 5, -6, 3], [-4, 11, -7, 2.8]]) {
+          const p = P3(sx, sy, sz);
+          if (p.z > -4) ell(g, p.x, p.y, r * Math.max(0.4, Math.abs(ca * 0.6 + 0.4)), r * 0.85, 0, c.fur2);
+        }
+      } else if (c.pattern === 'tuxedo') {
+        const bf2 = P3(0, 9, 8);
+        if (bf2.z > -2) ell(g, bf2.x, bf2.y, 6.5 * Math.max(0.25, ca), 9, 0, c.belly);
       } else if (c.pattern === 'calico') {
         const p1 = P3(-5, 5, 5), p2 = P3(6, 11, -5);
         if (p1.z > -6) ell(g, p1.x, p1.y, 4.5, 4, 0, c.fur2);
@@ -1689,12 +1872,13 @@
     });
     // on bacaklar ve patiler
     for (const s of [-1, 1]) {
-      const top = P3(s * 3.6, 9, 5.5), paw = P3(s * 3.6, 18.5, 7);
-      const col = c.pattern === 'points' ? c.fur2 : c.fur;
-      add(paw.z, () => {
+      const up = s === 1 ? Math.sin(Math.min(1, paw) * Math.PI) : 0; // oyuncaga pati atma
+      const top = P3(s * 3.6, 9, 5.5), pp = P3(s * (3.6 + up * 3), 18.5 - up * 17, 7 + up * 5);
+      const col = c.paws || (c.pattern === 'points' ? c.fur2 : c.fur);
+      add(pp.z + up * 6, () => {
         g.strokeStyle = col; g.lineWidth = 4.4; g.lineCap = 'round';
-        g.beginPath(); g.moveTo(top.x, top.y); g.lineTo(paw.x, paw.y); g.stroke();
-        ell(g, paw.x, paw.y, 2.8, 2.2, 0, col);
+        g.beginPath(); g.moveTo(top.x, top.y); g.lineTo(pp.x, pp.y); g.stroke();
+        ell(g, pp.x, pp.y, 2.8, 2.2, 0, col);
       });
     }
     // boyundaki aksesuar (one bakiyorsa)
@@ -1709,6 +1893,7 @@
       g.save(); g.beginPath(); g.arc(hd.x, hd.y, 8.5, 0, Math.PI * 2); g.clip();
       if (c.pattern === 'van') { const a = P3(-4.5, -12, 4), bb = P3(4.5, -12, 4); dot(g, a.x, a.y, 4, c.fur2); dot(g, bb.x, bb.y, 4, c.fur2); }
       if (c.pattern === 'calico') { const a = P3(-4, -11, 5); dot(g, a.x, a.y, 4.5, c.fur2); }
+      if (c.pattern === 'spots') { const a = P3(-4.5, -11, 5), b2 = P3(4, -3, 8); dot(g, a.x, a.y, 3.4, c.fur2); if (b2.z > 0) dot(g, b2.x, b2.y, 1.5, c.fur2); }
       if (c.pattern === 'tabby') {
         g.strokeStyle = c.fur2; g.lineWidth = 1.4;
         for (const ox of [-2.5, 0, 2.5]) {
@@ -1936,10 +2121,13 @@
       const off = side ? 60 : 0;
       const k0 = Math.ceil((-50 - bgOff - off) / step), k1 = Math.floor((H - bgOff - off) / step);
       const wx = side === 0 ? 5 : W - WALL + 7;
+      const night = P.stars > 0.2;
+      const FLOWERS = ['#f28fa8', '#f6c35b', '#b99be8', '#ffffff'];
       for (let k = k0; k <= k1; k++) {
         const y = k * step + bgOff + off;
-        const lit = (((k * 7 + side * 3) % 5) + 5) % 5 < 3;
-        if (lit) { // yanan pencereden yumusak isik
+        const hsh = (((k * 7 + side * 3) % 5) + 5) % 5;
+        const lit = night && hsh < 3;
+        if (lit) { // gece yanan pencereden yumusak isik
           const gl = ctx.createRadialGradient(wx + 8, y + 15, 2, wx + 8, y + 15, 30);
           gl.addColorStop(0, `rgba(${P.winA},0.22)`);
           gl.addColorStop(1, `rgba(${P.winA},0)`);
@@ -1948,11 +2136,28 @@
         }
         ctx.fillStyle = P.mark;
         rr(ctx, wx - 2, y - 2, WALL - 8, 34, 5); ctx.fill();
-        ctx.fillStyle = lit ? `rgba(${P.winA},0.6)` : P.wall;
-        rr(ctx, wx, y, WALL - 12, 30, 4); ctx.fill();
-        if (lit) { ctx.fillStyle = 'rgba(255,255,255,0.12)'; rr(ctx, wx + 2, y + 2, 5, 26, 2.5); ctx.fill(); }
+        if (night) {
+          ctx.fillStyle = lit ? `rgba(${P.winA},0.65)` : shadeA(P.wallA, -0.25);
+          rr(ctx, wx, y, WALL - 12, 30, 4); ctx.fill();
+        } else { // gunduz: gokyuzunu yansitan cam
+          const gg = ctx.createLinearGradient(0, y, 0, y + 30);
+          gg.addColorStop(0, P.win); gg.addColorStop(1, shadeA(P.winA, -0.18));
+          ctx.fillStyle = gg; rr(ctx, wx, y, WALL - 12, 30, 4); ctx.fill();
+          ctx.fillStyle = 'rgba(255,255,255,0.55)';
+          ctx.beginPath(); ctx.moveTo(wx + 3, y + 22); ctx.lineTo(wx + 9, y + 4); ctx.lineTo(wx + 12, y + 4); ctx.lineTo(wx + 6, y + 22); ctx.closePath(); ctx.fill();
+        }
+        if (lit) { ctx.fillStyle = 'rgba(255,255,255,0.14)'; rr(ctx, wx + 2, y + 2, 5, 26, 2.5); ctx.fill(); }
         ctx.fillStyle = P.edge;
         rr(ctx, wx - 3, y + 31, WALL - 6, 3.5, 1.75); ctx.fill();
+        if (hsh === 1 || hsh === 4) { // pencere onunde cicek saksisi (susleme, tehlikeli degil)
+          ctx.fillStyle = '#c8724f'; rr(ctx, wx - 2, y + 34, WALL - 8, 6, 2); ctx.fill();
+          for (let i = 0; i < 3; i++) {
+            const fx = wx + 2 + i * 6, fy = y + 31 - (i % 2) * 2;
+            dot(ctx, fx, fy + 3, 1.6, '#7fb27a');
+            dot(ctx, fx, fy, 2.4, FLOWERS[(k + i + side) & 3]);
+            dot(ctx, fx, fy, 0.9, '#fff3b0');
+          }
+        }
       }
       // duvarin ic kenarinda yumusak golge gecisi
       const ex = side === 0 ? WALL : W - WALL;
@@ -1966,26 +2171,57 @@
     }
   }
 
-  function drawCactus(o) {
+  // Elektrik supurgesi hortumu: kedilerin en sevmedigi sey. Duvara kelepceli, halkali hortum ve emici baslik.
+  function drawVacuum(o) {
     const left = o.side === 0, base = left ? WALL : W - WALL, s = left ? 1 : -1;
-    const depth = SPIKE - 4, y0 = o.y + 1, y1 = o.y + o.h - 1;
-    ctx.fillStyle = P.cactus;
-    rr(ctx, left ? base : base - depth, y0, depth, y1 - y0, 6);
-    ctx.fill();
-    for (let y = o.y + TOOTH / 2; y < o.y + o.h; y += TOOTH) dot(ctx, base + s * depth, y, 4, P.cactus);
-    ctx.fillStyle = P.cactusDark;
-    ctx.fillRect(base + s * depth * 0.45 - 1, y0 + 5, 2, y1 - y0 - 10);
-    ctx.strokeStyle = 'rgba(240,238,225,0.7)';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    for (let y = o.y + TOOTH / 2; y < o.y + o.h; y += TOOTH) {
-      const tx = base + s * (depth + 3.5);
-      ctx.moveTo(tx, y); ctx.lineTo(tx + s * 3, y - 1.5);
-      ctx.moveTo(tx, y); ctx.lineTo(tx + s * 3, y + 1.5);
+    const hx = left ? base + 2 : base - 16, hw = 14, y0 = o.y + 4, y1 = o.y + o.h - 14;
+    const g = ctx.createLinearGradient(hx, 0, hx + hw, 0);
+    g.addColorStop(0, shadeA(P.hoseA, -0.18)); g.addColorStop(0.45, shadeA(P.hoseA, 0.18)); g.addColorStop(1, shadeA(P.hoseA, -0.25));
+    ctx.fillStyle = g;
+    rr(ctx, hx, y0, hw, y1 - y0, 6); ctx.fill();
+    ctx.fillStyle = 'rgba(60,20,30,0.16)'; // yumusak halkalar
+    for (let y = y0 + 6; y < y1 - 4; y += 9) rr(ctx, hx, y, hw, 2.6, 1.3), ctx.fill();
+    // kelepceler
+    ctx.fillStyle = '#c9ccd6';
+    for (let y = y0 + 10; y < y1 - 6; y += 46) { rr(ctx, left ? base - 2 : base - 18, y, 20, 4, 2); ctx.fill(); }
+    // emici baslik (altta), icine cekilen toz zerreleri
+    ctx.fillStyle = '#6f7686';
+    rr(ctx, left ? base : base - SPIKE, y1 - 2, SPIKE, 14, 4); ctx.fill();
+    ctx.fillStyle = '#4f5563';
+    rr(ctx, left ? base + 2 : base - SPIKE + 2, y1 + 8, SPIKE - 4, 3, 1.5); ctx.fill();
+    for (let i = 0; i < 3; i++) {
+      const ph = (clock * 1.6 + i / 3) % 1;
+      dot(ctx, base + s * (SPIKE + 10 - ph * 10), y1 + 14 + (1 - ph) * 6 * (i - 1), 1.3, `rgba(120,110,100,${(0.5 * (1 - ph)).toFixed(2)})`);
     }
-    ctx.stroke();
-    dot(ctx, base + s * depth * 0.5, o.y + 2, 3.2, '#e89ab0');
-    dot(ctx, base + s * depth * 0.5, o.y + 2, 1.2, '#f4d36b');
+  }
+
+  // Islak oluk borusu: eklem yerlerinden su damlar; kediler islanmayi sevmez.
+  function drawPipe(o) {
+    const left = o.side === 0, base = left ? WALL : W - WALL;
+    const px = left ? base + 1 : base - 13, pw = 12, y0 = o.y, y1 = o.y + o.h;
+    // islak leke
+    ctx.fillStyle = 'rgba(90,120,160,0.12)';
+    rr(ctx, left ? base - 4 : base - 18, y0 + 6, 22, o.h - 6, 8); ctx.fill();
+    const g = ctx.createLinearGradient(px, 0, px + pw, 0);
+    g.addColorStop(0, shadeA(P.pipeA, -0.2)); g.addColorStop(0.4, shadeA(P.pipeA, 0.28)); g.addColorStop(1, shadeA(P.pipeA, -0.25));
+    ctx.fillStyle = g;
+    rr(ctx, px, y0, pw, o.h, 4); ctx.fill();
+    // eklemler ve damlalar
+    for (let y = y0 + 12, i = 0; y < y1 - 6; y += 34, i++) {
+      ctx.fillStyle = shadeA(P.pipeA, -0.3);
+      rr(ctx, px - 2, y, pw + 4, 6, 2.5); ctx.fill();
+      const ph = ((clock * 0.9 + i * 0.37) % 1);
+      const dx = left ? px + pw + 3 : px - 3;
+      ell(ctx, dx, y + 7 + ph * 18, 1.8, 2.6, 0, `rgba(120,170,220,${(0.85 * (1 - ph)).toFixed(2)})`);
+    }
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.fillRect(px + 3, y0 + 3, 1.6, o.h - 6);
+  }
+  // "r,g,b" bicimindeki palet rengini acar (amt > 0) ya da koyulastirir (amt < 0)
+  function shadeA(rgb, amt) {
+    const [r, g, b] = rgb.split(',').map(Number);
+    const f = (v) => Math.max(0, Math.min(255, Math.round(amt < 0 ? v * (1 + amt) : v + (255 - v) * amt)));
+    return `rgb(${f(r)},${f(g)},${f(b)})`;
   }
 
   function drawAC(o) {
@@ -2140,7 +2376,7 @@
   function drawWeather() {
     const seeDark = catIs('kara') ? 0 : 1;
     if (weather === 'rain' && !isMenuState()) {
-      ctx.strokeStyle = 'rgba(200,215,235,0.22)';
+      ctx.strokeStyle = P.stars > 0.2 ? 'rgba(200,215,235,0.22)' : 'rgba(70,95,135,0.3)'; // aydinlik gokte koyu damla
       ctx.lineWidth = 1;
       ctx.beginPath();
       for (const d of RAIN) { ctx.moveTo(d.x, d.y); ctx.lineTo(d.x - 2, d.y + d.l); }
@@ -2167,10 +2403,14 @@
   }
 
   const FONT = 'ui-rounded, "SF Pro Rounded", "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif';
+  // Gunduz (aydinlik gok) acik renkli yazilar koyu murekkebe doner, golge beyaz olur: her zaman okunakli
+  const isLightColor = (c) => /^#/.test(c) && (() => { const n = parseInt(c.slice(1), 16); return 0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255) > 170; })();
   function hudText(text, x, y, font, color, align = 'center') {
     ctx.font = font.replace('system-ui, sans-serif', FONT);
     ctx.textAlign = align;
-    ctx.fillStyle = 'rgba(15,18,28,0.4)';
+    const day = P && P.stars < 0.2 && !isMenuState();
+    if (day && isLightColor(color)) color = '#4a3f63';
+    ctx.fillStyle = day ? 'rgba(255,255,255,0.65)' : 'rgba(15,18,28,0.4)';
     ctx.fillText(text, x + 1, y + 1.5);
     ctx.fillStyle = color;
     ctx.fillText(text, x, y);
@@ -2213,7 +2453,7 @@
 
     const lx = WALL + 10;
     // gostergelerin arkasina yumusak zemin (okunaklilik icin)
-    ctx.fillStyle = 'rgba(18,22,36,0.26)';
+    ctx.fillStyle = P.stars < 0.2 ? 'rgba(255,255,255,0.5)' : 'rgba(18,22,36,0.26)';
     rr(ctx, lx - 6, top + 12, 96, hungerOn() ? 66 : 50, 14); ctx.fill();
     rr(ctx, W - WALL - 22 - (energyMax - 1) * 15, top + 62, energyMax * 15 + 12, 26, 13); ctx.fill();
     drawFish(ctx, lx + 12, top + 29, 1, false);
@@ -2246,7 +2486,7 @@
     for (let i = 0; i < energyMax; i++) drawPaw(ctx, W - WALL - 14 - i * 15, top + 74, i < energy ? '#c9d8ea' : 'rgba(255,255,255,0.16)');
     if (energy < energyMax) {
       ctx.fillStyle = 'rgba(201,216,234,0.5)';
-      ctx.fillRect(W - WALL - 14 - (energyMax - 1) * 15 - 6, top + 83, (energyMax * 15 - 3) * (energyT / 10), 2);
+      ctx.fillRect(W - WALL - 14 - (energyMax - 1) * 15 - 6, top + 83, (energyMax * 15 - 3) * (energyT / energyTime()), 2);
     }
     if (weather !== 'clear') hudText(WEATHERS[weather].name, W - WALL - 8, top + 102, '600 12px system-ui, sans-serif', '#e3dccf', 'right');
 
@@ -2281,7 +2521,8 @@
       if (o.type === 'bar') drawClothesline(o);
       else if (o.type === 'jet') drawJet(o);
       else if (o.skin === 'ac') drawAC(o);
-      else drawCactus(o);
+      else if (o.skin === 'pipe') drawPipe(o);
+      else drawVacuum(o);
     }
     drawItems();
     drawDog();
@@ -2292,22 +2533,117 @@
     drawHud();
   }
 
-  // ================= Karsilama: 360 derece dondurulebilen kedi =================
+  // ================= Karsilama: 360 derece dondurulebilen kedi ve oyuncakla oyun =================
   const hero = { ang: -0.5, vel: 0.35, drag: false, lastX: 0, lastT: 0, downX: 0, hop: 0, msgT: 0, greeted: false };
-  const HERO_MSGS = ['Miyav!', 'Hadi tırmanalım!', 'Balık var mı?', 'Prrr prrr...', 'Beni çevirsene!', 'Bugün rekor kırarız!', 'Karabaş uyuyor mu?', 'Kaktüslerden korkmam!'];
+  const HERO_MSGS = ['Miyav!', 'Hadi tırmanalım!', 'Balık var mı?', 'Prrr prrr...', 'Beni çevirsene!', 'Bugün rekor kırarız!', 'Karabaş uyuyor mu?', 'Süpürgeden korkarım ama!', 'Oltayı salla!'];
+  // Oyuncak modu: yukaridan sarkitilan oyuncagi parmakla gezdirirsin, kedi pati atip yakalamaya calisir
+  const toy = { on: false, x: 0, y: -26, tx: 0, ty: -26, paw: 0, cool: 0, hearts: [], heldT: 0 };
+  const PLAY_DAILY_FISH = 20; // gunde oyundan en fazla bu kadar balik
   function heroSay(text) {
     $('heroBubble').textContent = text;
     $('heroBubble').classList.add('on');
     hero.msgT = 3;
   }
+  function playState() {
+    const k = todayKey();
+    if (save.play.date !== k) save.play = { date: k, catches: 0, rewarded: 0 };
+    return save.play;
+  }
+  function setToyMode(on) {
+    toy.on = on;
+    if (on) {
+      hero.ang = Math.atan2(Math.sin(hero.ang), Math.cos(hero.ang)); // -pi..pi araligina getir
+      toy.x = toy.tx = 0; toy.y = toy.ty = -26;
+      heroSay(TOY_BY_ID[save.toys.sel].name + ' ile oynayalım!');
+      sfx('meowHappy');
+    }
+    $('toyBtn').textContent = on ? 'Oyunu bitir' : '🎣 Oyuncakla oyna';
+    $('toyChips').classList.toggle('hidden', !on);
+    $('heroHint').textContent = on ? 'Oyuncağı parmağınla gezdir, kedin yakalamaya çalışsın' : 'Kedini parmağınla çevir · dokununca miyavlar';
+    renderToyChips();
+  }
+  function renderToyChips() {
+    const ts = save.toys;
+    $('toyChips').innerHTML = ts.owned.map((id) => `<button class="chip${ts.sel === id ? ' on' : ''}" data-toysel="${id}">${TOY_BY_ID[id].name}</button>`).join('') +
+      (ts.owned.length < TOYS.length ? '<button class="chip more" data-tab="shop">+ Yeni oyuncak</button>' : '');
+  }
+  function heroUnits(e) { // ekran koordinatini kedi birimine cevir
+    const cv = $('heroCat'), r = cv.getBoundingClientRect ? cv.getBoundingClientRect() : { left: 0, top: 0, width: 230, height: 230 };
+    const k = r.width / 58;
+    return { x: (e.clientX - r.left - r.width / 2) / k, y: (e.clientY - r.top - r.height * 0.55) / k };
+  }
   function updateHero(dt) {
     if (state !== 'menu') return;
-    if (!hero.drag) {
-      hero.ang += hero.vel * dt;
-      hero.vel += (0.35 - hero.vel) * Math.min(1, dt * 0.9); // yavasca kendi kendine donmeye doner
-    }
     hero.hop = Math.max(0, hero.hop - dt * 1.8);
     if (hero.msgT > 0) { hero.msgT -= dt; if (hero.msgT <= 0) $('heroBubble').classList.remove('on'); }
+    if (!toy.on) {
+      if (!hero.drag) {
+        hero.ang += hero.vel * dt;
+        hero.vel += (0.35 - hero.vel) * Math.min(1, dt * 0.9); // yavasca kendi kendine donmeye doner
+      }
+      return;
+    }
+    // oyuncak hareketi: lazer aninda gider, digerleri ip ucunda yumusakca sallanir
+    const fast = save.toys.sel === 'lazer' ? 1 : Math.min(1, dt * 9);
+    toy.x += (toy.tx - toy.x) * fast;
+    toy.y += (toy.ty - toy.y) * fast;
+    toy.x = Math.max(-27, Math.min(27, toy.x));
+    toy.y = Math.max(-30, Math.min(20, toy.y));
+    // kedi oyuncaga doner
+    const want = Math.max(-0.95, Math.min(0.95, toy.x / 26));
+    hero.ang += (want - hero.ang) * Math.min(1, dt * 5);
+    toy.paw = Math.max(0, toy.paw - dt * 2.4);
+    toy.cool -= dt;
+    const d = Math.hypot(toy.x - 2, toy.y + 3);
+    if (d < 17 && toy.cool <= 0) {
+      toy.paw = 1; toy.cool = 0.75;
+      if (toy.y < -16 && Math.random() < 0.5) hero.hop = 1;
+      if (d < 11 || Math.random() < 0.25) { // yakaladi!
+        const ps = playState();
+        ps.catches++;
+        for (let i = 0; i < 5; i++) toy.hearts.push({ x: toy.x + rand(-3, 3), y: toy.y, vy: rand(-14, -8), t: 1.2 });
+        sfx(Math.random() < 0.5 ? 'purr' : 'meowHappy');
+        let msg = pickOne(['Yakaladım!', 'Hap!', 'Benim bu!', 'Bir daha!']);
+        if (ps.catches % 5 === 0 && ps.rewarded < PLAY_DAILY_FISH) { ps.rewarded++; save.wallet++; persist('wallet'); msg += ' 🐟 +1'; $('wallet').textContent = save.wallet; }
+        persist('play');
+        heroSay(msg);
+        toy.tx = rand(-24, 24); toy.ty = -28; toy.y = -18; // oyuncak kacar
+      }
+    }
+    for (const h of toy.hearts) { h.y += h.vy * dt; h.t -= dt; }
+    toy.hearts = toy.hearts.filter((h) => h.t > 0);
+  }
+  function drawToy(g, id, x, y, t) {
+    g.save();
+    g.translate(x, y);
+    if (id === 'tuy') {
+      g.rotate(Math.sin(t * 3) * 0.3);
+      ell(g, -1.5, 2, 1.6, 4.5, 0.4, '#7fd1c8');
+      ell(g, 1.5, 2.5, 1.6, 4.5, -0.4, '#f28fa8');
+      ell(g, 0, 3, 1.3, 4, 0, '#f6c35b');
+      g.strokeStyle = '#8a7a6a'; g.lineWidth = 0.6; g.beginPath(); g.moveTo(0, -1); g.lineTo(0, 7); g.stroke();
+    } else if (id === 'fare') {
+      g.strokeStyle = '#c9a6a6'; g.lineWidth = 0.7; g.beginPath(); g.moveTo(-4, 1); g.quadraticCurveTo(-8, 3 + Math.sin(t * 6), -9, -1); g.stroke();
+      ell(g, 0, 1, 4.6, 3, 0, '#a7a3ad');
+      dot(g, 2, -1.8, 1.6, '#bdb9c4'); dot(g, 2, -1.8, 0.8, '#f2b8c6');
+      dot(g, 4.4, 1, 0.8, '#f28fa8'); dot(g, 2.8, 0.2, 0.5, '#2a2328');
+    } else if (id === 'yumak') {
+      dot(g, 0, 1, 4.2, '#e46b6b');
+      g.strokeStyle = 'rgba(255,255,255,0.45)'; g.lineWidth = 0.6;
+      for (const a of [0.3, 1.2, 2.1]) { g.beginPath(); g.ellipse(0, 1, 4, 1.6, a, 0, Math.PI * 2); g.stroke(); }
+      g.strokeStyle = '#e46b6b'; g.lineWidth = 0.7; g.beginPath(); g.moveTo(3.5, 3); g.quadraticCurveTo(6, 6, 4, 8); g.stroke();
+    } else if (id === 'balik') {
+      drawFish(g, 0, 1, 0.8, false);
+    } else if (id === 'kelebek') {
+      const f = 0.35 + Math.abs(Math.sin(t * 9)) * 0.65;
+      for (const s of [-1, 1]) { ell(g, s * 3 * f, -0.5, 3 * f, 2.6, s * 0.4, '#b99be8'); ell(g, s * 2.4 * f, 2.6, 2 * f, 1.8, -s * 0.4, '#f6c35b'); }
+      ell(g, 0, 1, 0.7, 3, 0, '#4a3f5a');
+    } else if (id === 'lazer') {
+      const gl = g.createRadialGradient(0, 0, 0.2, 0, 0, 4);
+      gl.addColorStop(0, 'rgba(255,60,60,0.95)'); gl.addColorStop(0.35, 'rgba(255,60,60,0.45)'); gl.addColorStop(1, 'rgba(255,60,60,0)');
+      g.fillStyle = gl; g.fillRect(-4, -4, 8, 8);
+    }
+    g.restore();
   }
   function drawHero() {
     if (state !== 'menu') return;
@@ -2317,17 +2653,31 @@
     g.clearRect(0, 0, cv.width, cv.height);
     const k = cv.width / 58;
     g.setTransform(k, 0, 0, k, cv.width / 2, cv.height * 0.55);
-    drawCat3D(g, CAT_BY_ID[save.char], hero.ang, clock, outfit(), hero.hop);
+    drawCat3D(g, CAT_BY_ID[save.char], hero.ang, clock, outfit(), hero.hop, toy.on ? toy.paw : 0);
+    if (!toy.on) return;
+    const id = save.toys.sel, topY = -(cv.height * 0.55) / k;
+    const sx = toy.x + Math.sin(clock * 2.2) * 0.8, sy = toy.y;
+    if (id === 'kelebek') { // cubuga bagli kelebek
+      g.strokeStyle = '#8a6a4a'; g.lineWidth = 0.8; g.beginPath(); g.moveTo(sx * 0.4 + 18, topY); g.lineTo(sx, sy); g.stroke();
+    } else if (id !== 'lazer') { // olta ipi
+      g.strokeStyle = 'rgba(70,60,80,0.55)'; g.lineWidth = 0.5;
+      g.beginPath(); g.moveTo(sx * 0.6, topY); g.quadraticCurveTo(sx * 0.8, (topY + sy) / 2 + 2, sx, sy - 1); g.stroke();
+    }
+    drawToy(g, id, sx, sy, clock);
+    for (const h of toy.hearts) { g.globalAlpha = Math.min(1, h.t); drawHeart(g, h.x, h.y, 4, '#f28fa8'); }
+    g.globalAlpha = 1;
   }
   (() => {
     const cv = $('heroCat');
     cv.addEventListener('pointerdown', (e) => {
+      if (cv.setPointerCapture) try { cv.setPointerCapture(e.pointerId); } catch { /* yoksay */ }
+      if (toy.on) { const u = heroUnits(e); toy.tx = u.x; toy.ty = u.y; hero.drag = true; return; }
       hero.drag = true; hero.lastX = hero.downX = e.clientX; hero.lastT = e.timeStamp; hero.vel = 0;
       if (!hero.purred || e.timeStamp - hero.purred > 4000) { hero.purred = e.timeStamp; setTimeout(() => { if (hero.drag) sfx('purr'); }, 250); } // cevirirken mirlar
-      if (cv.setPointerCapture) try { cv.setPointerCapture(e.pointerId); } catch { /* yoksay */ }
     });
     cv.addEventListener('pointermove', (e) => {
       if (!hero.drag) return;
+      if (toy.on) { const u = heroUnits(e); toy.tx = u.x; toy.ty = u.y; return; }
       const dx = e.clientX - hero.lastX, dtm = Math.max(1, e.timeStamp - hero.lastT) / 1000;
       hero.ang += dx * 0.016;
       hero.vel = Math.max(-9, Math.min(9, (dx * 0.016) / dtm));
@@ -2336,6 +2686,7 @@
     const up = (e) => {
       if (!hero.drag) return;
       hero.drag = false;
+      if (toy.on) return;
       if (Math.abs(e.clientX - hero.downX) < 6) { // dokunus: miyavla ve zipla
         hero.hop = 1;
         hero.vel = 0.35;
@@ -2346,6 +2697,7 @@
     cv.addEventListener('pointerup', up);
     cv.addEventListener('pointercancel', up);
   })();
+
 
   // ================= Ekranlar =================
   const SCREENS = ['menu', 'levels', 'chars', 'shop', 'missions', 'wardrobe', 'board', 'settings', 'pause', 'over', 'win'];
@@ -2359,7 +2711,10 @@
     document.querySelectorAll('[data-tab]').forEach((b) => b.classList.toggle('on', b.dataset.tab === tab));
   }
   function showScreen(name) {
+    const prev = state;
     state = name;
+    if (name === 'chars' && prev !== 'wardrobe' && prev !== 'chars') pv.cat = save.char; // onizleme secili kediden baslar
+    if (name === 'wardrobe' && prev !== 'wardrobe') pv.item = '';
     if (name === 'menu') renderMenu();
     if (name === 'levels') renderLevels();
     if (name === 'chars') renderChars();
@@ -2367,6 +2722,7 @@
     if (name === 'missions') renderMissions();
     if (name === 'wardrobe') renderWardrobe();
     if (name === 'board') renderBoard();
+    if (name !== 'menu' && toy.on) setToyMode(false);
     if (name === 'settings') renderMenu();
     show(name);
     if (name === 'menu' && !hero.greeted) {
@@ -2445,12 +2801,94 @@
     }
   }
 
+  // ---------- Kedim: dene, sonra satin al ----------
+  // Bir kediye ya da esyaya dokununca ustteki buyuk onizlemede denenir; satin alma ayri bir dugmeyle yapilir.
+  const pv = { cat: 'sarman', item: '', ang: -0.4, vel: 0.5, drag: false, lastX: 0, lastT: 0 };
+  function pvWear() {
+    const w = { ...save.wardrobe };
+    if (state === 'wardrobe' && pv.item) { const c = COS_BY_ID[pv.item]; w[c.slot] = w[c.slot] === pv.item && save.wardrobe.owned.includes(pv.item) ? pv.item : pv.item; }
+    return w;
+  }
+  function updatePreviewPanel() {
+    const btn = $(state === 'wardrobe' ? 'wardPvBtn' : 'charPvBtn');
+    if (state === 'chars') {
+      const c = CAT_BY_ID[pv.cat], owned = save.owned.includes(c.id);
+      $('charPvName').textContent = c.name;
+      $('charPvDesc').textContent = c.ability;
+      if (owned) { btn.textContent = save.char === c.id ? 'Seçili ✓' : 'Bu kediyi seç'; btn.disabled = save.char === c.id; btn.dataset.mode = 'select'; }
+      else if (save.wallet >= c.price) { btn.textContent = `Satın al · 🐟 ${c.price}`; btn.disabled = false; btn.dataset.mode = 'buy'; }
+      else { btn.textContent = `🐟 ${c.price} gerekli (sende ${save.wallet})`; btn.disabled = true; btn.dataset.mode = ''; }
+    } else if (state === 'wardrobe') {
+      if (!pv.item) {
+        $('wardPvName').textContent = 'Bir eşyaya dokun';
+        $('wardPvDesc').textContent = 'Önce kedinin üstünde denersin, beğenirsen satın alırsın.';
+        btn.textContent = 'Eşya seç'; btn.disabled = true; btn.dataset.mode = '';
+        return;
+      }
+      const it = COS_BY_ID[pv.item], owned = save.wardrobe.owned.includes(it.id), on = save.wardrobe[it.slot] === it.id;
+      $('wardPvName').textContent = it.name;
+      $('wardPvDesc').textContent = owned ? (on ? 'Şu an giyiyor' : 'Senin, istediğin zaman giydirebilirsin') : `${SLOT_NAMES[it.slot]} · deniyorsun`;
+      if (owned) { btn.textContent = on ? 'Çıkar' : 'Giydir'; btn.disabled = false; btn.dataset.mode = 'wear'; }
+      else if (save.wallet >= it.price) { btn.textContent = `Satın al · 🐟 ${it.price}`; btn.disabled = false; btn.dataset.mode = 'buy'; }
+      else { btn.textContent = `🐟 ${it.price} gerekli (sende ${save.wallet})`; btn.disabled = true; btn.dataset.mode = ''; }
+    }
+  }
+  function pvAction() {
+    if (state === 'chars') {
+      const c = CAT_BY_ID[pv.cat];
+      if (save.owned.includes(c.id)) { save.char = c.id; persist('char'); sfx('meowShort'); }
+      else if (save.wallet >= c.price) {
+        save.wallet -= c.price; save.owned.push(c.id); save.char = c.id;
+        persist('wallet'); persist('owned'); persist('char');
+        sfx('buy'); sfx('meowHappy'); vibrate(30);
+        toast('Yeni kedi!', `${c.name} artık senin`, 1.6);
+      } else { sfx('nope'); return; }
+      renderChars();
+    } else if (state === 'wardrobe' && pv.item) {
+      const it = COS_BY_ID[pv.item], wr = save.wardrobe;
+      if (wr.owned.includes(it.id)) { wr[it.slot] = wr[it.slot] === it.id ? '' : it.id; sfx('ui'); }
+      else if (save.wallet >= it.price) { save.wallet -= it.price; wr.owned.push(it.id); wr[it.slot] = it.id; persist('wallet'); sfx('buy'); vibrate(30); }
+      else { sfx('nope'); return; }
+      persist('wardrobe');
+      renderWardrobe();
+    }
+  }
+  function drawPreview() {
+    if (state !== 'chars' && state !== 'wardrobe') return;
+    const cv = $(state === 'wardrobe' ? 'wardPv' : 'charPv');
+    if (!cv.width) return;
+    const g = cv.getContext('2d');
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.clearRect(0, 0, cv.width, cv.height);
+    const k = cv.width / 60;
+    g.setTransform(k, 0, 0, k, cv.width / 2, cv.height * 0.56);
+    drawCat3D(g, CAT_BY_ID[state === 'wardrobe' ? save.char : pv.cat], pv.ang, clock, pvWear(), 0, 0);
+  }
+  function updatePreview(dt) {
+    if (state !== 'chars' && state !== 'wardrobe') return;
+    if (!pv.drag) { pv.ang += pv.vel * dt; pv.vel += (0.5 - pv.vel) * Math.min(1, dt); }
+  }
+  for (const id of ['charPv', 'wardPv']) { // onizlemeyi parmakla cevirme
+    const cv = $(id);
+    cv.addEventListener('pointerdown', (e) => { pv.drag = true; pv.lastX = e.clientX; pv.lastT = e.timeStamp; pv.vel = 0; if (cv.setPointerCapture) try { cv.setPointerCapture(e.pointerId); } catch { /* yoksay */ } });
+    cv.addEventListener('pointermove', (e) => {
+      if (!pv.drag) return;
+      const dx = e.clientX - pv.lastX, dtm = Math.max(1, e.timeStamp - pv.lastT) / 1000;
+      pv.ang += dx * 0.016; pv.vel = Math.max(-9, Math.min(9, (dx * 0.016) / dtm));
+      pv.lastX = e.clientX; pv.lastT = e.timeStamp;
+    });
+    const up = () => { pv.drag = false; };
+    cv.addEventListener('pointerup', up);
+    cv.addEventListener('pointercancel', up);
+  }
+
   function renderChars() {
     $('wallet2').textContent = save.wallet;
+    if (!CAT_BY_ID[pv.cat]) pv.cat = save.char;
     $('charGrid').innerHTML = CATS.map((c) => {
       const owned = save.owned.includes(c.id), sel = save.char === c.id;
-      const status = sel ? 'Seçili' : owned ? 'Seç' : `🐟 ${c.price}`;
-      const cls = sel ? ' sel' : !owned && save.wallet < c.price ? ' cant' : '';
+      const status = sel ? 'Seçili' : owned ? 'Senin' : `🐟 ${c.price}`;
+      const cls = (pv.cat === c.id ? ' sel' : '') + (!owned && save.wallet < c.price ? ' cant' : '') + (owned ? ' own' : '');
       return `<button class="ch${cls}" data-char="${c.id}"><canvas width="128" height="128"></canvas><b>${c.name}</b><small>${c.ability}</small><span>${status}</span></button>`;
     }).join('');
     $('charGrid').querySelectorAll('button').forEach((b) => {
@@ -2458,21 +2896,23 @@
       g.setTransform(3.2, 0, 0, 3.2, 64, 66);
       drawCat(g, CAT_BY_ID[b.dataset.char], 1, 'idle', 1, outfit());
     });
+    updatePreviewPanel();
+  }
+  function charClick(id) { // yalnizca onizler; satin alma ayri dugmede
+    if (!CAT_BY_ID[id]) return;
+    pv.cat = id;
+    sfx('click');
+    renderChars();
   }
 
   function renderWardrobe() {
     $('wallet4').textContent = save.wallet;
-    const pv = $('wardPreview').getContext('2d');
-    pv.setTransform(1, 0, 0, 1, 0, 0);
-    pv.clearRect(0, 0, 200, 200);
-    pv.setTransform(5, 0, 0, 5, 100, 104);
-    drawCat(pv, CAT_BY_ID[save.char], 1, 'idle', 1, outfit());
     const wr = save.wardrobe;
     $('wardList').innerHTML = Object.keys(SLOT_NAMES).map((slot) => {
       const items = COSMETICS.filter((c) => c.slot === slot).map((c) => {
         const owned = wr.owned.includes(c.id), on = wr[slot] === c.id;
-        const status = on ? 'Giyili' : owned ? 'Giy' : `🐟 ${c.price}`;
-        const cls = on ? ' sel' : !owned && save.wallet < c.price ? ' cant' : '';
+        const status = on ? 'Giyili' : owned ? 'Senin' : `🐟 ${c.price}`;
+        const cls = (pv.item === c.id ? ' sel' : '') + (!owned && save.wallet < c.price ? ' cant' : '') + (owned ? ' own' : '');
         return `<button class="ch wear${cls}" data-cos="${c.id}"><canvas width="96" height="96"></canvas><b>${c.name}</b><span>${status}</span></button>`;
       }).join('');
       return `<h3>${SLOT_NAMES[slot]}</h3><div class="grid chars-grid">${items}</div>`;
@@ -2483,38 +2923,39 @@
       g.setTransform(3.4, 0, 0, 3.4, 48, c.slot === 'neck' ? 30 : 62);
       drawCat(g, CAT_BY_ID[save.char], 1, 'idle', 1, { [c.slot]: c.id });
     });
+    updatePreviewPanel();
   }
-  function cosClick(id) {
-    const c = COS_BY_ID[id];
-    if (!c) return;
-    const wr = save.wardrobe;
-    if (wr.owned.includes(id)) {
-      wr[c.slot] = wr[c.slot] === id ? '' : id; // ayni esyaya tekrar dokununca cikarir
-      sfx('ui');
-    } else if (save.wallet >= c.price) {
-      save.wallet -= c.price; wr.owned.push(id); wr[c.slot] = id;
-      persist('wallet');
-      sfx('buy');
-      vibrate(30);
-    } else {
-      sfx('nope');
-      return;
-    }
-    persist('wardrobe');
+  function cosClick(id) { // once dene
+    if (!COS_BY_ID[id]) return;
+    pv.item = pv.item === id && !save.wardrobe.owned.includes(id) ? '' : id;
+    sfx('click');
     renderWardrobe();
   }
 
+  // ---------- Dukkan: yukseltmeler ve oyuncaklar ----------
   function renderShop() {
     $('wallet3').textContent = save.wallet;
     $('shopList').innerHTML = UPGRADES.map((u) => {
       const lvl = upg(u.id), max = u.costs.length, done = lvl >= max;
       const pips = Array.from({ length: max }, (_, i) => `<i class="${i < lvl ? 'on' : ''}"></i>`).join('');
       const next = done ? 'En üst seviye' : u.steps[lvl];
-      const cost = done ? '' : `🐟 ${u.costs[lvl]}`;
+      const cost = done ? '' : `Satın al · 🐟 ${u.costs[lvl]}`;
       const cant = !done && save.wallet < u.costs[lvl];
       return `<button class="up${done ? ' done' : ''}${cant ? ' cant' : ''}" data-upg="${u.id}"${done ? ' disabled' : ''}>
         <b>${u.name}</b><span class="pips">${pips}</span><small>${next}</small><em>${cost}</em></button>`;
     }).join('');
+    const ts = save.toys;
+    $('toyList').innerHTML = TOYS.map((t) => {
+      const owned = ts.owned.includes(t.id), on = ts.sel === t.id;
+      const lbl = on ? 'Seçili ✓' : owned ? 'Seç' : `Satın al · 🐟 ${t.price}`;
+      const cant = !owned && save.wallet < t.price;
+      return `<button class="up toy${cant ? ' cant' : ''}${on ? ' done' : ''}" data-toy="${t.id}"><canvas width="96" height="96"></canvas><b>${t.name}</b><em>${lbl}</em></button>`;
+    }).join('');
+    $('toyList').querySelectorAll('button').forEach((b) => {
+      const g = b.querySelector('canvas').getContext('2d');
+      g.setTransform(4, 0, 0, 4, 48, 52);
+      drawToy(g, b.dataset.toy, 0, 0, 1);
+    });
   }
   function buyUpgrade(id) {
     const u = UPGRADES.find((x) => x.id === id);
@@ -2528,6 +2969,17 @@
     vibrate(30);
     renderShop();
   }
+  function toyClick(id) {
+    const t = TOY_BY_ID[id], ts = save.toys;
+    if (!t) return;
+    if (ts.owned.includes(id)) { ts.sel = id; sfx('ui'); }
+    else if (save.wallet >= t.price) { save.wallet -= t.price; ts.owned.push(id); ts.sel = id; persist('wallet'); sfx('buy'); vibrate(30); toast('Yeni oyuncak!', `${t.name}: ana sayfada kedinle oyna`, 1.6); }
+    else { sfx('nope'); return; }
+    persist('toys');
+    renderShop();
+    renderToyChips();
+  }
+
 
   function renderMissions() {
     refillMissions();
@@ -2539,25 +2991,6 @@
     }).join('');
   }
 
-  function charClick(id) {
-    const c = CAT_BY_ID[id];
-    if (!c) return;
-    if (save.owned.includes(id)) {
-      save.char = id; persist('char');
-      sfx('ui');
-    } else if (save.wallet >= c.price) {
-      save.wallet -= c.price; save.owned.push(id); save.char = id;
-      persist('wallet'); persist('owned'); persist('char');
-      sfx('buy');
-      vibrate(30);
-    } else {
-      sfx('nope');
-      const card = $('charGrid').querySelector(`[data-char="${id}"]`);
-      if (card) { card.classList.remove('nope'); void card.offsetWidth; card.classList.add('nope'); }
-      return;
-    }
-    renderChars();
-  }
 
   // ================= Girdi =================
   function onTap() {
@@ -2596,6 +3029,10 @@
     else if (b.dataset.char) charClick(b.dataset.char);
     else if (b.dataset.cos) cosClick(b.dataset.cos);
     else if (b.dataset.upg) buyUpgrade(b.dataset.upg);
+    else if (b.dataset.toy) toyClick(b.dataset.toy);
+    else if (b.dataset.toysel) { save.toys.sel = b.dataset.toysel; persist('toys'); renderToyChips(); sfx('meowShort'); }
+    else if (a === 'toyMode') setToyMode(!toy.on);
+    else if (a === 'pvAction') pvAction();
     else if (b.id === 'soundBtn') { save.sound = !save.sound; persist('sound'); renderMenu(); sfx('coin'); }
     else if (b.id === 'musicBtn') { save.music = !save.music; persist('music'); if (save.music) ac(); renderMenu(); }
     else if (b.id === 'vibBtn') { save.vibrate = !save.vibrate; persist('vibrate'); renderMenu(); vibrate(40); }
@@ -2626,8 +3063,10 @@
     last = now;
     if (state !== 'pause') update(dt);
     updateHero(dt);
+    updatePreview(dt);
     draw();
     drawHero();
+    drawPreview();
     musicTick();
     rainAmbience();
     if (DEMO) {

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<meta name="theme-color" content="#2b3150">
+<meta name="theme-color" content="#fde9da">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -34,7 +34,11 @@
     <canvas id="heroCat" width="440" height="440" aria-label="Kedin: parmağınla çevir"></canvas>
     <div id="heroBubble" class="bubble">Miyav!</div>
   </div>
-  <p class="hint small">Kedini parmağınla çevir · dokununca miyavlar</p>
+  <p class="hint small" id="heroHint">Kedini parmağınla çevir · dokununca miyavlar</p>
+  <div class="toybar">
+    <button id="toyBtn" class="chip main" data-act="toyMode">🎣 Oyuncakla oyna</button>
+    <div id="toyChips" class="chips hidden"></div>
+  </div>
   <button id="resumeBtn" class="big resume hidden" data-act="resume">Kaldığın yerden devam <small id="resumeInfo"></small></button>
   <button class="big play" data-act="endless">Sonsuz Koşu</button>
   <p class="best">En iyi (<span id="diffName"></span>): <span id="menuBest">0</span></p>
@@ -68,7 +72,7 @@
     <ul>
       <li><b>Dokun:</b> kedin karşı duvara zıplar.</li>
       <li><b>Zıplarken tekrar dokun:</b> pati atılması, havada geri dönersin (pati enerjisi harcar, 10 sn'de dolar).</li>
-      <li><b>Canlar:</b> kaktüs, klima, çamaşır ipi veya açık fıskiye bir can götürür.</li>
+      <li><b>Canlar:</b> süpürge hortumu, ıslak boru, klima, çamaşır ipi veya açık fıskiye bir can götürür.</li>
       <li><b>Açlık:</b> balık yedikçe tokluk dolar; boşalırsa bir can gider.</li>
       <li><b>Bal:</b> bala yapışırsan ayrılmak için iki kez dokun.</li>
       <li><b>Fıskiye:</b> açılıp kapanır. Kapalıyken yanından geçersen +15 puan.</li>
@@ -79,6 +83,17 @@
       <li><b>Karga:</b> balık çalar. Balığı taşırken havada kargaya değersen balığı geri alırsın.</li>
     </ul>
   </details>
+  <details class="howto card">
+    <summary>Ses kaynakları</summary>
+    <ul>
+      <li>Kedi, köpek ve yemek sesleri Wikimedia Commons'taki telifsiz (CC0 / kamu malı) kayıtlardan düzenlendi:</li>
+      <li><b>Miyav:</b> Heismark (kamu malı), George Miquilena (CC0)</li>
+      <li><b>Mırlama:</b> Mysid (kamu malı)</li>
+      <li><b>Havlama:</b> Kineticsquid (CC0)</li>
+      <li><b>Yemek:</b> earthcalling (kamu malı)</li>
+      <li>Müzik ve diğer bütün efektler oyunun içinde kodla üretilir.</li>
+    </ul>
+  </details>
   <button class="big alt wide" data-act="tutorial">Eğitimi tekrar oyna</button>
   <button class="toggle" data-act="menu">Kapat</button>
 </div>
@@ -87,15 +102,23 @@
 <div id="chars" class="overlay tabbed hidden">
   <div class="seg sub"><button class="on" data-act="chars">Kediler</button><button data-act="wardrobe">Gardırop</button></div>
   <div class="wallet">🐟 <span id="wallet2">0</span></div>
+  <div class="pvbox card">
+    <canvas id="charPv" width="300" height="300" aria-label="Kedi önizlemesi: parmağınla çevir"></canvas>
+    <div class="pvinfo"><b id="charPvName"></b><small id="charPvDesc"></small></div>
+    <button id="charPvBtn" class="big buy" data-act="pvAction"></button>
+  </div>
+  <p class="hint small">Bir kediye dokun, önce burada gör. Beğenirsen satın al.</p>
   <div id="charGrid" class="grid chars-grid"></div>
-  <p class="hint">Balıkları oynayarak topla, yeni kedi sahiplen.</p>
 </div>
 
 <div id="wardrobe" class="overlay tabbed hidden">
   <div class="seg sub"><button data-act="chars">Kediler</button><button class="on" data-act="wardrobe">Gardırop</button></div>
   <div class="wallet">🐟 <span id="wallet4">0</span></div>
-  <canvas id="wardPreview" class="preview" width="200" height="200"></canvas>
-  <p class="hint small">Satın aldığın eşyaya tekrar dokunursan çıkarırsın.</p>
+  <div class="pvbox card">
+    <canvas id="wardPv" width="300" height="300" aria-label="Eşya önizlemesi: parmağınla çevir"></canvas>
+    <div class="pvinfo"><b id="wardPvName"></b><small id="wardPvDesc"></small></div>
+    <button id="wardPvBtn" class="big buy" data-act="pvAction"></button>
+  </div>
   <div id="wardList" class="ward"></div>
 </div>
 
@@ -110,7 +133,11 @@
 <div id="shop" class="overlay tabbed hidden">
   <h2>Dükkan</h2>
   <div class="wallet">🐟 <span id="wallet3">0</span></div>
+  <h3>Yükseltmeler</h3>
   <div id="shopList" class="grid shop-grid"></div>
+  <h3>Oyuncaklar</h3>
+  <p class="hint small">Ana sayfada oltayla sarkıt, kedin yakalamaya çalışsın.</p>
+  <div id="toyList" class="grid shop-grid"></div>
 </div>
 
 <!-- ============ Gorevler ve siralama ============ -->

@@ -1,0 +1,22 @@
+Patikat - ses kaynaklari
+
+Bu klasordeki gercek hayvan ve yemek sesleri Wikimedia Commons'tan alinmis,
+telifsiz (CC0 ya da kamu mali) kayitlardan kesilip duzenlenmistir.
+Atif zorunlu degildir; yine de kaynaklari tesekkur olarak listeliyoruz.
+
+miyav1.mp3, miyav2.mp3  <- "Meow of a pleading cat.oga", Heismark, kamu mali
+    https://commons.wikimedia.org/wiki/File:Meow_of_a_pleading_cat.oga
+miyav3.mp3              <- "Maullido de gata hembra joven.ogg", George Miquilena, CC0
+    https://commons.wikimedia.org/wiki/File:Maullido_de_gata_hembra_joven.ogg
+miyav4.mp3              <- "Maullido de gata hembra.ogg", George Miquilena, CC0
+    https://commons.wikimedia.org/wiki/File:Maullido_de_gata_hembra.ogg
+mirlama.mp3             <- "Purring cat.oga", Mysid, kamu mali
+    https://commons.wikimedia.org/wiki/File:Purring_cat.oga
+havlama.mp3             <- "Voice Test Error.wav" (kopek havlamasi), Kineticsquid, CC0
+    https://commons.wikimedia.org/wiki/File:Voice_Test_Error.wav
+yemek1-3.mp3            <- "Eating snacks.ogg", earthcalling, kamu mali
+    https://commons.wikimedia.org/wiki/File:Eating_snacks.ogg
+
+Yapilan islemler: kesme, alcak frekans filtresi, giris/cikis sonumlemesi,
+ses seviyesi esitleme, MP3'e donusturme (ffmpeg).
+Oyundaki diger butun sesler ve muzik kodla uretilmistir.

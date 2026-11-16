@@ -8,7 +8,7 @@ const os = require('os');
 const ROOT = path.join(__dirname, 'public');
 const PORT = Number(process.env.PORT) || 8080;
 const MONGO_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017';
-const CATS = ['sarman', 'tekir', 'pamuk', 'kara', 'siyam', 'benek', 'van'];
+const CATS = ['sarman', 'tekir', 'pamuk', 'kara', 'duman', 'benekli', 'siyam', 'karamel', 'benek', 'zeytin', 'van'];
 const TYPES = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
@@ -16,6 +16,8 @@ const TYPES = {
   '.webmanifest': 'application/manifest+json; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
   '.png': 'image/png',
+  '.mp3': 'audio/mpeg',
+  '.txt': 'text/plain; charset=utf-8',
 };
 
 // ---------- MongoDB ----------
