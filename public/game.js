@@ -127,7 +127,17 @@
   const MISSION_REWARD = [30, 50, 80, 120];
 
   // len: [en kisa, baslangic en uzun, sondaki en uzun]; react: [baslangic, son] tepki suresi (sn)
-  const ENDLESS = { speed: 250, ramp: 0.008, cap: 230, react: [0.5, 0.24], len: [70, 130, 260], coins: 0.55, sameMax: 2, hunger: true };
+  // Sonsuz kosu: yumusak baslangic, yavas artan hiz
+  const ENDLESS = { speed: 230, ramp: 0.007, cap: 230, react: [0.58, 0.26], len: [70, 120, 250], coins: 0.6, sameMax: 2, hunger: true };
+  const BREATHER = 3.2;     // kat degisiminde engelsiz mola (sn)
+  const REVIVE_COST = 60;   // ikinci sans bedeli (balik)
+  // Desenler: rastgele dizilim yerine ritimli kaliplar
+  const PATTERNS = [
+    { id: 'normal', w: 0.5, from: 0 },
+    { id: 'zigzag', w: 0.2, from: 1, name: 'Zikzak!' },
+    { id: 'merdiven', w: 0.15, from: 2, name: 'Merdiven' },
+    { id: 'balik', w: 0.1, from: 0, name: 'Balık yolu' },
+  ];
   const LONG_LEN = [100, 180, 300];
   const LEVEL_DEFAULTS = { ramp: 0.005, cap: 80, react: [0.55, 0.38], len: [70, 120, 170], coins: 0.55, sameMax: 2, bars: 0, jets: 0, sticky: 0, ac: 0, power: false, dark: false, weather: 'clear', hunger: false, crows: false, dogs: false };
   const LEVELS = [
@@ -455,14 +465,17 @@
   let lives = 3, maxLives = 3, tokluk = 100, energy = 3, energyMax = 3, energyT = 0, stickTaps = 0;
   let combo = 0, comboT = 0, runT = 0, jetClock = 0, missionT = 0;
   let chase = null, chaseCooldown = 0, crowT = 8, hintSlow = 0, dogEventDone = false;
+  let pattern = null, points = 0, breatherT = 0;
   let stats = null;
   let bgOff = 0, clock = 0, overAt = 0, countT = 0;
   let stage = 0, darkAmt = 0, darkTarget = 0, fogAmt = 0, weather = 'clear';
   const toastMsg = { text: '', sub: '', t: 0 };
 
-  const MENU_STATES = ['menu', 'levels', 'chars', 'shop', 'missions', 'wardrobe', 'board'];
+  const MENU_STATES = ['menu', 'levels', 'chars', 'shop', 'missions', 'wardrobe', 'board', 'settings'];
   const meters = () => Math.floor(dist / METER);
-  const score = () => meters() + bonus;
+  const score = () => Math.floor(points) + bonus;
+  const isRunMode = () => run && (run.mode === 'endless' || run.mode === 'daily');
+  const stageMult = () => (isRunMode() ? Math.round((1 + 0.1 * stage) * 10) / 10 : 1);
   const isMenuState = () => MENU_STATES.includes(state);
   const comboMult = () => Math.min(5, 1 + Math.floor(combo / 2));
   const diffOf = () => DIFFS[(run && run.diff) || save.diff];
@@ -499,7 +512,8 @@
   }
   function toast(text, sub = '', t = 2) { toastMsg.text = text; toastMsg.sub = sub; toastMsg.t = t; }
   function floater(text, color = '#f6dcae') {
-    floaters.push({ text, color, x: W / 2, y: player.y - 34 - floaters.length * 16, t: 1 });
+    const minY = floaters.reduce((m, f) => Math.min(m, f.y), player.y - 14);
+    floaters.push({ text, color, x: W / 2, y: Math.min(player.y - 34, minY - 20), t: 1.1 });
   }
 
   function reset() {
@@ -510,6 +524,7 @@
     shieldHP = 0; magnetT = 0; slowT = 0; invulnT = 0; shieldHits = 0;
     combo = 0; comboT = 0; runT = 0; jetClock = 0; missionT = 0; stickTaps = 0;
     chase = null; chaseCooldown = 0; crowT = rand(7, 11); hintSlow = 0; dogEventDone = false;
+    pattern = null; points = 0; breatherT = 0;
     stats = { fish: 0, near: 0, lines: 0, jets: 0, dashes: 0, powers: 0, livesLost: 0, cleanM: -1, dogs: 0, crows: 0 };
     stage = 0; bgOff = 0; weather = 'clear';
   }
@@ -531,10 +546,27 @@
     const lenCfg = F.long ? LONG_LEN : cfg.len;
     const k = item ? item.kind : null;
 
+    // Desen secimi (sonsuz kosu / gunun seferi): 4-6 engellik ritimli kaliplar
+    let pat = 'normal', announce = null;
+    if (!item && isRunMode()) {
+      if (!pattern || pattern.left <= 0) {
+        const pool = PATTERNS.filter((p) => stage >= p.from);
+        let r = rnd() * pool.reduce((s, p) => s + p.w, 0), chosen = pool[0];
+        for (const p of pool) { r -= p.w; if (r <= 0) { chosen = p; break; } }
+        pattern = { id: chosen.id, left: 4 + Math.floor(rnd() * 3) };
+        announce = chosen.name || null;
+      }
+      pattern.left--;
+      pat = pattern.id;
+    }
+    const plain = pat === 'zigzag' || pat === 'merdiven'; // ritim desenlerinde ozel engel yok
+
     let side = rnd() < 0.5 ? 0 : 1;
     if (side === lastSide && sameRun >= sameMax) side = 1 - side;
     if (k === 'bar' || k === 'sticky' || k === 'power' || k === 'jet') side = 1 - lastSide;
     if (k === 'empty') side = lastSide;
+    if (pat === 'zigzag') side = 1 - lastSide;
+    if (pat === 'merdiven') side = lastSide;
     const switching = side !== lastSide;
     sameRun = switching ? 0 : sameRun + 1;
 
@@ -542,22 +574,23 @@
     const need = speed * (JUMP_MAX + react) + 2 * R;
     let gap, barTop = null, sticky = false;
     if (switching) {
-      const extra = grand(0, 90 * (1 - d) + 20);
-      if (k === 'bar' || (!item && rnd() < F.bars)) {
+      const extra = pat === 'zigzag' ? grand(0, 24) : grand(0, 90 * (1 - d) + 20);
+      if (k === 'bar' || (!item && !plain && rnd() < F.bars)) {
         gap = 2 * need + BAR_H + extra;
         barTop = lastTop - (need + extra / 2) - BAR_H;
       } else {
-        sticky = k === 'sticky' || (!item && rnd() < F.sticky);
+        sticky = k === 'sticky' || (!item && !plain && rnd() < F.sticky);
         gap = need + extra + (sticky ? speed * STICKY_EXTRA : 0);
       }
     } else {
       gap = k === 'empty' ? need * 2.6 : grand(40, 110);
     }
 
-    const isJet = k === 'jet' || (!item && rnd() < F.jets);
+    const isJet = k === 'jet' || (!item && !plain && rnd() < F.jets);
     let len, skin = 'cactus';
     if (isJet) len = JET_H;
-    else if (k === 'ac' || (!item && rnd() < F.ac)) { skin = 'ac'; len = rnd() < 0.5 ? 56 : 70; }
+    else if (k === 'ac' || (!item && !plain && rnd() < F.ac)) { skin = 'ac'; len = rnd() < 0.5 ? 56 : 70; }
+    else if (pat === 'zigzag') len = TOOTH * 4;
     else {
       const lenMax = lerp(lenCfg[1], lenCfg[2], d);
       len = Math.max(TOOTH * 4, Math.round(grand(lenCfg[0], lenMax) / TOOTH) * TOOTH);
@@ -567,15 +600,18 @@
     const ob = isJet ? { type: 'jet', side, y: top, h: len, phase: grand(0, JET_PERIOD) } : { type: 'spike', side, y: top, h: len, skin };
     if (item && item.hint) ob.hint = item.hint;
     if (item && item.trigger) ob.trigger = item.trigger;
+    if (announce) ob.announce = announce;
     obstacles.push(ob);
     if (barTop !== null) obstacles.push({ type: 'bar', y: barTop, h: BAR_H, v: Math.floor(rnd() * 3) });
     // Bal: kedinin bu engelden once ayrilmasi gereken duvarda, gecis araligini kaplar
     if (sticky) obstacles.push({ type: 'sticky', side, y: bottom + 6, h: lastTop + 60 - (bottom + 6) });
 
-    const forceFish = item && item.fish;
+    const forceFish = (item && item.fish) || pat === 'balik' || (pat === 'merdiven' && rnd() < 0.5);
     if (switching) {
       const midY = barTop !== null ? (bottom + barTop) / 2 : bottom + gap / 2;
-      if (k === 'power' || (!item && F.power && rnd() < 0.1)) {
+      if (pat === 'balik') {
+        addCoin(W / 2, midY);
+      } else if (k === 'power' || (!item && F.power && rnd() < 0.1)) {
         const kinds = ['magnet', 'slow'];
         if (shieldHP <= 0) kinds.push('shield');
         if (hungerOn() || energy < energyMax) kinds.push('mama');
@@ -948,6 +984,7 @@
       speed, dist, bonus, coinCount, coinsSpawned, lastTop, lastSide, sameRun, spawnDone,
       shieldHP, magnetT, slowT, invulnT, shieldHits, stage, rngState, weather,
       lives, maxLives, tokluk, energy, energyMax, energyT, runT, jetClock, stats, chase, chaseCooldown, dogEventDone,
+      points, pattern, revived: !!run.revived, bankedCount: run.bankedCount || 0,
     };
   }
   function saveResume() {
@@ -958,7 +995,7 @@
   function clearResume() { if (save.resume) { save.resume = null; persist('resume'); } }
   function discardResume() { // yeni tur baslarsa yarim turdaki baliklar cuzdana gecer
     if (!save.resume) return;
-    save.wallet += (save.resume.coinCount || 0) * fishValue();
+    save.wallet += Math.max(0, (save.resume.coinCount || 0) - (save.resume.bankedCount || 0)) * fishValue();
     persist('wallet');
     clearResume();
   }
@@ -973,6 +1010,10 @@
     ({ speed, dist, bonus, coinCount, coinsSpawned, lastTop, lastSide, sameRun, spawnDone,
       shieldHP, magnetT, slowT, invulnT, shieldHits, stage, rngState, weather,
       lives, maxLives, tokluk, energy, energyMax, energyT, runT, jetClock, stats, chase, chaseCooldown, dogEventDone } = d);
+    points = d.points || dist / METER;
+    pattern = d.pattern || null;
+    run.revived = !!d.revived;
+    run.bankedCount = d.bankedCount || 0;
     bgOff = dist;
     run.passedRecord = meters() >= run.recordM;
     shiftWorld(playerY() - d.oldY);
@@ -986,6 +1027,24 @@
     startCountdown();
   }
 
+  function revive() {
+    if (!run || run.revived || state !== 'over' || save.wallet < REVIVE_COST) return;
+    save.wallet -= REVIVE_COST;
+    persist('wallet');
+    run.revived = true;
+    run.banked = false;
+    lives = 1;
+    tokluk = Math.max(tokluk, 70);
+    chase = null; chaseCooldown = 6;
+    // kedinin hemen onundeki engelleri temizle ki geri donunce haksiz yere carpmasin
+    obstacles = obstacles.filter((o) => o.y + o.h < player.y - 320);
+    player.jumping = false; player.queued = false;
+    player.x = player.side === 0 ? LEFT_X : RIGHT_X;
+    invulnT = 2.5;
+    sfx('power');
+    startCountdown();
+  }
+
   function startCountdown() {
     state = 'count';
     countT = 3;
@@ -995,7 +1054,9 @@
   function bankCoins(extra = 0) {
     if (!run || run.banked) return 0;
     run.banked = true;
-    const earned = coinCount * fishValue() + extra;
+    const fresh = coinCount - (run.bankedCount || 0); // ikinci sanstan sonra once sayilanlar tekrar sayilmaz
+    run.bankedCount = coinCount;
+    const earned = fresh * fishValue() + extra;
     save.wallet += earned;
     persist('wallet');
     return earned;
@@ -1044,6 +1105,13 @@
       $('overInfo').textContent = `${why} ${meters()} m\n${statLine}\n${line}`;
     }
     $('overTap').textContent = run.mode === 'daily' && dailyLeft() <= 0 ? 'Bugünlük haklar bitti, yarın yeni parkur!' : 'Tekrar için dokun';
+    // Ikinci sans: sonsuz kosuda tur basina bir kez, balikla
+    const canRevive = run.mode === 'endless' && !run.revived;
+    $('reviveBtn').classList.toggle('hidden', !canRevive);
+    if (canRevive) {
+      $('reviveBtn').disabled = save.wallet < REVIVE_COST;
+      $('reviveInfo').textContent = save.wallet < REVIVE_COST ? `🐟 ${REVIVE_COST} gerekli (sende ${save.wallet})` : `🐟 ${REVIVE_COST} · kaldığın yerden 1 canla`;
+    }
     $('newBest').classList.toggle('hidden', !isBest);
     $('pauseBtn').classList.add('hidden');
     setTimeout(() => { if (state === 'over') show('over'); }, 450);
@@ -1124,6 +1192,7 @@
       speed = (cfg.speed + Math.min(cfg.cap, dist * cfg.ramp)) * df.speed;
       dy = speed * wdt;
       dist += dy; bgOff += dy; lastTop += dy;
+      points += (dy / METER) * stageMult();
       for (const o of obstacles) o.y += dy;
       for (const c of coins) c.y += dy;
       for (const p of powerups) p.y += dy;
@@ -1145,8 +1214,16 @@
             const nw = r < 0.5 ? 'clear' : r < 0.75 ? 'rain' : 'fog';
             if (nw !== weather) { weather = nw; wsub = nw === 'clear' ? ' · Hava açtı' : ` · ${WEATHERS[nw].name}: ${WEATHERS[nw].sub}`; }
           }
-          toast(PALETTES[S.pal].name, `${st * STAGE_M} m · ${S.sub}${wsub}`, 2.6);
+          toast(`${st + 1}. Kat · ${PALETTES[S.pal].name}`, `Puan x${stageMult()} · ${S.sub}${wsub}`, 2.8);
           sfx('stage');
+          // Mola: yeni engellerden once engelsiz bir aralik ve iki duvarda balik dizisi
+          const startY = lastTop - 60;
+          lastTop -= speed * BREATHER;
+          pattern = null;
+          for (let y = startY, i = 0; y > lastTop + 60; y -= 110, i++) addCoin(i % 2 ? RIGHT_X : LEFT_X, y);
+          const reward = Math.min(12, 2 + st);
+          coinCount += reward;
+          floater(`Kat ödülü: +${reward} balık`, COIN);
           if (S.dogs && rnd() < 0.35) startChase(0.15, 'Bekçi köpeği uyandı!');
         }
       } else if (run.mode === 'level' && cfg.dogs && !dogEventDone && progress() > 0.4) {
@@ -1184,6 +1261,7 @@
 
       // egitim ipuclari, gecilen camasir ipleri ve kapali fiskiyeler
       for (const o of obstacles) {
+        if (o.announce && !o.announced && o.y + o.h > 20) { o.announced = true; floater(o.announce, '#c9d8ea'); }
         if (o.hint && !o.hinted && o.y + o.h > 30) {
           o.hinted = true;
           toast(o.hint[0], o.hint[1], 3.4);
@@ -1434,6 +1512,153 @@
     g.restore();
   }
 
+  // ================= 3B kedi (karsilama ekrani) =================
+  // Oturan kedi uzayda noktalarla tanimlanir; aci kadar dondurulup arkadan one dogru cizilir.
+  // x saga, y asagi, z izleyiciye dogru. aci 0 = kedi bize bakar.
+  function drawCat3D(g, c, ang, t, wear, hop = 0) {
+    const ca = Math.cos(ang), sa = Math.sin(ang);
+    const lift = -Math.sin(Math.min(1, hop) * Math.PI) * 7;
+    const P3 = (x, y, z) => ({ x: x * ca + z * sa, y: y + lift, z: -x * sa + z * ca });
+    const darkParts = c.pattern === 'points' || c.pattern === 'van';
+    const sway = Math.sin(t * 2) * 1.5;
+    const ops = [];
+    const add = (z, fn) => ops.push({ z, fn });
+
+    // yumusak zemin golgesi (hep en arkada)
+    add(-99, () => {
+      const sg = g.createRadialGradient(0, 20, 2, 0, 20, 16);
+      sg.addColorStop(0, `rgba(0,0,0,${0.28 - Math.min(1, hop) * 0.1})`);
+      sg.addColorStop(1, 'rgba(0,0,0,0)');
+      g.fillStyle = sg; g.beginPath(); g.ellipse(0, 20, 16, 4.5, 0, 0, Math.PI * 2); g.fill();
+    });
+    // kuyruk
+    const tp = [P3(0, 16, -8), P3(9 + sway, 17, -6), P3(12 + sway, 6, -3)];
+    add((tp[0].z + tp[2].z) / 2, () => {
+      g.strokeStyle = darkParts ? c.fur2 : c.fur; g.lineWidth = 4; g.lineCap = 'round';
+      g.beginPath(); g.moveTo(tp[0].x, tp[0].y); g.quadraticCurveTo(tp[1].x, tp[1].y, tp[2].x, tp[2].y); g.stroke();
+    });
+    // arka kalcalar
+    for (const s of [-1, 1]) {
+      const h = P3(s * 7, 14, -3);
+      add(h.z, () => ell(g, h.x, h.y, 4 + 2.5 * Math.abs(sa) + 2 * Math.abs(ca) * 0.5, 5.5, 0, c.fur));
+    }
+    // govde
+    const b = P3(0, 8, -1);
+    const bodyRx = Math.sqrt((9 * ca) ** 2 + (10.5 * sa) ** 2);
+    add(b.z, () => {
+      ell(g, b.x, b.y, bodyRx, 11, 0, c.fur);
+      g.save();
+      g.beginPath(); g.ellipse(b.x, b.y, bodyRx, 11, 0, 0, Math.PI * 2); g.clip();
+      const bf = P3(0, 10, 8); // gogus/karin one bakar
+      if (bf.z > 0) ell(g, bf.x, bf.y, 5.5 * Math.max(0.2, ca), 7, 0, c.belly);
+      if (c.pattern === 'tabby') {
+        g.strokeStyle = c.fur2; g.lineWidth = 1.8;
+        for (const yy of [2, 6.5, 11]) { g.beginPath(); g.ellipse(b.x, b.y + yy - 6, bodyRx, 2.6, 0, Math.PI * 1.05, Math.PI * 1.95); g.stroke(); }
+      } else if (c.pattern === 'calico') {
+        const p1 = P3(-5, 5, 5), p2 = P3(6, 11, -5);
+        if (p1.z > -6) ell(g, p1.x, p1.y, 4.5, 4, 0, c.fur2);
+        if (p2.z > -6) ell(g, p2.x, p2.y, 4, 3.5, 0, c.fur3);
+      }
+      g.restore();
+    });
+    // on bacaklar ve patiler
+    for (const s of [-1, 1]) {
+      const top = P3(s * 3.6, 9, 5.5), paw = P3(s * 3.6, 18.5, 7);
+      const col = c.pattern === 'points' ? c.fur2 : c.fur;
+      add(paw.z, () => {
+        g.strokeStyle = col; g.lineWidth = 4.4; g.lineCap = 'round';
+        g.beginPath(); g.moveTo(top.x, top.y); g.lineTo(paw.x, paw.y); g.stroke();
+        ell(g, paw.x, paw.y, 2.8, 2.2, 0, col);
+      });
+    }
+    // boyundaki aksesuar (one bakiyorsa)
+    const nk = P3(0, 1.5, 6);
+    if (wear && wear.neck && nk.z > 0) {
+      add(nk.z + 0.5, () => { g.save(); g.translate(nk.x, 0); g.scale(Math.max(0.3, ca), 1); drawNeckItem(g, wear.neck, 0, nk.y, 1, t); g.restore(); });
+    }
+    // bas
+    const hd = P3(0, -6, 2);
+    add(hd.z, () => {
+      dot(g, hd.x, hd.y, 8.5, c.fur);
+      g.save(); g.beginPath(); g.arc(hd.x, hd.y, 8.5, 0, Math.PI * 2); g.clip();
+      if (c.pattern === 'van') { const a = P3(-4.5, -12, 4), bb = P3(4.5, -12, 4); dot(g, a.x, a.y, 4, c.fur2); dot(g, bb.x, bb.y, 4, c.fur2); }
+      if (c.pattern === 'calico') { const a = P3(-4, -11, 5); dot(g, a.x, a.y, 4.5, c.fur2); }
+      if (c.pattern === 'tabby') {
+        g.strokeStyle = c.fur2; g.lineWidth = 1.4;
+        for (const ox of [-2.5, 0, 2.5]) {
+          const p1 = P3(ox, -14, 4.5), p2 = P3(ox * 0.8, -11, 7.5);
+          g.beginPath(); g.moveTo(p1.x, p1.y); g.lineTo(p2.x, p2.y); g.stroke();
+        }
+      }
+      if (c.pattern === 'points') { const m = P3(0, -3.5, 8); if (m.z > 0) ell(g, m.x, m.y, 5.5 * Math.max(0.3, ca), 4.8, 0, c.fur2); }
+      g.restore();
+    });
+    // kulaklar (3B ucgenler: yandan bakinca incelir)
+    for (const s of [-1, 1]) {
+      const o = P3(s * 7.6, -9, 1.5), tip = P3(s * 6.2, -17.5, 1.5), inn = P3(s * 1.4, -13, 1.5);
+      const io = P3(s * 6.2, -10.5, 1.8), it = P3(s * 5.6, -15.5, 1.8), ii = P3(s * 2.8, -12.8, 1.8);
+      add(o.z + 0.2, () => {
+        tri(g, [o.x, o.y], [tip.x, tip.y], [inn.x, inn.y], darkParts ? c.fur2 : c.fur);
+        if (ca > 0.15) { g.globalAlpha = Math.min(1, ca * 1.5); tri(g, [io.x, io.y], [it.x, it.y], [ii.x, ii.y], '#e8a0a8'); g.globalAlpha = 1; }
+      });
+    }
+    // yuz: her ozellik kendi yuzey yonune gore gorunur (yandan bakinca tek goz ve burun kalir)
+    const fc = P3(0, -5, 10.5);
+    const vis = (p) => Math.max(0, Math.min(1, (p.z - hd.z) / 6)); // basin bize donuk yuzu
+    // burun cikintisi: yandan bakinca profili verir
+    const sn = P3(0, -3.4, 8.6);
+    add(hd.z + (sn.z - hd.z) * 0.2 + 0.05, () => {
+      const side = Math.abs(sa);
+      ell(g, sn.x, sn.y, 3.6, 3, 0, c.pattern === 'points' ? c.fur2 : c.fur);
+      if (side > 0.35 && c.pattern !== 'points') ell(g, sn.x, sn.y + 0.6, 2.6, 2, 0, c.belly);
+      const n = P3(0, -4.6, 10.6);
+      if (n.z > hd.z - 2) dot(g, n.x, n.y, 1.25, '#e48a9a');
+    });
+    add(hd.z + 1, () => {
+      const f = vis(fc);
+      if (f > 0.05) {
+        g.globalAlpha = f;
+        const mu = P3(0, -2.8, 9.6);
+        if (c.pattern !== 'points') ell(g, mu.x, mu.y, 3.6 * Math.max(0.3, ca), 2.6, 0, c.belly);
+        const n = P3(0, -4.4, 10.4);
+        tri(g, [n.x - 1.3 * Math.max(0.3, ca), n.y], [n.x + 1.3 * Math.max(0.3, ca), n.y], [n.x, n.y + 1.4], '#e48a9a');
+        g.globalAlpha = 1;
+      }
+      const blink = t % 4.3 < 0.12;
+      [[-3.2, 0], [3.2, 1]].forEach(([ex, i]) => {
+        const e = P3(ex, -7, 9.4), ev = vis(e);
+        if (ev < 0.08) return;
+        const w = Math.max(0.35, ev);
+        g.globalAlpha = Math.min(1, ev * 1.5);
+        if (blink) { g.strokeStyle = '#2a2328'; g.lineWidth = 1.2; g.beginPath(); g.moveTo(e.x - 1.8 * w, e.y); g.lineTo(e.x + 1.8 * w, e.y); g.stroke(); }
+        else {
+          ell(g, e.x, e.y, 2.1 * w, 2.5, 0, c.eyes[i]);
+          ell(g, e.x + sa * 0.6, e.y, 0.8 * w, 2, 0, '#1d1a1f');
+          dot(g, e.x - 0.6 * w, e.y - 1, 0.55, 'rgba(255,255,255,0.9)');
+        }
+        g.globalAlpha = 1;
+      });
+      g.strokeStyle = c.rim || c.pattern === 'points' ? 'rgba(255,255,255,0.5)' : 'rgba(70,55,50,0.45)';
+      g.lineWidth = 0.8;
+      for (const s of [-1, 1]) {
+        const a = P3(s * 2.5, -3, 10), b1 = P3(s * 10, -4.5, 7), b2 = P3(s * 10, -1, 7);
+        const wv = vis(a);
+        if (wv < 0.1) continue;
+        g.globalAlpha = wv;
+        g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b1.x, b1.y); g.moveTo(a.x, a.y + 1); g.lineTo(b2.x, b2.y); g.stroke();
+      }
+      g.globalAlpha = 1;
+      if (wear && wear.face && ca > 0.3) {
+        g.save(); g.translate(fc.x, 0); g.scale(ca, 1); drawHeadItem(g, wear.face, 0, hd.y, 1, 0); g.restore();
+      }
+    });
+    // sapka hep en ustte
+    if (wear && wear.hat) add(99, () => drawHeadItem(g, wear.hat, hd.x, hd.y, ca >= 0 ? 1 : -1, hd.x));
+
+    ops.sort((a, b2) => a.z - b2.z);
+    for (const o of ops) o.fn();
+  }
+
   // Bekci kopegi Karabas: cephe temizleme asansoruyle asagidan yaklasir
   function drawDog() {
     if (!chase) return;
@@ -1539,18 +1764,30 @@
       ctx.fillStyle = `rgba(255,255,255,${(P.stars * 0.55).toFixed(3)})`;
       for (const s of STARS) ctx.fillRect(s.x, (s.y + bgOff * 0.02) % (H + 10), s.r, s.r);
     }
+    // ay/gunes: yumusak isik halesi
     const mx = W * 0.66, my = H * 0.16;
-    ctx.globalAlpha = 0.16; dot(ctx, mx, my, 34, P.moon);
-    ctx.globalAlpha = 0.9; dot(ctx, mx, my, 20, P.moon);
+    const halo = ctx.createRadialGradient(mx, my, 14, mx, my, 70);
+    halo.addColorStop(0, `rgba(${P.moonA},0.35)`);
+    halo.addColorStop(1, `rgba(${P.moonA},0)`);
+    ctx.fillStyle = halo;
+    ctx.fillRect(mx - 70, my - 70, 140, 140);
+    ctx.globalAlpha = 0.92; dot(ctx, mx, my, 20, P.moon);
+    ctx.globalAlpha = 0.18; dot(ctx, mx - 6, my - 5, 6, '#ffffff');
     ctx.globalAlpha = 1;
 
+    // kabarik, yumusak bulutlar
     if (P.cloud > 0.01) {
-      ctx.fillStyle = `rgba(255,255,255,${P.cloud.toFixed(3)})`;
       for (const c of CLOUDS) {
         const y = ((c.y + bgOff * 0.06) % (H + 160)) - 80;
+        ctx.fillStyle = `rgba(255,255,255,${(P.cloud * 0.55).toFixed(3)})`;
         ctx.beginPath();
-        ctx.ellipse(c.x, y, c.w, c.h, 0, 0, Math.PI * 2);
-        ctx.ellipse(c.x + c.w * 0.55, y + 4, c.w * 0.7, c.h * 0.8, 0, 0, Math.PI * 2);
+        ctx.ellipse(c.x, y + 2, c.w * 1.25, c.h * 1.3, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = `rgba(255,255,255,${P.cloud.toFixed(3)})`;
+        ctx.beginPath();
+        ctx.ellipse(c.x, y + 3, c.w, c.h * 0.8, 0, 0, Math.PI * 2);
+        ctx.ellipse(c.x - c.w * 0.35, y - 2, c.w * 0.45, c.h * 0.9, 0, 0, Math.PI * 2);
+        ctx.ellipse(c.x + c.w * 0.25, y - 5, c.w * 0.5, c.h * 1.05, 0, 0, Math.PI * 2);
         ctx.fill();
       }
     }
@@ -1575,14 +1812,29 @@
       const wx = side === 0 ? 5 : W - WALL + 7;
       for (let k = k0; k <= k1; k++) {
         const y = k * step + bgOff + off;
-        ctx.fillStyle = P.mark;
-        ctx.fillRect(wx - 2, y - 2, WALL - 8, 34);
         const lit = (((k * 7 + side * 3) % 5) + 5) % 5 < 3;
-        ctx.fillStyle = lit ? `rgba(${P.winA},0.55)` : P.wall;
-        ctx.fillRect(wx, y, WALL - 12, 30);
+        if (lit) { // yanan pencereden yumusak isik
+          const gl = ctx.createRadialGradient(wx + 8, y + 15, 2, wx + 8, y + 15, 30);
+          gl.addColorStop(0, `rgba(${P.winA},0.22)`);
+          gl.addColorStop(1, `rgba(${P.winA},0)`);
+          ctx.fillStyle = gl;
+          ctx.fillRect(wx - 24, y - 16, 64, 62);
+        }
+        ctx.fillStyle = P.mark;
+        rr(ctx, wx - 2, y - 2, WALL - 8, 34, 5); ctx.fill();
+        ctx.fillStyle = lit ? `rgba(${P.winA},0.6)` : P.wall;
+        rr(ctx, wx, y, WALL - 12, 30, 4); ctx.fill();
+        if (lit) { ctx.fillStyle = 'rgba(255,255,255,0.12)'; rr(ctx, wx + 2, y + 2, 5, 26, 2.5); ctx.fill(); }
         ctx.fillStyle = P.edge;
-        ctx.fillRect(wx - 3, y + 31, WALL - 6, 3);
+        rr(ctx, wx - 3, y + 31, WALL - 6, 3.5, 1.75); ctx.fill();
       }
+      // duvarin ic kenarinda yumusak golge gecisi
+      const ex = side === 0 ? WALL : W - WALL;
+      const sh = ctx.createLinearGradient(ex, 0, ex + (side === 0 ? 10 : -10), 0);
+      sh.addColorStop(0, 'rgba(0,0,0,0.16)');
+      sh.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = sh;
+      ctx.fillRect(side === 0 ? ex : ex - 10, -20, 10, H + 40);
       ctx.fillStyle = P.edge;
       ctx.fillRect(side === 0 ? WALL - 2 : W - WALL, -20, 2, H + 40);
     }
@@ -1732,6 +1984,8 @@
     if (state === 'over' || !player) return;
     const p = player;
     const dir = p.jumping ? Math.sign(p.toX - p.fromX) : (p.side === 0 ? 1 : -1);
+    // duvara dusen yumusak golge
+    if (!p.jumping) ell(ctx, p.side === 0 ? WALL + 6 : W - WALL - 6, p.y + 6, 7, 18, 0, 'rgba(0,0,0,0.14)');
     ctx.save();
     ctx.translate(p.x + Math.sin(clock * 40) * 1.5 * p.wiggle, p.y);
     if (invulnT > 0) ctx.globalAlpha = 0.5; // yanip sonme yerine sabit yari saydam
@@ -1752,7 +2006,7 @@
     for (const p of particles) {
       ctx.globalAlpha = Math.max(0, Math.min(1, p.life * 2)) * 0.8;
       ctx.fillStyle = p.color;
-      ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.size * 0.6, 0, Math.PI * 2); ctx.fill();
     }
     ctx.globalAlpha = 1;
   }
@@ -1786,8 +2040,9 @@
     }
   }
 
+  const FONT = 'ui-rounded, "SF Pro Rounded", "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif';
   function hudText(text, x, y, font, color, align = 'center') {
-    ctx.font = font;
+    ctx.font = font.replace('system-ui, sans-serif', FONT);
     ctx.textAlign = align;
     ctx.fillStyle = 'rgba(15,18,28,0.4)';
     ctx.fillText(text, x + 1, y + 1.5);
@@ -1795,7 +2050,7 @@
     ctx.fillText(text, x, y);
   }
   function wrapText(text, x, y, maxW, lh, font, color) {
-    ctx.font = font;
+    ctx.font = font.replace('system-ui, sans-serif', FONT);
     const words = text.split(' ');
     let line = '';
     for (const w of words) {
@@ -1813,18 +2068,28 @@
       const goalM = isFinite(run.goal) ? Math.round(run.goal / METER) : null;
       hudText(goalM ? `${Math.min(meters(), goalM)} / ${goalM} m` : `${meters()} m · ${run.cfg.name}`, W / 2, top + 48, '800 24px system-ui, sans-serif', '#f2efe9');
       if (goalM) {
-        const bw = W - 170, bx = (W - bw) / 2;
+        const bw = 104, bx = (W - bw) / 2;
         ctx.fillStyle = 'rgba(255,255,255,0.15)';
         rr(ctx, bx, top + 58, bw, 6, 3); ctx.fill();
         ctx.fillStyle = COIN;
         rr(ctx, bx, top + 58, Math.max(6, bw * progress()), 6, 3); ctx.fill();
       }
     } else {
-      hudText(String(score()), W / 2, top + 56, '800 36px system-ui, sans-serif', '#f2efe9');
+      hudText(String(score()), W / 2, top + 52, '800 34px system-ui, sans-serif', '#f2efe9');
+      // sonraki kata ilerleme cubugu
+      const into = ((dist / METER) % STAGE_M) / STAGE_M;
+      const bw = 104, bx = (W - bw) / 2;
+      ctx.fillStyle = 'rgba(255,255,255,0.15)'; rr(ctx, bx, top + 62, bw, 5, 2.5); ctx.fill();
+      ctx.fillStyle = COIN; rr(ctx, bx, top + 62, Math.max(5, bw * into), 5, 2.5); ctx.fill();
+      hudText(`${stage + 1}. Kat · puan x${stageMult()}`, W / 2, top + 82, '700 12px system-ui, sans-serif', '#e3dccf');
     }
-    if (comboMult() > 1) hudText(`Kıl payı x${comboMult()}`, W / 2, top + 82, '700 14px system-ui, sans-serif', '#f6dcae');
+    if (comboMult() > 1) hudText(`Kıl payı x${comboMult()}`, W / 2, top + 100, '700 14px system-ui, sans-serif', '#f6dcae');
 
     const lx = WALL + 10;
+    // gostergelerin arkasina yumusak zemin (okunaklilik icin)
+    ctx.fillStyle = 'rgba(18,22,36,0.26)';
+    rr(ctx, lx - 6, top + 12, 96, hungerOn() ? 66 : 50, 14); ctx.fill();
+    rr(ctx, W - WALL - 22 - (energyMax - 1) * 15, top + 62, energyMax * 15 + 12, 26, 13); ctx.fill();
     drawFish(ctx, lx + 12, top + 29, 1, false);
     hudText(String(coinCount), lx + 26, top + 35, '700 16px system-ui, sans-serif', COIN, 'left');
     for (let i = 0; i < maxLives; i++) drawHeart(ctx, lx + 8 + i * 15, top + 50, 12, i < lives ? '#e07a7a' : 'rgba(255,255,255,0.18)');
@@ -1901,11 +2166,70 @@
     drawHud();
   }
 
+  // ================= Karsilama: 360 derece dondurulebilen kedi =================
+  const hero = { ang: -0.5, vel: 0.35, drag: false, lastX: 0, lastT: 0, downX: 0, hop: 0, msgT: 0, greeted: false };
+  const HERO_MSGS = ['Miyav!', 'Hadi tırmanalım!', 'Balık var mı?', 'Prrr prrr...', 'Beni çevirsene!', 'Bugün rekor kırarız!', 'Karabaş uyuyor mu?', 'Kaktüslerden korkmam!'];
+  function heroSay(text) {
+    $('heroBubble').textContent = text;
+    $('heroBubble').classList.add('on');
+    hero.msgT = 3;
+  }
+  function updateHero(dt) {
+    if (state !== 'menu') return;
+    if (!hero.drag) {
+      hero.ang += hero.vel * dt;
+      hero.vel += (0.35 - hero.vel) * Math.min(1, dt * 0.9); // yavasca kendi kendine donmeye doner
+    }
+    hero.hop = Math.max(0, hero.hop - dt * 1.8);
+    if (hero.msgT > 0) { hero.msgT -= dt; if (hero.msgT <= 0) $('heroBubble').classList.remove('on'); }
+  }
+  function drawHero() {
+    if (state !== 'menu') return;
+    const cv = $('heroCat');
+    const g = cv.getContext('2d');
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.clearRect(0, 0, cv.width, cv.height);
+    const k = cv.width / 58;
+    g.setTransform(k, 0, 0, k, cv.width / 2, cv.height * 0.55);
+    drawCat3D(g, CAT_BY_ID[save.char], hero.ang, clock, outfit(), hero.hop);
+  }
+  (() => {
+    const cv = $('heroCat');
+    cv.addEventListener('pointerdown', (e) => {
+      hero.drag = true; hero.lastX = hero.downX = e.clientX; hero.lastT = e.timeStamp; hero.vel = 0;
+      if (cv.setPointerCapture) try { cv.setPointerCapture(e.pointerId); } catch { /* yoksay */ }
+    });
+    cv.addEventListener('pointermove', (e) => {
+      if (!hero.drag) return;
+      const dx = e.clientX - hero.lastX, dtm = Math.max(1, e.timeStamp - hero.lastT) / 1000;
+      hero.ang += dx * 0.016;
+      hero.vel = Math.max(-9, Math.min(9, (dx * 0.016) / dtm));
+      hero.lastX = e.clientX; hero.lastT = e.timeStamp;
+    });
+    const up = (e) => {
+      if (!hero.drag) return;
+      hero.drag = false;
+      if (Math.abs(e.clientX - hero.downX) < 6) { // dokunus: miyavla ve zipla
+        hero.hop = 1;
+        hero.vel = 0.35;
+        sfx('meow');
+        heroSay(HERO_MSGS[Math.floor(Math.random() * HERO_MSGS.length)]);
+      }
+    };
+    cv.addEventListener('pointerup', up);
+    cv.addEventListener('pointercancel', up);
+  })();
+
   // ================= Ekranlar =================
-  const SCREENS = ['menu', 'levels', 'chars', 'shop', 'missions', 'wardrobe', 'board', 'pause', 'over', 'win'];
+  const SCREENS = ['menu', 'levels', 'chars', 'shop', 'missions', 'wardrobe', 'board', 'settings', 'pause', 'over', 'win'];
+  const TAB_OF = { menu: 'home', settings: 'home', levels: 'map', chars: 'cat', wardrobe: 'cat', shop: 'shop', missions: 'goals', board: 'goals' };
+  const TAB_TARGET = { home: 'menu', map: 'levels', cat: 'chars', shop: 'shop', goals: 'missions' };
   function show(id) {
     for (const s of SCREENS) $(s).classList.toggle('hidden', s !== id);
     $('pauseBtn').classList.toggle('hidden', state !== 'play');
+    const tab = id ? TAB_OF[id] : null;
+    $('tabbar').classList.toggle('hidden', !tab);
+    document.querySelectorAll('[data-tab]').forEach((b) => b.classList.toggle('on', b.dataset.tab === tab));
   }
   function showScreen(name) {
     state = name;
@@ -1916,7 +2240,13 @@
     if (name === 'missions') renderMissions();
     if (name === 'wardrobe') renderWardrobe();
     if (name === 'board') renderBoard();
+    if (name === 'settings') renderMenu();
     show(name);
+    if (name === 'menu' && !hero.greeted) {
+      hero.greeted = true;
+      hero.hop = 1;
+      heroSay(`Miyav! Hoş geldin${save.playerName ? ', ' + save.playerName : ''}!`);
+    }
   }
   function toMenu() {
     run = null;
@@ -2126,7 +2456,9 @@
     const a = b.dataset.act;
     if (a === 'endless' || a === 'daily' || a === 'tutorial') startRun(a);
     else if (a === 'resume') loadResume();
-    else if (['levels', 'chars', 'shop', 'missions', 'wardrobe', 'board'].includes(a)) showScreen(a);
+    else if (a === 'revive') revive();
+    else if (['levels', 'chars', 'shop', 'missions', 'wardrobe', 'board', 'settings'].includes(a)) showScreen(a);
+    else if (b.dataset.tab) showScreen(TAB_TARGET[b.dataset.tab]);
     else if (a === 'menu') toMenu();
     else if (a === 'pause') pause();
     else if (a === 'retry' && run) startRun(run.mode, run.level);
@@ -2166,7 +2498,9 @@
     const dt = Math.min(0.05, Math.max(0, (now - last) / 1000));
     last = now;
     if (state !== 'pause') update(dt);
+    updateHero(dt);
     draw();
+    drawHero();
     musicTick();
     rainAmbience();
     if (DEMO) {
@@ -2183,6 +2517,7 @@
   window.addEventListener('resize', resize);
   reset();
   showScreen('menu');
+  if (!DEMO && MENU_STATES.includes(params.get('screen'))) showScreen(params.get('screen')); // dogrudan ekran (test icin)
   if (DEMO) {
     const lv = Number(params.get('lv'));
     const mode = params.get('mode');
