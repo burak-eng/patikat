@@ -318,114 +318,235 @@
     lastTop += dy;
   }
 
-  // ================= Ses: tamamen kodla uretilen efektler ve sakin muzik =================
-  const audio = { ctx: null, sfx: null, music: null, noise: null, nextT: 0, step: 0, playing: false };
+  // ================= Ses: tamamen kodla uretilen efektler, kedi/kopek sesleri ve muzik =================
+  // Hicbir hazir ses dosyasi kullanilmaz. Sesler sikistirici (compressor) ve hafif yanki (reverb) ile dengelenir.
+  const audio = { ctx: null, sfx: null, music: null, noise: null, nextT: 0, step: 0, playing: false, mode: '' };
+  function buildAudio(c) {
+    const comp = c.createDynamicsCompressor();
+    comp.threshold.value = -16; comp.knee.value = 12; comp.ratio.value = 4; comp.attack.value = 0.004; comp.release.value = 0.25;
+    comp.connect(c.destination);
+    const master = c.createGain(); master.gain.value = 0.95; master.connect(comp);
+    // yanki: uretilmis, yavasca sonen bir darbe tepkisi
+    const len = Math.floor(c.sampleRate * 1.6), imp = c.createBuffer(2, len, c.sampleRate);
+    for (let ch = 0; ch < 2; ch++) { const d = imp.getChannelData(ch); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.6); }
+    const rev = c.createConvolver(); rev.buffer = imp;
+    const revOut = c.createGain(); revOut.gain.value = 0.3; rev.connect(revOut).connect(master);
+    audio.sfx = c.createGain(); audio.sfx.gain.value = 0.9; audio.sfx.connect(master);
+    const sSend = c.createGain(); sSend.gain.value = 0.15; audio.sfx.connect(sSend).connect(rev);
+    audio.music = c.createGain(); audio.music.gain.value = 0.34; audio.music.connect(master);
+    const mSend = c.createGain(); mSend.gain.value = 0.55; audio.music.connect(mSend).connect(rev);
+    const nb = c.createBuffer(1, c.sampleRate * 2, c.sampleRate), nd = nb.getChannelData(0);
+    for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
+    audio.noise = nb;
+    audio.ctx = c;
+  }
   function ac() {
     if (!audio.ctx) {
       const AC = window.AudioContext || window.webkitAudioContext;
       if (!AC) return null;
-      const c = new AC();
-      audio.ctx = c;
-      const master = c.createGain(); master.gain.value = 0.9; master.connect(c.destination);
-      audio.sfx = c.createGain(); audio.sfx.gain.value = 0.8; audio.sfx.connect(master);
-      audio.music = c.createGain(); audio.music.gain.value = 0.25; audio.music.connect(master);
-      const buf = c.createBuffer(1, c.sampleRate, c.sampleRate), d = buf.getChannelData(0);
-      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
-      audio.noise = buf;
+      buildAudio(new AC());
     }
-    if (audio.ctx.state === 'suspended') audio.ctx.resume();
+    if (audio.ctx.state === 'suspended' && audio.ctx.resume) audio.ctx.resume();
     return audio.ctx;
   }
-  function tone(freq, dur, { type = 'sine', vol = 0.15, slide = 0, delay = 0, attack = 0.006, dest } = {}) {
+  const midi = (m) => 440 * Math.pow(2, (m - 69) / 12);
+  function env(g, t, vol, attack, dur) {
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol, t + attack);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  }
+  function tone(freq, dur, { type = 'sine', vol = 0.15, slide = 0, delay = 0, attack = 0.006, dest, detune = 0 } = {}) {
     const c = audio.ctx, t = c.currentTime + delay;
     const o = c.createOscillator(), g = c.createGain();
     o.type = type;
     o.frequency.setValueAtTime(freq, t);
+    if (detune) o.detune.setValueAtTime(detune, t);
     if (slide) o.frequency.exponentialRampToValueAtTime(slide, t + dur);
-    g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(vol, t + attack);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    env(g, t, vol, attack, dur);
     o.connect(g).connect(dest || audio.sfx);
     o.start(t);
     o.stop(t + dur + 0.05);
   }
-  function hiss(dur, { freq = 1000, q = 1, vol = 0.15, delay = 0, sweep = 0 } = {}) {
+  function hiss(dur, { freq = 1000, q = 1, vol = 0.15, delay = 0, sweep = 0, type = 'bandpass', attack = 0.003, dest } = {}) {
     const c = audio.ctx, t = c.currentTime + delay;
     const s = c.createBufferSource(); s.buffer = audio.noise;
-    const f = c.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = q;
+    const f = c.createBiquadFilter(); f.type = type; f.Q.value = q;
     f.frequency.setValueAtTime(freq, t);
     if (sweep) f.frequency.exponentialRampToValueAtTime(sweep, t + dur);
     const g = c.createGain();
-    g.gain.setValueAtTime(vol, t);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    s.connect(f).connect(g).connect(audio.sfx);
-    s.start(t);
+    env(g, t, vol, attack, dur);
+    s.connect(f).connect(g).connect(dest || audio.sfx);
+    s.start(t, Math.random() * 1.5);
     s.stop(t + dur + 0.05);
   }
-  function glide(points, dur, { type = 'sawtooth', vol = 0.08, lp = 1800, delay = 0 } = {}) {
-    const c = audio.ctx, t = c.currentTime + delay;
-    const o = c.createOscillator(), g = c.createGain(), f = c.createBiquadFilter();
-    o.type = type; f.type = 'lowpass'; f.frequency.value = lp;
-    o.frequency.setValueAtTime(points[0][1], t);
-    for (const [at, fr] of points.slice(1)) o.frequency.linearRampToValueAtTime(fr, t + at);
-    g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(vol, t + 0.04);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    o.connect(f).connect(g).connect(audio.sfx);
-    o.start(t);
-    o.stop(t + dur + 0.05);
+  // Zil gibi ses: temel nota + uyumsuz ust kismi, uzun sonumlu
+  function bell(freq, dur, vol, delay = 0, dest) {
+    tone(freq, dur, { vol, delay, attack: 0.003, dest });
+    tone(freq * 2.76, dur * 0.45, { vol: vol * 0.35, delay, attack: 0.002, dest });
+    tone(freq * 5.4, dur * 0.2, { vol: vol * 0.12, delay, attack: 0.002, dest });
   }
+
+  // Kedi miyavlamasi: formant sentezi. Testere dalgasi kaynak, iki bant geciren filtre "i-a-u" unlu gecisini yapar,
+  // perde once yukselip sonra iner, hafif titresim (vibrato) ve "m" ile baslayan yumusak giris vardir.
+  function catMeow(kind = 'normal', delay = 0) {
+    const c = audio.ctx, t = c.currentTime + delay;
+    const K = {
+      normal: { dur: 0.6, f0: 640, peak: 1.32, end: 0.74, vol: 0.32 },
+      short:  { dur: 0.3, f0: 760, peak: 1.25, end: 0.95, vol: 0.28 },
+      sad:    { dur: 0.85, f0: 560, peak: 1.18, end: 0.55, vol: 0.3 },
+      happy:  { dur: 0.42, f0: 720, peak: 1.4, end: 1.05, vol: 0.3 },
+    }[kind];
+    const f0 = K.f0 * (0.94 + Math.random() * 0.12), d = K.dur;
+    const src = c.createOscillator(); src.type = 'sawtooth';
+    src.frequency.setValueAtTime(f0 * 0.82, t);
+    src.frequency.linearRampToValueAtTime(f0 * K.peak, t + d * 0.32);
+    src.frequency.linearRampToValueAtTime(f0 * K.end, t + d);
+    const lfo = c.createOscillator(), lg = c.createGain();
+    lfo.frequency.value = 6.5; lg.gain.value = f0 * 0.018;
+    lfo.connect(lg).connect(src.frequency);
+    const out = c.createGain();
+    env(out, t, K.vol, 0.07, d);
+    const nasal = c.createBiquadFilter(); nasal.type = 'lowpass'; nasal.Q.value = 0.7;
+    nasal.frequency.setValueAtTime(700, t);
+    nasal.frequency.exponentialRampToValueAtTime(5000, t + 0.09);
+    nasal.frequency.exponentialRampToValueAtTime(1800, t + d);
+    const formant = (path, q, gain) => {
+      const bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = q;
+      bp.frequency.setValueAtTime(path[0], t);
+      bp.frequency.linearRampToValueAtTime(path[1], t + d * 0.35);
+      bp.frequency.linearRampToValueAtTime(path[2], t + d);
+      const gg = c.createGain(); gg.gain.value = gain;
+      src.connect(bp).connect(gg).connect(nasal);
+    };
+    formant([420, 950, 520], 4, 1.0);   // F1: i -> a -> u
+    formant([2300, 1500, 950], 5, 0.7); // F2
+    formant([3000, 2800, 2600], 8, 0.25); // F3
+    nasal.connect(out).connect(audio.sfx);
+    src.start(t); lfo.start(t);
+    src.stop(t + d + 0.05); lfo.stop(t + d + 0.05);
+  }
+
+  // Kopek havlamasi: sert baslangic, kisa "hav": perde hizla yukselip iner, gogus rezonansi ve nefes gurultusu
+  function dogBark(delay = 0, pitch = 1) {
+    const c = audio.ctx, t = c.currentTime + delay, d = 0.17;
+    const src = c.createOscillator(); src.type = 'sawtooth';
+    const p = 300 * pitch * (0.95 + Math.random() * 0.1);
+    src.frequency.setValueAtTime(p * 0.8, t);
+    src.frequency.exponentialRampToValueAtTime(p * 1.35, t + 0.025);
+    src.frequency.exponentialRampToValueAtTime(p * 0.7, t + d);
+    const out = c.createGain();
+    env(out, t, 0.45, 0.004, d);
+    const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.setValueAtTime(3200, t); lp.frequency.exponentialRampToValueAtTime(900, t + d);
+    for (const [f, q, gn] of [[650, 3, 1], [1250, 4, 0.7], [2400, 6, 0.3]]) {
+      const bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = f * pitch; bp.Q.value = q;
+      const gg = c.createGain(); gg.gain.value = gn;
+      src.connect(bp).connect(gg).connect(lp);
+    }
+    lp.connect(out).connect(audio.sfx);
+    src.start(t); src.stop(t + d + 0.05);
+    hiss(0.07, { freq: 1100, q: 0.8, vol: 0.22, delay, attack: 0.002 }); // nefes patlamasi
+    tone(110 * pitch, 0.12, { vol: 0.18, slide: 70, delay, attack: 0.003 }); // gogus
+  }
+
+  // Karga: genizden, cizik "gaak"
+  function crowCaw(delay = 0) {
+    const c = audio.ctx, t = c.currentTime + delay, d = 0.26;
+    const src = c.createOscillator(); src.type = 'sawtooth';
+    src.frequency.setValueAtTime(520, t);
+    src.frequency.linearRampToValueAtTime(610, t + 0.05);
+    src.frequency.linearRampToValueAtTime(430, t + d);
+    const bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1350; bp.Q.value = 2.5;
+    const out = c.createGain(); env(out, t, 0.22, 0.01, d);
+    src.connect(bp).connect(out).connect(audio.sfx);
+    src.start(t); src.stop(t + d + 0.05);
+    hiss(d, { freq: 1600, q: 1.5, vol: 0.06, delay });
+  }
+
   const SFX = {
-    jump() { tone(300, 0.09, { type: 'triangle', vol: 0.1, slide: 540 }); hiss(0.05, { freq: 2600, vol: 0.04 }); },
-    coin() { tone(1046, 0.12, { vol: 0.1 }); tone(1568, 0.18, { vol: 0.08, delay: 0.06 }); },
-    near() { tone(1318, 0.1, { type: 'triangle', vol: 0.06 }); },
-    hit() { tone(160, 0.25, { vol: 0.25, slide: 70 }); hiss(0.12, { freq: 400, vol: 0.1 }); },
-    meow() { glide([[0, 480], [0.14, 820], [0.45, 430]], 0.48, { vol: 0.08 }); },
-    bark() { for (const d of [0, 0.17]) { hiss(0.08, { freq: 650, q: 3, vol: 0.22, delay: d }); tone(230, 0.08, { type: 'square', vol: 0.05, slide: 160, delay: d }); } },
-    caw() { for (const d of [0, 0.22]) glide([[0, 950], [0.16, 620]], 0.18, { vol: 0.06, lp: 2400, delay: d }); },
-    dash() { hiss(0.18, { freq: 600, sweep: 2400, q: 0.8, vol: 0.1 }); },
-    sticky() { tone(180, 0.15, { vol: 0.12, slide: 120 }); hiss(0.1, { freq: 300, vol: 0.05 }); },
-    power() { [523, 659, 784].forEach((f, i) => tone(f, 0.14, { type: 'triangle', vol: 0.08, delay: i * 0.06 })); },
-    stage() { tone(659, 0.18, { vol: 0.09 }); tone(988, 0.3, { vol: 0.07, delay: 0.12 }); },
-    win() { [523, 659, 784, 1046].forEach((f, i) => tone(f, 0.25, { type: 'triangle', vol: 0.09, delay: i * 0.11 })); },
-    lose() { [392, 330, 262].forEach((f, i) => tone(f, 0.3, { type: 'triangle', vol: 0.09, delay: i * 0.15 })); },
-    splash() { hiss(0.3, { freq: 1800, q: 0.6, vol: 0.12, sweep: 600 }); },
-    shield() { tone(400, 0.2, { vol: 0.1, slide: 200 }); },
-    escape() { [784, 988, 1175].forEach((f, i) => tone(f, 0.16, { type: 'triangle', vol: 0.07, delay: i * 0.07 })); },
-    ui() { tone(880, 0.05, { vol: 0.05 }); },
-    click() { tone(660, 0.04, { type: 'triangle', vol: 0.05 }); hiss(0.02, { freq: 3000, vol: 0.02 }); },
-    land() { tone(140, 0.07, { vol: 0.09, slide: 90 }); hiss(0.04, { freq: 900, vol: 0.03 }); },
-    tick() { tone(740, 0.08, { type: 'triangle', vol: 0.08 }); },
-    go() { tone(988, 0.12, { type: 'triangle', vol: 0.09 }); tone(1318, 0.2, { type: 'triangle', vol: 0.08, delay: 0.08 }); },
-    start() { [392, 523, 659].forEach((f, i) => tone(f, 0.14, { type: 'triangle', vol: 0.08, delay: i * 0.07 })); },
-    growl() { glide([[0, 110], [0.25, 85], [0.5, 100]], 0.55, { vol: 0.09, lp: 400 }); },
-    spray() { hiss(0.35, { freq: 2200, q: 0.5, vol: 0.06, sweep: 1400 }); },
-    energy() { tone(1046, 0.08, { vol: 0.05 }); tone(1397, 0.1, { vol: 0.04, delay: 0.05 }); },
-    pause() { tone(523, 0.1, { vol: 0.06, slide: 392 }); },
-    flap() { hiss(0.06, { freq: 500, q: 1.5, vol: 0.04 }); },
-    buy() { tone(784, 0.1, { type: 'triangle', vol: 0.08 }); tone(1175, 0.16, { type: 'triangle', vol: 0.08, delay: 0.08 }); },
-    nope() { tone(200, 0.12, { type: 'square', vol: 0.04 }); },
+    jump() { tone(380, 0.1, { vol: 0.13, slide: 760, attack: 0.004 }); hiss(0.06, { freq: 2400, q: 0.7, vol: 0.035 }); },
+    land() { hiss(0.06, { freq: 500, q: 0.8, vol: 0.09, type: 'lowpass' }); tone(150, 0.08, { vol: 0.1, slide: 85 }); },
+    coin() { bell(1568, 0.35, 0.09); bell(2093, 0.4, 0.07, 0.06); },
+    near() { hiss(0.2, { freq: 700, sweep: 2600, q: 1.2, vol: 0.08 }); tone(1760, 0.12, { vol: 0.035, delay: 0.05 }); },
+    hit() { tone(170, 0.32, { vol: 0.32, slide: 55, attack: 0.003 }); hiss(0.15, { freq: 300, q: 0.7, vol: 0.12, type: 'lowpass' }); },
+    meow() { catMeow('normal'); },
+    meowShort() { catMeow('short'); },
+    meowSad() { catMeow('sad'); },
+    meowHappy() { catMeow('happy'); },
+    purr() { const c = audio.ctx, t = c.currentTime; const o = c.createOscillator(); o.type = 'sawtooth'; o.frequency.value = 26; const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 260; const g = c.createGain(); env(g, t, 0.18, 0.15, 1.2); o.connect(lp).connect(g).connect(audio.sfx); o.start(t); o.stop(t + 1.3); },
+    bark() { dogBark(0); dogBark(0.21, 1.04); },
+    growlDog() { const c = audio.ctx, t = c.currentTime; const o = c.createOscillator(); o.type = 'sawtooth'; o.frequency.setValueAtTime(95, t); o.frequency.linearRampToValueAtTime(80, t + 0.6); const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 500; const g = c.createGain(); env(g, t, 0.14, 0.08, 0.6); o.connect(lp).connect(g).connect(audio.sfx); o.start(t); o.stop(t + 0.7); },
+    caw() { crowCaw(0); crowCaw(0.3); },
+    dash() { hiss(0.22, { freq: 500, sweep: 3000, q: 1, vol: 0.12 }); tone(600, 0.15, { vol: 0.04, slide: 1200 }); },
+    sticky() { const c = audio.ctx, t = c.currentTime; const o = c.createOscillator(); o.type = 'sawtooth'; o.frequency.setValueAtTime(140, t); o.frequency.exponentialRampToValueAtTime(90, t + 0.22); const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.Q.value = 8; lp.frequency.setValueAtTime(300, t); lp.frequency.exponentialRampToValueAtTime(1400, t + 0.08); lp.frequency.exponentialRampToValueAtTime(250, t + 0.22); const g = c.createGain(); env(g, t, 0.18, 0.01, 0.24); o.connect(lp).connect(g).connect(audio.sfx); o.start(t); o.stop(t + 0.3); },
+    power() { [1047, 1319, 1568, 2093].forEach((f, i) => bell(f, 0.3, 0.06, i * 0.05)); },
+    stage() { [523, 659, 784, 1047].forEach((f) => bell(f, 1.1, 0.05)); bell(1568, 0.9, 0.04, 0.12); },
+    win() { [523, 659, 784, 1047, 1319].forEach((f, i) => bell(f, 0.5, 0.07, i * 0.1)); setTimeout(() => sfx('meowHappy'), 550); },
+    lose() { [440, 392, 330, 262].forEach((f, i) => tone(f, 0.35, { type: 'triangle', vol: 0.09, delay: i * 0.16 })); },
+    splash() { hiss(0.35, { freq: 2500, q: 0.5, vol: 0.15, sweep: 700 }); for (let i = 0; i < 4; i++) tone(600 + Math.random() * 700, 0.05, { vol: 0.04, slide: 1400, delay: 0.05 + i * 0.05 }); },
+    shield() { bell(880, 0.5, 0.07); tone(1760, 0.3, { vol: 0.04, slide: 880 }); },
+    escape() { [784, 988, 1175, 1568].forEach((f, i) => bell(f, 0.35, 0.06, i * 0.07)); },
+    ui() { tone(1000, 0.06, { vol: 0.06, slide: 700 }); },
+    click() { tone(900, 0.05, { vol: 0.07, slide: 500, attack: 0.002 }); },
+    tick() { bell(1175, 0.18, 0.08); },
+    go() { bell(1568, 0.35, 0.09); bell(2093, 0.4, 0.07, 0.06); },
+    start() { [523, 784, 1047].forEach((f, i) => bell(f, 0.3, 0.06, i * 0.07)); setTimeout(() => sfx('meowHappy'), 260); },
+    growl() { const c = audio.ctx, t = c.currentTime; const o = c.createOscillator(); o.type = 'sine'; o.frequency.setValueAtTime(95, t); o.frequency.linearRampToValueAtTime(70, t + 0.7); const am = c.createOscillator(), ag = c.createGain(); am.frequency.value = 13; ag.gain.value = 0.08; const g = c.createGain(); env(g, t, 0.16, 0.1, 0.75); am.connect(ag).connect(g.gain); o.connect(g).connect(audio.sfx); o.start(t); am.start(t); o.stop(t + 0.8); am.stop(t + 0.8); },
+    spray() { hiss(0.45, { freq: 3000, q: 0.4, vol: 0.08, sweep: 1600, type: 'highpass' }); },
+    energy() { bell(1319, 0.25, 0.05); bell(1760, 0.3, 0.04, 0.05); },
+    pause() { tone(659, 0.12, { vol: 0.06, slide: 494 }); },
+    flap() { hiss(0.07, { freq: 450, q: 1.3, vol: 0.05 }); },
+    buy() { bell(1047, 0.3, 0.07); bell(1568, 0.4, 0.07, 0.08); },
+    nope() { tone(220, 0.14, { type: 'triangle', vol: 0.08, slide: 180 }); },
   };
   function sfx(name) {
     if (!save.sound || DEMO) return;
     try { if (ac()) SFX[name](); } catch { /* ses desteklenmiyor */ }
   }
-  // Sakin fon muzigi: Cmaj7 - Am7 - Fmaj7 - G7, 80 bpm, yumusak arpej ve bas
-  const CHORDS = [[261.6, 329.6, 392.0, 493.9], [220.0, 261.6, 329.6, 392.0], [174.6, 220.0, 261.6, 329.6], [196.0, 246.9, 293.7, 349.2]];
-  const EIGHTH = 60 / 80 / 2;
-  const ARP = [0, 2, 1, 3, 2, 1, 3, 2];
+
+  // ---------- Muzik: menu icin sakin, oyun icin hafif davullu iki parca (kodla calinir) ----------
+  const SONGS = {
+    menu: { bpm: 72, chords: [[53, 57, 60, 64], [52, 55, 59, 62], [50, 53, 57, 60], [48, 52, 55, 59]], scale: [65, 67, 69, 72, 74, 77], drums: false, mel: 0.22 },
+    game: { bpm: 94, chords: [[57, 60, 64, 67], [53, 57, 60, 64], [48, 52, 55, 59], [55, 59, 62, 65]], scale: [69, 72, 74, 76, 79, 81], drums: true, mel: 0.4 },
+  };
+  const hashStep = (s) => { const x = Math.sin(s * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); };
+  function pad(notes, dur, delay) {
+    for (const n of notes) {
+      tone(midi(n), dur, { type: 'triangle', vol: 0.028, attack: 0.5, delay, dest: audio.music, detune: -6 });
+      tone(midi(n), dur, { type: 'sine', vol: 0.03, attack: 0.6, delay, dest: audio.music, detune: 6 });
+    }
+  }
+  function pluck(f, delay, vol = 0.07) {
+    tone(f, 0.45, { type: 'triangle', vol, attack: 0.004, delay, dest: audio.music });
+    tone(f * 2, 0.2, { vol: vol * 0.3, attack: 0.003, delay, dest: audio.music });
+  }
+  function kick(delay) { tone(130, 0.22, { vol: 0.32, slide: 42, attack: 0.002, delay, dest: audio.music }); }
+  function brush(delay, vol = 0.05) { hiss(0.14, { freq: 2600, q: 0.6, vol, delay, dest: audio.music }); }
+  function hat(delay, vol) { hiss(0.04, { freq: 8000, q: 0.5, vol, delay, type: 'highpass', dest: audio.music }); }
   function musicTick() {
     const want = save.music && !DEMO && state !== 'pause' && !document.hidden;
     if (!want || !audio.ctx) { audio.playing = false; return; }
     const c = audio.ctx;
-    if (!audio.playing) { audio.playing = true; audio.nextT = c.currentTime + 0.1; }
+    const mode = ['play', 'count', 'over', 'win'].includes(state) ? 'game' : 'menu';
+    if (!audio.playing || mode !== audio.mode) { audio.playing = true; audio.mode = mode; audio.step = 0; audio.nextT = c.currentTime + 0.15; }
+    const S = SONGS[mode], six = 60 / S.bpm / 4;
+    const lvl = mode === 'game' && run ? Math.min(3, stage + (run.mode === 'level' ? 1 : 0)) : 0; // katlar ilerledikce muzik zenginlesir
     try {
-      while (audio.nextT < c.currentTime + 0.3) {
-        const s = audio.step, ch = CHORDS[Math.floor(s / 16) % CHORDS.length], i = s % 8;
-        const delay = Math.max(0, audio.nextT - c.currentTime);
-        if (s % 16 === 0) tone(ch[0] / 2, EIGHTH * 15, { vol: 0.16, attack: 0.08, delay, dest: audio.music });
-        if (i % 2 === 0 || (s * 7) % 5 < 2) tone(ch[ARP[i]] * 2, EIGHTH * 1.8, { type: 'triangle', vol: 0.06, attack: 0.02, delay, dest: audio.music });
-        audio.nextT += EIGHTH;
+      while (audio.nextT < c.currentTime + 0.25) {
+        const s = audio.step, ch = S.chords[Math.floor(s / 16) % S.chords.length], i = s % 16;
+        const d = Math.max(0, audio.nextT - c.currentTime);
+        if (i === 0) pad(ch, six * 16 + 0.3, d);
+        if (mode === 'menu') {
+          if (i === 0 || i === 8) tone(midi(ch[0] - 12), six * 7, { vol: 0.09, attack: 0.03, delay: d, dest: audio.music });
+          if (i % 4 === 2) pluck(midi(ch[(i / 2) % 4] + 12), d, 0.035);
+        } else {
+          if ([0, 6, 8, 14].includes(i)) tone(midi(ch[0] - 12), six * 2.5, { type: 'triangle', vol: 0.12, attack: 0.01, delay: d, dest: audio.music });
+          if (i === 0 || i === 8 || (lvl >= 2 && i === 11)) kick(d);
+          if (i === 4 || i === 12) brush(d, 0.05);
+          if (lvl >= 1 && i % 2 === 0) hat(d, i % 4 === 2 ? 0.025 : 0.014);
+        }
+        const r = hashStep(s + (mode === 'game' ? 101 : 7));
+        if (i % 2 === 0 && r < S.mel) pluck(midi(S.scale[Math.floor(r * 1000) % S.scale.length]), d, mode === 'game' ? 0.06 : 0.045);
+        audio.nextT += six;
         audio.step++;
       }
     } catch { /* yoksay */ }
@@ -642,7 +763,11 @@
     chase.close = Math.max(0, chase.close + diffOf().dog * wdt);
     chase.hav = Math.max(0, chase.hav - dt);
     chase.barkT -= dt;
-    if (chase.barkT <= 0) { chase.barkT = rand(1.8, 2.8); chase.hav = 0.7; sfx('bark'); }
+    if (chase.barkT <= 0) {
+      chase.barkT = rand(1.8, 2.8); chase.hav = 0.7;
+      sfx(chase.close > 0.7 ? 'growlDog' : 'bark'); // cok yaklasinca hirlar
+      if (chase.close > 0.7) setTimeout(() => sfx('bark'), 650);
+    }
     if (chase.close >= 1) {
       chase = null;
       chaseCooldown = 8;
@@ -819,6 +944,7 @@
     toast(POWERS[p.kind].name, p.kind === 'mama' ? 'Karın doydu, +1 pati' : '', 1.1);
     burst(p.x, p.y, POWERS[p.kind].color, 6, 110);
     sfx('power');
+    if (p.kind === 'mama') sfx('meowShort');
     vibrate(20);
   }
 
@@ -855,7 +981,7 @@
     burst(player.x, player.y, '#e07a7a', 8, 140);
     vibrate(60);
     sfx('hit');
-    sfx('meow');
+    sfx('meowSad');
     if (kind !== 'dog') startChase(0.4, 'Gürültü bekçi köpeğini uyandırdı!');
   }
 
@@ -1070,7 +1196,7 @@
     burst(player.x, player.y, c.fur, 10, 150);
     burst(player.x, player.y, c.fur2, 5, 130);
     vibrate(90);
-    sfx('meow');
+    sfx('meowSad');
     sfx('lose');
     clearResume();
     checkMissions();
@@ -2197,6 +2323,7 @@
     const cv = $('heroCat');
     cv.addEventListener('pointerdown', (e) => {
       hero.drag = true; hero.lastX = hero.downX = e.clientX; hero.lastT = e.timeStamp; hero.vel = 0;
+      if (!hero.purred || e.timeStamp - hero.purred > 4000) { hero.purred = e.timeStamp; setTimeout(() => { if (hero.drag) sfx('purr'); }, 250); } // cevirirken mirlar
       if (cv.setPointerCapture) try { cv.setPointerCapture(e.pointerId); } catch { /* yoksay */ }
     });
     cv.addEventListener('pointermove', (e) => {
@@ -2212,7 +2339,7 @@
       if (Math.abs(e.clientX - hero.downX) < 6) { // dokunus: miyavla ve zipla
         hero.hop = 1;
         hero.vel = 0.35;
-        sfx('meow');
+        sfx(['meow', 'meowShort', 'meowHappy'][Math.floor(Math.random() * 3)]);
         heroSay(HERO_MSGS[Math.floor(Math.random() * HERO_MSGS.length)]);
       }
     };

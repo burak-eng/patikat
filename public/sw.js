@@ -1,6 +1,6 @@
 // Oyunu internetsiz calistirmak icin dosyalari onbellege alir.
 // Internet varsa yeni surumu getirir (en fazla 1.5 sn bekler), yoksa onbellekten acar.
-const CACHE = 'patikat-v10';
+const CACHE = 'patikat-v11';
 const FILES = [
   './', './index.html', './style.css', './game.js', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png',
