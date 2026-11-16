@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Patikat</string>
+    <string name="title_activity_main">Patikat</string>
+    <string name="package_name">com.duvarzipla.oyun</string>
+    <string name="custom_url_scheme">com.duvarzipla.oyun</string>
+</resources>

@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#1f2633">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Patikat">
+<title>Patikat</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<button id="pauseBtn" class="icon-btn hidden" data-act="pause" aria-label="Duraklat">❚❚</button>
+
+<!-- Ana menu -->
+<div id="menu" class="overlay">
+  <h1>Patikat</h1><p class="tagline">duvardan duvara, kat kat yukarı</p>
+  <div class="wallet">🐟 <span id="wallet">0</span></div>
+  <button id="resumeBtn" class="big resume hidden" data-act="resume">Kaldığın yerden devam <small id="resumeInfo"></small></button>
+  <button id="tutorialBtn" class="big alt wide" data-act="tutorial">Eğitim</button>
+  <button class="big" data-act="endless">Sonsuz Koşu</button>
+  <p class="best">En iyi (<span id="diffName"></span>): <span id="menuBest">0</span></p>
+  <div class="row">
+    <button id="dailyBtn" class="big alt" data-act="daily">Günün Seferi <small id="dailyInfo"></small></button>
+    <button class="big alt" data-act="levels">Bölümler <small id="levelsInfo"></small></button>
+  </div>
+  <div class="row">
+    <button class="big alt" data-act="chars">Kediler</button>
+    <button class="big alt" data-act="wardrobe">Gardırop</button>
+    <button class="big alt" data-act="shop">Dükkan</button>
+  </div>
+  <div class="row">
+    <button class="big alt" data-act="missions">Görevler</button>
+    <button class="big alt" data-act="board">Sıralama</button>
+  </div>
+  <div class="seg" id="diffSeg">
+    <button data-diff="kolay">Kolay</button><button data-diff="normal">Normal</button><button data-diff="zor">Zor</button>
+  </div>
+  <p class="hint small" id="diffInfo"></p>
+  <div class="row">
+    <button id="soundBtn" class="toggle"></button>
+    <button id="musicBtn" class="toggle"></button>
+    <button id="vibBtn" class="toggle"></button>
+  </div>
+  <details class="howto">
+    <summary>Nasıl oynanır?</summary>
+    <ul>
+      <li><b>Dokun:</b> kedin karşı duvara zıplar.</li>
+      <li><b>Zıplarken tekrar dokun:</b> pati atılması, havada geri dönersin (pati enerjisi harcar, 10 sn'de dolar).</li>
+      <li><b>Canlar:</b> kaktüs, klima, çamaşır ipi veya açık fıskiye bir can götürür.</li>
+      <li><b>Açlık:</b> balık yedikçe tokluk dolar; boşalırsa bir can gider.</li>
+      <li><b>Bal:</b> bala yapışırsan ayrılmak için iki kez dokun.</li>
+      <li><b>Fıskiye:</b> açılıp kapanır. Kapalıyken yanından geçersen +15 puan.</li>
+      <li><b>Kıl payı:</b> engele çok yakın geçmek puan çarpanını artırır.</li>
+      <li><b>Hava:</b> yağmurda zıplamalar uzar, siste yukarısı görünmez.</li>
+      <li><b>Bekçi köpeği:</b> çarparsan asansörle peşine düşer. Kıl payı geçişler ve balıklar onu geride bırakır; yetişirse bir can gider.</li>
+      <li><b>Karga:</b> balık çalar. Balığı taşırken havada kargaya değersen balığı geri alırsın.</li>
+    </ul>
+  </details>
+</div>
+
+<!-- Gardirop -->
+<div id="wardrobe" class="overlay hidden">
+  <h2>Gardırop</h2>
+  <div class="wallet">🐟 <span id="wallet4">0</span></div>
+  <canvas id="wardPreview" class="preview" width="200" height="200"></canvas>
+  <p class="hint small">Satın aldığın eşyaya tekrar dokunursan çıkarırsın.</p>
+  <div id="wardList" class="ward"></div>
+  <button class="toggle" data-act="menu">Geri</button>
+</div>
+
+<!-- Siralama -->
+<div id="board" class="overlay hidden">
+  <h2>Günün Seferi Sıralaması</h2>
+  <p class="hint small"><span id="boardDate"></span> · Herkes aynı parkurda yarışır</p>
+  <label class="name">Adın <input id="nameInput" maxlength="16" placeholder="İsimsiz Kedi" autocomplete="off"></label>
+  <div id="boardList" class="board"></div>
+  <div class="row">
+    <button class="toggle" data-act="refreshBoard">Yenile</button>
+    <button class="toggle" data-act="menu">Geri</button>
+  </div>
+</div>
+
+<!-- Dukkan -->
+<div id="shop" class="overlay hidden">
+  <h2>Dükkan</h2>
+  <div class="wallet">🐟 <span id="wallet3">0</span></div>
+  <div id="shopList" class="grid shop-grid"></div>
+  <button class="toggle" data-act="menu">Geri</button>
+</div>
+
+<!-- Gorevler -->
+<div id="missions" class="overlay hidden">
+  <h2>Görevler</h2>
+  <p class="hint">Tamamlanan görev: <span id="missionDone">0</span> · Görevler giderek zorlaşır, ödülü artar.</p>
+  <div id="missionList" class="grid"></div>
+  <button class="toggle" data-act="menu">Geri</button>
+</div>
+
+<!-- Bolum secimi -->
+<div id="levels" class="overlay hidden">
+  <h2>Bina Haritası</h2>
+  <p class="hint">Her bölüm bir kat. Sokaktan çatıya tırman!</p>
+  <div id="levelGrid" class="grid levels-grid"></div>
+  <button class="toggle" data-act="menu">Geri</button>
+</div>
+
+<!-- Karakter secimi -->
+<div id="chars" class="overlay hidden">
+  <h2>Kediler</h2>
+  <div class="wallet">🐟 <span id="wallet2">0</span></div>
+  <div id="charGrid" class="grid chars-grid"></div>
+  <p class="hint">Balıkları oynayarak topla, yeni kedi sahiplen.</p>
+  <button class="toggle" data-act="menu">Geri</button>
+</div>
+
+<div id="pause" class="overlay hidden">
+  <h2>Durdu</h2>
+  <p class="tap">Devam etmek için dokun</p>
+  <p class="hint">Turun kaydedildi. Ana menüden sonra da devam edebilirsin.</p>
+  <button class="toggle" data-act="menu">Ana menü</button>
+</div>
+
+<div id="over" class="overlay hidden">
+  <h2 id="overTitle">Oyun bitti</h2>
+  <p class="score" id="overScore">0</p>
+  <p id="newBest" class="badge hidden">Yeni rekor!</p>
+  <p class="best" id="overInfo"></p>
+  <p class="tap" id="overTap">Tekrar için dokun</p>
+  <button class="toggle" data-act="menu">Ana menü</button>
+</div>
+
+<div id="win" class="overlay hidden">
+  <h2 id="winTitle">Bölüm tamam!</h2>
+  <p class="stars" id="winStars"></p>
+  <p class="best" id="winInfo"></p>
+  <button id="nextBtn" class="big" data-act="next">Sonraki bölüm</button>
+  <div class="row">
+    <button class="toggle" data-act="retry">Tekrar</button>
+    <button class="toggle" data-act="levels">Bölümler</button>
+  </div>
+</div>
+
+<div id="safe"></div>
+<script src="game.js"></script>
+</body>
+</html>
