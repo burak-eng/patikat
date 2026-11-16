@@ -182,8 +182,8 @@
     wallet: store.get('wallet', 0),
     stars: store.get('stars15', []),
     bestByDiff: store.get('bestByDiff', { kolay: 0, normal: store.get('best', 0), zor: 0 }),
-    sound: store.get('sound', false),
-    music: store.get('music', false),
+    sound: store.get('sfx', true),     // ses artik varsayilan olarak acik
+    music: store.get('music2', true),
     vibrate: store.get('vibrate', true),
     daily: store.get('daily', null),
     resume: DEMO ? null : store.get('resume', null),
@@ -195,7 +195,7 @@
     playerName: store.get('playerName', ''),
     playerId: store.get('playerId', ''),
   };
-  const KEYS = { stars: 'stars15' };
+  const KEYS = { stars: 'stars15', sound: 'sfx', music: 'music2' };
   const persist = (k) => store.set(KEYS[k] || k, save[k]);
   if (!DIFFS[save.diff]) save.diff = 'normal';
   save.owned = [...new Set(['sarman', ...save.owned.map((id) => OLD_CHAR[id] || id).filter((id) => CAT_BY_ID[id])])];
@@ -383,6 +383,16 @@
     shield() { tone(400, 0.2, { vol: 0.1, slide: 200 }); },
     escape() { [784, 988, 1175].forEach((f, i) => tone(f, 0.16, { type: 'triangle', vol: 0.07, delay: i * 0.07 })); },
     ui() { tone(880, 0.05, { vol: 0.05 }); },
+    click() { tone(660, 0.04, { type: 'triangle', vol: 0.05 }); hiss(0.02, { freq: 3000, vol: 0.02 }); },
+    land() { tone(140, 0.07, { vol: 0.09, slide: 90 }); hiss(0.04, { freq: 900, vol: 0.03 }); },
+    tick() { tone(740, 0.08, { type: 'triangle', vol: 0.08 }); },
+    go() { tone(988, 0.12, { type: 'triangle', vol: 0.09 }); tone(1318, 0.2, { type: 'triangle', vol: 0.08, delay: 0.08 }); },
+    start() { [392, 523, 659].forEach((f, i) => tone(f, 0.14, { type: 'triangle', vol: 0.08, delay: i * 0.07 })); },
+    growl() { glide([[0, 110], [0.25, 85], [0.5, 100]], 0.55, { vol: 0.09, lp: 400 }); },
+    spray() { hiss(0.35, { freq: 2200, q: 0.5, vol: 0.06, sweep: 1400 }); },
+    energy() { tone(1046, 0.08, { vol: 0.05 }); tone(1397, 0.1, { vol: 0.04, delay: 0.05 }); },
+    pause() { tone(523, 0.1, { vol: 0.06, slide: 392 }); },
+    flap() { hiss(0.06, { freq: 500, q: 1.5, vol: 0.04 }); },
     buy() { tone(784, 0.1, { type: 'triangle', vol: 0.08 }); tone(1175, 0.16, { type: 'triangle', vol: 0.08, delay: 0.08 }); },
     nope() { tone(200, 0.12, { type: 'square', vol: 0.04 }); },
   };
@@ -409,6 +419,28 @@
         audio.step++;
       }
     } catch { /* yoksay */ }
+  }
+  // Yagmur sesi: yagmur yagarken kisik, surekli bir hisirti
+  let rainSrc = null, rainGain = null;
+  function rainAmbience() {
+    const want = save.sound && !DEMO && audio.ctx && weather === 'rain' && (state === 'play' || state === 'count');
+    try {
+      if (want && !rainSrc) {
+        const c = audio.ctx;
+        rainSrc = c.createBufferSource(); rainSrc.buffer = audio.noise; rainSrc.loop = true;
+        const f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 1400;
+        rainGain = c.createGain(); rainGain.gain.setValueAtTime(0.0001, c.currentTime);
+        rainGain.gain.exponentialRampToValueAtTime(0.05, c.currentTime + 1.5);
+        rainSrc.connect(f).connect(rainGain).connect(audio.sfx);
+        rainSrc.start();
+      } else if (!want && rainSrc) {
+        const c = audio.ctx, s = rainSrc;
+        rainGain.gain.setValueAtTime(Math.max(0.0001, rainGain.gain.value), c.currentTime);
+        rainGain.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + 0.8);
+        s.stop(c.currentTime + 0.9);
+        rainSrc = null;
+      }
+    } catch { rainSrc = null; }
   }
   const vibrate = (ms) => { if (save.vibrate && navigator.vibrate) navigator.vibrate(ms); };
 
@@ -604,7 +636,9 @@
       }
     }
     for (const k of crows) {
+      const fl = Math.floor(k.flap / Math.PI);
       k.flap += dt * 7;
+      if (Math.floor(k.flap / Math.PI) !== fl && fl % 3 === 0) sfx('flap');
       if (k.state === 'in') {
         const t = k.target;
         if (!t || t.taken) { k.state = 'out'; continue; }
@@ -711,6 +745,7 @@
       player.squash = 1;
       stickTaps = 0;
       checkNear(player.side, false);
+      sfx('land');
       burst(player.side === 0 ? WALL + 2 : W - WALL - 2, player.y + 10, 'rgba(220,215,205,0.5)', 3, 60);
       if (player.queued) { player.queued = false; jump(); }
     }
@@ -903,6 +938,7 @@
     if (opts.resume) return;
     state = 'play';
     show(null);
+    sfx('start');
   }
 
   function snapshot() {
@@ -1059,8 +1095,10 @@
     let dy = 0;
 
     if (state === 'count') {
+      const before = Math.ceil(countT);
       countT -= dt;
-      if (countT <= 0) { state = 'play'; show(null); }
+      if (countT <= 0) { state = 'play'; show(null); sfx('go'); }
+      else if (Math.ceil(countT) !== before) sfx('tick');
     } else if (state === 'play') {
       const cfg = run.cfg, df = diffOf();
       if (magnetT > 0) magnetT -= dt;
@@ -1074,10 +1112,12 @@
       jetClock += wdt;
 
       // pati enerjisi 10 sn'de bir dolar
-      if (energy < energyMax) { energyT += dt; if (energyT >= 10) { energyT = 0; energy++; } } else energyT = 0;
+      if (energy < energyMax) { energyT += dt; if (energyT >= 10) { energyT = 0; energy++; sfx('energy'); } } else energyT = 0;
       // aclik
       if (hungerOn() && runT > 6) {
+        const wasFull = tokluk >= 25;
         tokluk -= df.hunger * (1 - 0.15 * upg('tokluk')) * (isTutorial() ? 0.4 : 1) * wdt;
+        if (wasFull && tokluk < 25) { sfx('growl'); floater('Karnın guruldadı, balık ye!', '#e0a05f'); }
         if (tokluk <= 0) { tokluk = 60; loseLife('hunger'); if (state !== 'play') return; }
       }
 
@@ -1150,6 +1190,11 @@
           hintSlow = 2.4;
           if (o.trigger === 'dog') { chaseCooldown = 0; startChase(0.2, 'Kıl payı geç ve balık ye, uzaklaşsın', 9); }
           if (o.trigger === 'crow') crowT = 0.6;
+        }
+        if (o.type === 'jet') { // ekrandaki fiskiye acilinca su sesi
+          const on = jetOn(o);
+          if (on && !o.wasOn && o.y > 0 && o.y < H) sfx('spray');
+          o.wasOn = on;
         }
         if (o.type === 'jet' && !player.jumping && player.side === o.side && player.y > o.y - R && player.y < o.y + o.h + R) {
           o.sat = true;
@@ -1887,6 +1932,7 @@
     state = 'pause';
     saveResume();
     show('pause');
+    if (!document.hidden) sfx('pause');
   }
   function resume() { clearResume(); startCountdown(); }
 
@@ -2076,6 +2122,7 @@
   document.addEventListener('click', (e) => {
     const b = e.target.closest && e.target.closest('button');
     if (!b || b.disabled) return;
+    if (!b.dataset.char && !b.dataset.cos && !b.dataset.upg && b.id !== 'soundBtn') sfx('click');
     const a = b.dataset.act;
     if (a === 'endless' || a === 'daily' || a === 'tutorial') startRun(a);
     else if (a === 'resume') loadResume();
@@ -2121,6 +2168,7 @@
     if (state !== 'pause') update(dt);
     draw();
     musicTick();
+    rainAmbience();
     if (DEMO) {
       document.title = `state:${state} score:${score()} m:${meters()} t:${clock.toFixed(1)} speed:${Math.round(speed)}` +
         ` shieldHits:${shieldHits} lost:${stats.livesLost} coins:${coinCount}/${coinsSpawned} near:${stats.near}` +
