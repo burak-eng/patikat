@@ -26,6 +26,13 @@
   const BAR_LOW = 41, BAR_HIGH = 63; // camasir ipindeki camasirlarin yerden yuksekligi
   const SPEED_K = 0.82;      // yatay hiz carpani (goz yormasin diye biraz yavas)
   const DOG_NEAR = 78, DOG_AWAY = 760; // kopegin kediye uzakligi
+  const SLIDE_T = 0.62;      // kayma suresi (sn)
+  const SLIDE_H = 13;        // kayan kedinin yuksekligi
+  const SIGN_LOW = 18;       // tabelanin alt kenari: ancak kayarak gecilir
+  const LEDGE_UP = 62;       // tentelerin cati ustunden yuksekligi
+  const MAX_SPEED = 365;     // ust hiz siniri (ilerisi rahat gorunsun, goz yorulmasin)
+  const ROOMBA_V = 70;       // robot supurgenin kediye dogru hizi
+  const BALLOON_T = 6, YAY_T = 10;
 
   // Vakit paletleri: aydinlik ve ic acici pasteller (neon yok, yanip sonme yok).
   // hose = supurge hortumu, pipe = islak oluk borusu
@@ -40,11 +47,11 @@
   ];
 
   // Sonsuz modda her 200 m'de bir yeni vakit ve yeni zorluklar
-  const ALL = { bars: true, ac: true, power: true, jets: true, weather: true, long: true, sticky: true, crows: true, dogs: true };
+  const ALL = { bars: true, ac: true, power: true, jets: true, weather: true, long: true, sticky: true, crows: true, dogs: true, roomba: true };
   const STAGES = [
-    { pal: 0, sub: 'Süpürgelerin ve ıslak boruların üstünden atla, balık ye' },
-    { pal: 1, sub: 'Çamaşır ipleri, klimalar ve kargalar', bars: true, ac: true, crows: true },
-    { pal: 2, sub: 'Fıskiyeler açıldı, hava değişebilir', bars: true, ac: true, crows: true, power: true, jets: true, weather: true },
+    { pal: 0, sub: 'Zıpla, aşağı kaydırıp kay, tentelerde koş' },
+    { pal: 1, sub: 'Robot süpürgeler, çamaşır ipleri ve kargalar', bars: true, ac: true, crows: true, roomba: true },
+    { pal: 2, sub: 'Fıskiyeler açıldı, hava değişebilir', bars: true, ac: true, crows: true, power: true, jets: true, weather: true, roomba: true },
     { pal: 3, sub: 'Bal dökülmüş, boşluklar genişliyor', bars: true, ac: true, crows: true, power: true, jets: true, weather: true, long: true, sticky: true, dogs: true },
     { pal: 4, sub: 'Akşam oldu, her şey bir arada', ...ALL },
     { pal: 5, sub: 'Sokak lambaları söndü', ...ALL, dark: true },
@@ -197,6 +204,9 @@
     magnet: { name: 'Mıknatıs',    color: '#e07a7a' },
     slow:   { name: 'Yavaş Çekim', color: '#a99bd6' },
     mama:   { name: 'Mama',        color: '#7fb27a' },
+    balon:  { name: 'Balon',       color: '#ec8fa6' },
+    yay:    { name: 'Yaylı Pati',  color: '#6fbf8f' },
+    box:    { name: 'Sürpriz kutu', color: '#b99be8' },
   };
 
   // Dukkan yukseltmeleri: steps[i] = (i+1). seviyenin etkisi
@@ -221,12 +231,15 @@
     clean: { stat: 'cleanM', tiers: [150, 300, 500, 800], text: (n) => `Can kaybetmeden ${n} m git` },
     dog:   { stat: 'dogs',   tiers: [1, 2, 3, 5],         text: (n) => `Bekçi köpeğini ${n} kez atlat` },
     crow:  { stat: 'crows',  tiers: [1, 2, 4, 6],         text: (n) => `Kargadan ${n} kez balık kap` },
+    slide: { stat: 'slides', tiers: [3, 6, 10, 15],       text: (n) => `Tek turda ${n} kez kay` },
+    box:   { stat: 'boxes',  tiers: [1, 2, 3, 4],         text: (n) => `Tek turda ${n} sürpriz kutu topla` },
+    ledge: { stat: 'ledges', tiers: [2, 4, 7, 10],        text: (n) => `Tek turda ${n} tentede koş` },
   };
   const MISSION_REWARD = [30, 50, 80, 120];
 
   // len: [en kisa, baslangic en uzun, sondaki en uzun]; react: [baslangic, son] tepki suresi (sn)
   // Sonsuz kosu: yumusak baslangic, yavas artan hiz
-  const ENDLESS = { speed: 230, ramp: 0.007, cap: 150, react: [0.58, 0.26], len: [70, 120, 250], coins: 0.6, sameMax: 2, hunger: true };
+  const ENDLESS = { speed: 230, ramp: 0.006, cap: 240, react: [0.58, 0.26], len: [70, 120, 250], coins: 0.6, sameMax: 2, hunger: true };
   const BREATHER = 3.2;     // kat degisiminde engelsiz mola (sn)
   const REVIVE_COST = 60;   // ikinci sans bedeli (balik)
   // Desenler: rastgele dizilim yerine ritimli kaliplar
@@ -238,7 +251,7 @@
   ];
   const LONG_LEN = [100, 180, 300];
   // Bolumler: daha hizli, daha kisa tepki suresi, daha cok engel karisimi (yine de her desen gecilebilir)
-  const LEVEL_DEFAULTS = { ramp: 0.007, cap: 110, react: [0.46, 0.3], len: [70, 130, 200], coins: 0.55, sameMax: 2, bars: 0, jets: 0, sticky: 0, ac: 0, power: false, dark: false, weather: 'clear', hunger: true, crows: false, dogs: false };
+  const LEVEL_DEFAULTS = { ledge: 0.4, box: 0.07, ramp: 0.007, cap: 110, react: [0.46, 0.3], len: [70, 130, 200], coins: 0.55, sameMax: 2, bars: 0, jets: 0, sticky: 0, ac: 0, power: false, dark: false, weather: 'clear', hunger: true, crows: false, dogs: false };
   const LEVELS = [
     { name: 'Bahçe Duvarı',    goal: 220, speed: 255, ramp: 0.005, cap: 70, react: [0.55, 0.4], pal: 0, ac: 0.15, hunger: false },
     { name: 'Balık Pazarı',    goal: 260, speed: 265, coins: 0.95, react: [0.5, 0.36], pal: 1, ac: 0.2, crows: true },
@@ -270,11 +283,15 @@
     { kind: 'spike', fish: true, hint: ['Balık ye', 'Sol üstteki tokluk barını doldurur. Aç kalırsan can gider.'] },
     { kind: 'gap', fish: true },
     { kind: 'bar', hint: ['Çamaşır ipi', 'Altından koşarak geç. İpin altındayken zıplarsan takılırsın.'] },
+    { kind: 'sign', hint: ['Kay!', 'Parmağını ekranda aşağı kaydır: kedin yere yatıp kayar. Tabelanın altından ancak böyle geçersin.'] },
+    { kind: 'sign' },
+    { kind: 'ledge', hint: ['Tente', 'Yukarıdaki tentelere zıpla, üstlerinde koşabilirsin. Balıklar orada!'] },
     { kind: 'jet', hint: ['Fıskiye', 'Açılıp kapanır. Açıkken üstünden atla, kapalıyken rahatça geç.'] },
     { kind: 'sticky', hint: ['Bal', 'Bala basınca yapışırsın. Zıplamak için iki kez dokun.'] },
     { kind: 'empty', hint: ['Pati zıplaması', 'Bu boşluk çok geniş! Zıpla, havadayken bir kez daha dokun. Sağ üstteki patileri harcar.'] },
     { kind: 'ac', hint: ['Klima', 'Geniş ama alçak. Biraz erken zıpla.'] },
-    { kind: 'power', hint: ['Güçlendirme', 'Kalkan, mıknatıs, yavaş çekim ve mama. Zıplayıp kap.'] },
+    { kind: 'roomba', hint: ['Robot süpürge', 'Sana doğru gelir! Zamanlamayı iyi ayarla, üstünden atla.'] },
+    { kind: 'power', hint: ['Güçlendirme', 'Kalkan, mıknatıs, balon, yaylı pati... Zıplayıp kap. Yolda sürpriz kutular da var!'] },
     { kind: 'spike', fish: true, trigger: 'crow', hint: ['Karga', 'Balık çalar. Balığı taşıyan kargaya zıplayıp değersen geri alırsın.'] },
     { kind: 'spike', trigger: 'dog', hint: ['Bekçi köpeği', 'Koşunun başında hep arkandadır, biraz sonra yorulup geride kalır. Bir yere takılırsan yine yetişir; yakınındayken bir daha takılırsan yakalar!'] },
     { kind: 'spike', fish: true }, { kind: 'gap' }, { kind: 'spike', fish: true }, { kind: 'spike' }, { kind: 'gap' }, { kind: 'spike' },
@@ -745,6 +762,8 @@
     lose() { [440, 392, 330, 262].forEach((f, i) => tone(f, 0.35, { type: 'triangle', vol: 0.09, delay: i * 0.16 })); },
     splash() { hiss(0.35, { freq: 2500, q: 0.5, vol: 0.15, sweep: 700 }); for (let i = 0; i < 4; i++) tone(600 + Math.random() * 700, 0.05, { vol: 0.04, slide: 1400, delay: 0.05 + i * 0.05 }); },
     shield() { bell(880, 0.5, 0.07); tone(1760, 0.3, { vol: 0.04, slide: 880 }); },
+    slide() { hiss(0.32, { freq: 1600, sweep: 500, q: 0.8, vol: 0.09 }); },
+    box() { [659, 880, 1109, 1319].forEach((f, i) => bell(f, 0.4, 0.06, i * 0.06)); },
     escape() { [784, 988, 1175, 1568].forEach((f, i) => bell(f, 0.35, 0.06, i * 0.07)); },
     ui() { tone(1000, 0.06, { vol: 0.06, slide: 700 }); },
     click() { tone(900, 0.05, { vol: 0.07, slide: 500, attack: 0.002 }); },
@@ -904,6 +923,7 @@
   let run = null;
   let player = null, obstacles = [], coins = [], powerups = [], particles = [], floaters = [], crows = [];
   let speed = 0, dist = 0, bonus = 0, coinCount = 0, coinsSpawned = 0;
+  let ledges = [], balloonT = 0, yayT = 0, press = null;
   let plats = [], trail = [], camX = 0, camY = 0, genX = 0, genY = 0, spawnDone = false;
   let shieldHP = 0, magnetT = 0, slowT = 0, invulnT = 0, shieldHits = 0;
   let lives = 3, maxLives = 3, tokluk = 100, energy = 3, energyMax = 3, energyT = 0, stickTaps = 0;
@@ -921,6 +941,7 @@
   const isRunMode = () => run && (run.mode === 'endless' || run.mode === 'daily');
   const stageMult = () => (isRunMode() ? Math.round((1 + 0.1 * stage) * 10) / 10 : 1);
   const isMenuState = () => MENU_STATES.includes(state);
+  const permMult = () => 1 + Math.min(29, Math.floor((save.missions.completed || 0) / 3));
   const comboMult = () => Math.min(5, 1 + Math.floor(combo / 2));
   const diffOf = () => DIFFS[(run && run.diff) || save.diff];
   const fishValue = () => (1 + upg('balik')) * (catIs('benek') ? 2 : 1);
@@ -940,18 +961,26 @@
   function features() {
     if (run.mode !== 'endless' && run.mode !== 'daily') {
       const c = run.cfg;
-      return { bars: c.bars, power: c.power, long: false, jets: c.jets, sticky: c.sticky, ac: c.ac, crows: c.crows, dogs: c.dogs };
+      const lv = run.mode === 'level' ? run.level : 0;
+      return { bars: c.bars, power: c.power, long: false, jets: c.jets, sticky: c.sticky, ac: c.ac, crows: c.crows, dogs: c.dogs,
+        sign: c.sign !== undefined ? c.sign : run.mode === 'level' ? (lv >= 1 ? 0.14 : 0.06) : 0,
+        roomba: c.roomba !== undefined ? c.roomba : run.mode === 'level' && lv >= 4 ? Math.min(0.25, 0.1 + lv * 0.01) : 0,
+        ledge: c.ledge || 0, box: c.box || 0 };
     }
     const S = stageAt(stage), k = Math.max(0, stage - 1);
     return {
       bars: S.bars ? Math.min(0.45, 0.2 + 0.03 * k) : 0,
-      power: !!S.power,
+      power: true,
       long: !!S.long,
       jets: S.jets ? Math.min(0.3, 0.12 + 0.02 * k) : 0,
       sticky: S.sticky ? Math.min(0.3, 0.12 + 0.02 * k) : 0,
       ac: S.ac ? 0.25 : 0,
       crows: !!S.crows,
       dogs: !!S.dogs,
+      sign: Math.min(0.28, 0.16 + 0.03 * stage),
+      roomba: S.roomba ? Math.min(0.25, 0.1 + 0.025 * k) : 0,
+      ledge: 0.5,
+      box: 0.08,
     };
   }
   function toast(text, sub = '', t = 2) { toastMsg.text = text; toastMsg.sub = sub; toastMsg.t = t; }
@@ -966,7 +995,8 @@
   // Kedi kendi kendine saga kosar; dokununca ziplar, havada tekrar dokununca pati ziplamasi yapar.
   const SX = (wx) => (wx - camX) * ZOOM, SY = (wy) => (wy - camY) * ZOOM; // dunya -> ekran
   function reset() {
-    player = { x: 0, y: 0, vy: 0, ground: true, coyote: 0, buffer: 0, squash: 0, wiggle: 0, stumble: 0, gait: 0, air: 0, lastGy: 0, pati: false, minClr: 0 };
+    player = { x: 0, y: 0, vy: 0, ground: true, coyote: 0, buffer: 0, squash: 0, wiggle: 0, stumble: 0, gait: 0, air: 0, lastGy: 0, pati: false, minClr: 0, slide: 0, dropSlide: false, ledge: null };
+    ledges = []; balloonT = 0; yayT = 0;
     plats = [{ x0: -500, x1: 900, y: 0, s: 0 }];
     obstacles = []; coins = []; powerups = []; particles = []; floaters = []; crows = []; trail = [];
     camX = -CAT_SX / ZOOM; camY = -(H * CAM_Y) / ZOOM;
@@ -976,7 +1006,7 @@
     combo = 0; comboT = 0; runT = 0; jetClock = 0; missionT = 0; stickTaps = 0;
     chase = null; crowT = rand(7, 11); hintSlow = 0;
     pattern = null; points = 0;
-    stats = { fish: 0, near: 0, lines: 0, jets: 0, dashes: 0, powers: 0, livesLost: 0, cleanM: -1, dogs: 0, crows: 0 };
+    stats = { fish: 0, near: 0, lines: 0, jets: 0, dashes: 0, powers: 0, livesLost: 0, cleanM: -1, dogs: 0, crows: 0, slides: 0, boxes: 0, ledges: 0 };
     stage = 0; weather = 'clear';
   }
 
@@ -1038,7 +1068,7 @@
     if (item) len = k === 'gap' || k === 'empty' ? 340 : 520;
     else if (pat === 'zigzag') len = 150 + rnd() * 90;
     else if (pat === 'merdiven') len = 230 + rnd() * 60;
-    else len = Math.round(grand(lerp(480, 340, d), lerp(1050, 760, d)));
+    else len = Math.round(grand(lerp(480, 420, d), lerp(1050, 1150, d)) * Math.max(1, sp / 250)); // hizlandikca duvarlar uzar, engel sigar
     const pl = addPlat(x0, x0 + len, ny);
     if (announce) obstacles.push({ type: 'mark', x: gx0, y: genY, w: 1, h: 1, announce });
     if (k === 'gap' || k === 'empty') obstacles.push({ type: 'mark', x: gx0 - 30, y: pl.y, w: 1, h: 1, hint: item.hint });
@@ -1051,23 +1081,39 @@
     // engeller
     const slots = [];
     const flight = sp * airTime(0);
-    const spacing = flight + sp * react + 50;
-    const a0 = x0 + Math.max(flight + 40, sp * react + 60), a1 = x0 + len - flight - sp * react - 50; // engelden sonra duvar bitmeden tepki payi
-    if (item) {
-      if (['spike', 'bar', 'jet', 'sticky', 'ac', 'power'].includes(k)) slots.push(lerp(a0, a1, 0.45));
-    } else if (pat !== 'zigzag' && pat !== 'balik') {
-      for (let x = a0 + rnd() * 60; x < a1; x += spacing * (1 + rnd() * lerp(0.9, 0.35, d))) slots.push(x);
+    const spacing = flight * 0.95 + sp * react + 30;
+    const a0 = x0 + Math.max(flight + 40, sp * react + 60), a1 = x0 + len - flight * 0.9 - sp * react - 30; // engelden sonra duvar bitmeden tepki payi
+    // tente (ust rota): yukarida balik ve odul, altinda ip/tabela olmaz
+    let led = null;
+    if ((k === 'ledge' || (!item && len > 400 && rnd() < F.ledge)) && a1 - a0 > 90) {
+      const lx0 = a0 - 20 + rnd() * 40, lw = Math.min(a1 - lx0 + flight * 0.5, 190 + rnd() * 150);
+      led = { x0: lx0, x1: lx0 + lw, y: ny - LEDGE_UP, c: Math.floor(rnd() * 3) };
+      ledges.push(led);
+      if (k === 'ledge' && item.hint) obstacles.push({ type: 'mark', x: led.x0 - 90, y: ny, w: 1, h: 1, hint: item.hint });
+      for (let x = led.x0 + 22; x < led.x1 - 14; x += 34) addCoin(x, led.y - 16);
+      if (rnd() < F.box * 2.5 || (item && item.fish)) powerups.push({ kind: 'box', x: led.x1 - 30, y: led.y - 18 });
     }
+    if (item) {
+      if (['spike', 'bar', 'jet', 'sticky', 'ac', 'power', 'sign', 'roomba'].includes(k)) slots.push(lerp(a0, a1, k === 'roomba' ? 0.7 : 0.45));
+    } else if (pat !== 'zigzag' && pat !== 'balik') {
+      // ilerledikce engeller sik ve art arda gelir
+      for (let x = a0 + rnd() * 60; x < a1; x += spacing * (1 + rnd() * lerp(0.75, 0.1, d))) slots.push(x);
+    }
+    if (!item && !led && rnd() < F.box) powerups.push({ kind: 'box', x: x0 + len * 0.5, y: ny + arcY(0.28) + 4 });
     let lastSafeEnd = x0 + 20;
     for (const sx of slots) {
+      if (!item && led && sx > led.x1 - 40 && sx < led.x1 + flight * 0.85) continue; // tenteden inen kedinin onu bos kalsin
       let type;
       if (item) type = k === 'spike' ? 'spike' : k;
-      else if (rnd() < F.bars) type = 'bar';
-      else if (rnd() < F.jets) type = 'jet';
-      else if (rnd() < F.sticky) type = 'sticky';
-      else if (rnd() < F.ac) type = 'ac';
-      else if (F.power && rnd() < 0.08) type = 'power';
-      else type = 'spike';
+      else { // agirlikli secim: her engel turu kendi oraninda gelir
+        const W8 = [['spike', 1], ['bar', F.bars * 1.3], ['jet', F.jets * 1.3], ['sticky', F.sticky], ['ac', F.ac * 1.2], ['sign', F.sign * 2.2], ['roomba', F.roomba * 3.2], ['power', F.power ? 0.14 : 0]];
+        let r = rnd() * W8.reduce((a, w) => a + w[1], 0);
+        type = 'spike';
+        for (const [t, w] of W8) { r -= w; if (r <= 0) { type = t; break; } }
+      }
+      const underLedge = led && sx + 140 > led.x0 && sx - 20 < led.x1;
+      if (!item && underLedge && (type === 'bar' || type === 'sign')) type = 'spike';
+      if (!item && type === 'roomba' && sx - 80 < a0) type = 'spike'; // supurge iniş alanina girmesin
       let ob;
       if (type === 'spike') {
         const skin = rnd() < 0.5 ? 'vacuum' : 'pipe';
@@ -1076,8 +1122,10 @@
       else if (type === 'bar') ob = { type: 'bar', x: sx, y: ny, w: 96 + Math.round(rnd() * 30), h: BAR_HIGH, v: Math.floor(rnd() * 3) };
       else if (type === 'jet') ob = { type: 'jet', x: sx, y: ny, w: JET_W, h: JET_H, phase: rnd() * JET_PERIOD };
       else if (type === 'sticky') ob = { type: 'sticky', x: sx - 40, y: ny, w: 120, h: 4 };
+      else if (type === 'sign') ob = { type: 'sign', x: sx, y: ny, w: 34, h: 150, v: Math.floor(rnd() * 3) };
+      else if (type === 'roomba') ob = { type: 'roomba', x: sx + 60, y: ny, w: 28, h: 13, vx: -ROOMBA_V };
       else { // guclendirme: ziplayinca kapilir
-        const kinds = ['magnet', 'slow'];
+        const kinds = ['magnet', 'slow', 'balon', 'yay'];
         if (shieldHP <= 0) kinds.push('shield');
         if (hungerOn() || energy < energyMax) kinds.push('mama');
         powerups.push({ kind: k === 'power' ? 'shield' : kinds[Math.floor(rnd() * kinds.length)], x: sx, y: ny + arcY(0.3) + 4 });
@@ -1086,8 +1134,10 @@
       if (item && item.hint) ob.hint = item.hint;
       if (item && item.trigger) ob.trigger = item.trigger;
       obstacles.push(ob);
+      if (DEMO) { const kk = ob.type + (ob.skin || ''); spawnTally[kk] = (spawnTally[kk] || 0) + 1; }
       // engel ustunde balik yayi ya da engeller arasinda balik dizisi
-      if (ob.type === 'spike' && (rnd() < cfg.coins * 0.55 || (item && item.fish))) fishArc(sx - flight * 0.45, ny, 3, flight * 0.22);
+      if ((ob.type === 'spike' || ob.type === 'roomba') && !underLedge && (rnd() < cfg.coins * 0.55 || (item && item.fish))) fishArc(sx - flight * 0.45, ny, 3, flight * 0.22);
+      else if (ob.type === 'sign' && rnd() < cfg.coins) for (let x = sx - 30; x < sx + 70; x += 26) addCoin(x, ny - 9); // tabelanin altinda alcak baliklar
       else if (ob.type !== 'bar' && rnd() < cfg.coins * 0.5) for (let x = lastSafeEnd + 40; x < sx - 60; x += 42) addCoin(x, ny - 16);
       if (ob.type === 'bar' && (rnd() < cfg.coins * 0.7 || (item && item.fish))) for (let x = sx + 10; x < sx + ob.w - 5; x += 34) addCoin(x, ny - 16); // ipin altinda
       lastSafeEnd = sx + (ob.w || 0) + flight * 0.4;
@@ -1211,15 +1261,27 @@
         return;
       }
       stickTaps = 0;
-      p.ground = false; p.coyote = 0; p.air = 0; p.pati = false;
-      p.vy = -JUMP_V * (weather === 'rain' ? 0.95 : 1);
+      p.ground = false; p.coyote = 0; p.air = 0; p.pati = false; p.slide = 0; p.ledge = null;
+      p.vy = -JUMP_V * (weather === 'rain' ? 0.95 : 1) * (yayT > 0 ? 1.28 : 1);
       p.jx = p.x; p.jy = p.y;
       burst(p.x - 6, p.y, 'rgba(220,215,205,0.55)', 3, 50);
       sfx('jump');
       return;
     }
+    if (balloonT > 0) return;
     if (!p.pati && energy >= 1) { dash(); return; }
     p.buffer = 0.13; // inise yakin dokunusu kacirma
+  }
+  // Kayma: yerde yere yatip kayar (alcak tabelalarin altindan gecer); havada hizla iner ve inince kayar
+  function slide() {
+    const p = player;
+    if (balloonT > 0) return;
+    if (p.ground) {
+      if (p.slide <= 0.05) { sfx('slide'); stats.slides++; burst(p.x - 8, p.y, 'rgba(220,215,205,0.6)', 4, 60); }
+      p.slide = SLIDE_T; p.buffer = 0;
+    } else {
+      p.vy = Math.max(p.vy, 820); p.dropSlide = true; p.buffer = 0;
+    }
   }
 
   // Pati ziplamasi: havada ikinci kez zipla (enerji harcar)
@@ -1238,7 +1300,7 @@
     if (!pl) return;
     player.x = Math.max(pl.x0 + 26, player.x);
     player.y = player.lastGy = pl.y;
-    player.vy = 0; player.ground = true; player.pati = false; player.buffer = 0;
+    player.vy = 0; player.ground = true; player.pati = false; player.buffer = 0; player.slide = 0; player.ledge = null; player.dropSlide = false;
     obstacles = obstacles.filter((o) => o.type === 'mark' || o.type === 'sticky' || o.x + o.w < player.x - 30 || o.x > player.x + speed * 1.1);
     trail = [];
   }
@@ -1248,14 +1310,31 @@
     p.squash = Math.max(0, p.squash - dt * 5);
     p.wiggle = Math.max(0, p.wiggle - dt * 3);
     p.stumble = Math.max(0, p.stumble - dt);
+    p.slide = Math.max(0, p.slide - wdt);
     const sp = speed * (p.stumble > 0 ? 0.7 : 1) * (onSticky() ? 0.8 : 1);
     const dx = sp * wdt;
     p.x += dx;
     p.gait += dx / (p.ground ? 58 : 80);
+    if (balloonT > 0) { // balon: catilarin ustunde suzulur
+      balloonT -= wdt;
+      const under = platAt(p.x);
+      if (under) p.lastGy = under.y;
+      p.ground = false; p.ledge = null; p.vy = 0; p.slide = 0;
+      p.y += (p.lastGy - 128 - p.y) * Math.min(1, wdt * 2.5);
+      if (balloonT <= 0) { if (!platAt(p.x + 30) || !platAt(p.x + 140)) balloonT = 0.05; else { invulnT = Math.max(invulnT, 1.2); floater('Balon söndü', '#ec8fa6'); } }
+      trail.push({ x: p.x, y: p.y, air: true, vy: 0 });
+      while (trail.length > 2 && trail[1].x < p.x - DOG_AWAY - 40) trail.shift();
+      return;
+    }
     if (p.ground) {
-      const pl = platAt(p.x);
-      if (!pl) { p.ground = false; p.coyote = 0.09; p.vy = 0; p.air = 0; p.pati = false; }
-      else { p.y = pl.y; p.lastGy = pl.y; }
+      if (p.ledge) {
+        if (p.x > p.ledge.x1 + 2) { p.ledge = null; p.ground = false; p.coyote = 0.09; p.vy = 0; p.air = 0; p.pati = false; }
+        else p.y = p.ledge.y;
+      } else {
+        const pl = platAt(p.x);
+        if (!pl) { p.ground = false; p.coyote = 0.09; p.vy = 0; p.air = 0; p.pati = false; }
+        else { p.y = pl.y; p.lastGy = pl.y; }
+      }
     }
     if (!p.ground) {
       p.coyote -= wdt;
@@ -1263,12 +1342,20 @@
       const prevY = p.y;
       p.vy += GRAV * wdt;
       p.y += p.vy * wdt;
+      const lg = p.vy > 0 ? ledges.find((l) => p.x >= l.x0 - 4 && p.x <= l.x1 + 2 && prevY <= l.y + 2 && p.y >= l.y) : null;
       const pl = platAt(p.x) || platAt(p.x + 8);
-      if (pl && p.vy > 0 && prevY <= pl.y + 2 && p.y >= pl.y) { // inis
+      if (lg) { // tenteye inis
+        p.y = lg.y; p.vy = 0; p.ground = true; p.ledge = lg; p.lastGy = lg.y; p.pati = false;
+        p.squash = 1; stickTaps = 0; stats.ledges++;
+        sfx('land');
+        if (p.dropSlide) { p.dropSlide = false; p.slide = SLIDE_T; }
+        if (p.buffer > 0) { p.buffer = 0; jump(); }
+      } else if (pl && p.vy > 0 && prevY <= pl.y + 2 && p.y >= pl.y) { // inis
         p.y = pl.y; p.vy = 0; p.ground = true; p.lastGy = pl.y; p.pati = false;
         p.squash = 1; stickTaps = 0;
         sfx('land');
         burst(p.x - 4, p.y, 'rgba(220,215,205,0.5)', 3, 60);
+        if (p.dropSlide) { p.dropSlide = false; p.slide = SLIDE_T; stats.slides++; sfx('slide'); }
         if (p.buffer > 0) { p.buffer = 0; jump(); }
       } else if (pl && p.y > pl.y + 6) { // duvarin on yuzune carpti: yuzeyden asagi kayar
         p.x = Math.min(p.x, pl.x0 - 4);
@@ -1301,15 +1388,22 @@
       return;
     }
     if (onSticky() && stickTaps > 0) { jump(); return; }
+    if (balloonT > 0) return;
     const look = speed * 0.13 + CAT_HW;
+    for (const o of obstacles) { // tabela: kay
+      if (o.type === 'sign' && o.x + o.w > p.x - CAT_HW && o.x < p.x + speed * 0.3 && p.slide < 0.25) { slide(); return; }
+    }
+    if (p.ledge && p.ledge.x1 - p.x < speed * 0.05 + 6) { const q = platAt(p.ledge.x1 + 40); if (!q) { jump(); return; } }
     const pl = platAt(p.x);
-    if (pl && pl.x1 - p.x < speed * 0.05 + 6) { jump(); return; } // duvar bitiyor
+    if (!p.ledge && pl && pl.x1 - p.x < speed * 0.05 + 6) { jump(); return; } // duvar bitiyor
     for (const o of obstacles) {
-      if (o.type === 'bar' && o.x + o.w > p.x - CAT_HW && o.x < p.x + speed * 0.7) return; // ip yakinda: ziplama
+      if ((o.type === 'bar' || o.type === 'sign') && o.x + o.w > p.x - CAT_HW && o.x < p.x + speed * 0.7) return; // ip ya da tabela yakinda: ziplama
     }
     for (const o of obstacles) {
-      if (o.x + o.w < p.x - CAT_HW || o.x > p.x + look) continue;
-      if (o.type === 'spike' || (o.type === 'jet' && (jetOn(o) || jetWarn(o)))) {
+      const fl = speed * airTime(0) * (yayT > 0 ? 1.28 : 1), trig = Math.max(CAT_HW + 4, Math.min(look, fl - o.w - CAT_HW - 8)) + (o.type === 'roomba' ? ROOMBA_V * 0.15 : 0);
+      if (o.x + o.w < p.x - CAT_HW || o.x > p.x + trig) continue;
+      if (p.ledge && o.y > p.y + 20) continue; // tentedeyken alttaki engeller onemsiz
+      if (o.type === 'spike' || o.type === 'roomba' || (o.type === 'jet' && (jetOn(o) || jetWarn(o)))) {
         if (params.has('clumsy') && o.botSkip === undefined) o.botSkip = Math.random() < 0.25; // test: ara sira engeli kacirir
         if (o.botSkip) continue;
         jump(); return;
@@ -1318,23 +1412,49 @@
   }
 
   function collectPower(p) {
+    if (p.kind === 'box') { // surpriz kutu: tur sonunda acilir
+      stats.boxes++;
+      floater('Sürpriz kutu! Tur sonunda açılır', '#b99be8');
+      burst(p.x, p.y, '#b99be8', 6, 110);
+      sfx('box'); vibrate(20);
+      return;
+    }
     stats.powers++;
+    if (p.kind === 'balon') { balloonT = BALLOON_T; player.ground = false; player.ledge = null; addBalloonFish(); if (chase && chase.phase === 'near' && !(run && run.cfg.dogsAll)) chase.phase = 'away'; }
+    else if (p.kind === 'yay') yayT = YAY_T;
     if (p.kind === 'shield') shieldHP = upg('kalkan') >= 1 ? 2 : 1;
     else if (p.kind === 'magnet') magnetT = 7 + 2 * upg('miknatis');
     else if (p.kind === 'slow') slowT = 4 + (catIs('pamuk') ? 2 : 0);
     else if (p.kind === 'mama') { tokluk = Math.min(100, tokluk + 50 * feedMult()); energy = Math.min(energyMax, energy + 1); }
-    toast(POWERS[p.kind].name, p.kind === 'mama' ? 'Karın doydu, +1 pati' : '', 1.1);
+    toast(POWERS[p.kind].name, p.kind === 'mama' ? 'Karın doydu, +1 pati' : p.kind === 'balon' ? 'Çatıların üstünde süzül, gökteki balıkları topla' : p.kind === 'yay' ? 'Süper zıplama!' : '', 1.3);
     burst(p.x, p.y, POWERS[p.kind].color, 6, 110);
     sfx('power');
     if (p.kind === 'mama') sfx('meowShort');
     vibrate(20);
   }
 
-  const HIT_REASON = { spike: 'Süpürgeye takıldın!', pipe: 'Borudan ıslandın!', ac: 'Klimaya çarptın!', jet: 'Islandın!', bar: 'İpe takıldın!', hunger: 'Aç kaldın!', dog: 'Köpek yakaladı!', fall: 'Aşağı düştün!' };
+  function addBalloonFish() { // balonun yolunda gokte balik dizisi
+    for (let x = player.x + 90, i = 0; x < player.x + speed * BALLOON_T - 40; x += 38, i++) addCoin(x, player.lastGy - 142 + Math.sin(i * 0.5) * 14);
+  }
+  // Tur sonunda surpriz kutular acilir: balik, oyuncak ya da aksesuar
+  function openBoxes() {
+    const out = [];
+    for (let i = 0; i < stats.boxes; i++) {
+      const r = Math.random();
+      const toysLeft = TOYS.filter((t) => !save.toys.owned.includes(t.id));
+      const cosLeft = COSMETICS.filter((c) => !c.reward && !save.wardrobe.owned.includes(c.id));
+      if (r < 0.12 && toysLeft.length) { const t = pickOne(toysLeft); save.toys.owned.push(t.id); persist('toys'); out.push('🎁 ' + t.name); }
+      else if (r < 0.26 && cosLeft.length) { const c = pickOne(cosLeft); save.wardrobe.owned.push(c.id); persist('wardrobe'); out.push('🎁 ' + c.name); }
+      else { const f = r > 0.93 ? 150 : 20 + Math.floor(Math.random() * 45); save.wallet += f; out.push('🐟 ' + f); }
+    }
+    if (out.length) { persist('wallet'); sfx('box'); }
+    return out.length ? '\nSürpriz kutular: ' + out.join(' · ') : '';
+  }
+  const HIT_REASON = { spike: 'Süpürgeye takıldın!', pipe: 'Borudan ıslandın!', ac: 'Klimaya çarptın!', jet: 'Islandın!', bar: 'İpe takıldın!', hunger: 'Aç kaldın!', dog: 'Köpek yakaladı!', fall: 'Aşağı düştün!', sign: 'Tabelaya çarptın!', roomba: 'Robot süpürgeye çarptın!' };
   // Engele carpinca: kopek uzaktaysa yalnizca takilirsin, kopek yetisir. Kopek yakindaysa yakalar, bir can gider.
-  let hitLog = '', dbg = ''; // test icin: son carpmalar
+  let hitLog = '', dbg = ''; const spawnTally = {}; // test icin: son carpmalar
   function hit(kind) {
-    if (DEMO) hitLog = (hitLog + ',' + kind + (chase && chase.phase === 'near' ? '*' : '') + '@' + meters() + (kind === 'fall' ? dbg : '')).slice(-200);
+    if (DEMO) { const p = player, o = obstacles.find((q) => q.hitIt && !q.logged); if (o) o.logged = true; hitLog = (hitLog + ',' + kind + '@' + meters() + (kind === 'fall' ? dbg : `[L${p.ledge ? 1 : 0} S${p.slide > 0 ? 1 : 0} G${p.ground ? 1 : 0} vy${Math.round(p.vy)} dx${o ? Math.round(o.x - p.x) : '?'} ledges${ledges.filter((l) => Math.abs(l.x1 - p.x) < 250).map((l) => Math.round(l.x1 - p.x)).join('/')}]`)).slice(-400); }
     if (kind === 'jet' || kind === 'pipe') sfx('splash');
     if (shieldHP > 0) {
       shieldHP--;
@@ -1508,7 +1628,7 @@
     if (mode === 'tutorial' && !DEMO) { // egitimin ilk karti: ne yapacagini soyle
       state = 'hint';
       $('hintTitle').textContent = 'Hoş geldin! 🐾';
-      $('hintSub').textContent = 'Kedin duvarların ve çatıların üstünde koşacak. Ekrana her dokunduğunda zıplar. Hadi dene!';
+      $('hintSub').textContent = 'Kedin çatıların üstünde koşacak. Ekrana dokununca zıplar, parmağını aşağı kaydırınca kayar. Hadi dene!';
       $('hintCard').classList.remove('hidden');
       $('pauseBtn').classList.add('hidden');
     }
@@ -1520,7 +1640,7 @@
       player: { ...player }, plats, obstacles, coins: coins.map((c) => ({ x: c.x, y: c.y, f: c.f })), powerups,
       speed, dist, bonus, coinCount, coinsSpawned, genX, genY, spawnDone, camX, camY,
       shieldHP, magnetT, slowT, invulnT, shieldHits, stage, rngState, weather,
-      lives, maxLives, tokluk, energy, energyMax, energyT, runT, jetClock, stats, chase,
+      lives, maxLives, tokluk, energy, energyMax, energyT, runT, jetClock, stats, chase, ledges, balloonT, yayT,
       points, pattern, revived: !!run.revived, bankedCount: run.bankedCount || 0,
     };
   }
@@ -1548,6 +1668,7 @@
     ({ speed, dist, bonus, coinCount, coinsSpawned, genX, genY, spawnDone, camX, camY,
       shieldHP, magnetT, slowT, invulnT, shieldHits, stage, rngState, weather,
       lives, maxLives, tokluk, energy, energyMax, energyT, runT, jetClock, stats, chase } = d);
+    ledges = d.ledges || []; balloonT = d.balloonT || 0; yayT = d.yayT || 0; player.ledge = null;
     points = d.points || dist / METER;
     pattern = d.pattern || null;
     run.revived = !!d.revived;
@@ -1610,6 +1731,7 @@
     overAt = performance.now();
     chase = null;
     const c = CAT_BY_ID[save.char];
+    balloonT = 0;
     burst(player.x, player.y - 14, c.fur, 10, 150);
     burst(player.x, player.y - 14, c.fur2, 5, 130);
     vibrate(90);
@@ -1622,7 +1744,8 @@
     const why = HIT_REASON[kind] || '';
     if (run.mode === 'endless' && meters() > (save.bestDist[run.diff] || 0)) { save.bestDist[run.diff] = meters(); persist('bestDist'); }
     if (run.mode === 'daily' && meters() > (dailyState().bestM || 0)) { dailyState().bestM = meters(); persist('daily'); }
-    const statLine = `Balık +${earned} · Kıl payı ${stats.near} · Köpek ${stats.dogs} · Karga ${stats.crows}`;
+    const boxLine = openBoxes();
+    const statLine = `Balık +${earned} · Kıl payı ${stats.near} · Kayma ${stats.slides} · Köpek ${stats.dogs}${boxLine}`;
     if (run.mode === 'level') {
       $('overTitle').textContent = 'Miyav, olmadı!';
       $('overScore').textContent = '%' + Math.floor(progress() * 100);
@@ -1690,7 +1813,7 @@
     if (stars > (save.stars[lv] || 0)) { save.stars[lv] = stars; persist('stars'); }
     const earned = bankCoins(stars * 10);
     $('winStars').textContent = '★'.repeat(stars) + '☆'.repeat(3 - stars);
-    $('winInfo').textContent = `Balık: ${coinCount}/${coinsSpawned} · Kayıp can: ${stats.livesLost}\nCüzdana +${earned}` +
+    $('winInfo').textContent = `Balık: ${coinCount}/${coinsSpawned} · Kayıp can: ${stats.livesLost}\nCüzdana +${earned}${openBoxes()}` +
       (stars < 3 ? '\n3 yıldız: balıkların %85\'i ve hiç can kaybetmemek' : '');
     const last = lv >= LEVELS.length - 1;
     $('winTitle').textContent = last ? 'Tüm bölümler bitti!' : `${lv + 1}. Bölüm tamam!`;
@@ -1736,16 +1859,18 @@
         if (tokluk <= 0) { tokluk = 60; loseLife('hunger'); if (state !== 'play') return; }
       }
 
-      speed = (cfg.speed + Math.min(cfg.cap, dist * cfg.ramp)) * df.speed * SPEED_K;
+      speed = Math.min(MAX_SPEED, (cfg.speed + Math.min(cfg.cap, dist * cfg.ramp)) * df.speed * SPEED_K);
+      if (yayT > 0) yayT -= wdt;
       const px0 = player.x;
       updatePlayer(dt, wdt);
       if (state !== 'play') return;
       const dx = Math.max(0, player.x - px0);
       dist = Math.max(dist, player.x);
-      points += (dx / METER) * stageMult();
+      points += (dx / METER) * stageMult() * permMult();
       while (!spawnDone && genX < player.x + W + 500) spawn();
       const cut = player.x - DOG_AWAY - 200;
       plats = plats.filter((q) => q.x1 > cut);
+      ledges = ledges.filter((l) => l.x1 > camX - 60);
       obstacles = obstacles.filter((o) => o.x + o.w > camX - 80);
       coins = coins.filter((c) => !c.taken && c.x > camX - 40);
       powerups = powerups.filter((p) => !p.taken && p.x > camX - 40);
@@ -1795,7 +1920,7 @@
         }
       }
       for (const c of coins) {
-        if (!c.taken && Math.abs(c.x - p.x) < CAT_HW + 8 && c.y > p.y - CAT_H - 12 && c.y < p.y + 8) {
+        if (!c.taken && Math.abs(c.x - p.x) < CAT_HW + 8 && c.y > p.y - CAT_H - (balloonT > 0 ? 44 : 12) && c.y < p.y + (balloonT > 0 ? 40 : 8)) {
           c.taken = true;
           bonus += 10;
           coinCount++;
@@ -1827,33 +1952,41 @@
           if (o.trigger === 'dog') startChase(null, CAT_SX + 160);
           if (o.trigger === 'crow') crowT = 0.6;
         }
+        if (o.type === 'roomba' && sx < W + 30) { // robot supurge kediye dogru gelir, duvarin ucunda durur
+          const nx = o.x + o.vx * wdt, q = platAt(nx);
+          if (q && Math.abs(q.y - o.y) < 1 && nx > q.x0 + 4) o.x = nx;
+        }
         if (o.type === 'jet') { // ekrandaki fiskiye acilinca su sesi
           const on = jetOn(o);
           if (on && !o.wasOn && sx > 0 && sx < W) sfx('spray');
           o.wasOn = on;
         }
         const over = p.x + CAT_HW > o.x && p.x - CAT_HW < o.x + o.w;
-        if (over && o.type === 'spike' && !p.ground) o.clr = Math.min(o.clr === undefined ? 99 : o.clr, o.y - o.h - p.y);
+        if (over && o.type === 'sign' && p.slide > 0) o.under = true;
+        if (over && (o.type === 'spike' || o.type === 'roomba') && !p.ground) o.clr = Math.min(o.clr === undefined ? 99 : o.clr, o.y - o.h - p.y);
         if (over && o.type === 'jet' && p.ground) { o.sat = true; if (jetOn(o)) o.wet = true; }
         if (over && o.type === 'bar' && p.ground) o.under = true;
         if (!o.passed && p.x - CAT_HW > o.x + o.w) {
           o.passed = true;
-          if (o.type === 'spike' && o.clr !== undefined && o.clr < 16 && !o.hitIt) nearMiss();
+          if ((o.type === 'spike' || o.type === 'roomba') && o.clr !== undefined && o.clr < 16 && !o.hitIt) nearMiss();
+          if (o.type === 'sign' && o.under && !o.hitIt) nearMiss('Kaydın!');
           if (o.type === 'bar' && o.under && !o.hitIt) { stats.lines++; nearMiss('Altından geçtin!'); }
           if (o.type === 'jet' && o.sat && !o.wet) { stats.jets++; bonus += 15; floater('Islanmadan geçtin! +15', '#c9d8ea'); }
         }
       }
       if (isTutorial()) crowT -= dt; // egitimde karga yalnizca ipucuyla gelir
 
-      if (invulnT <= 0) {
+      if (invulnT <= 0 && balloonT <= 0) {
         const hr = df.hit;
-        const ax0 = p.x - CAT_HW + hr, ax1 = p.x + CAT_HW - hr, ay0 = p.y - CAT_H + hr, ay1 = p.y - 3;
+        const ax0 = p.x - CAT_HW + hr, ax1 = p.x + CAT_HW - hr, ay0 = p.y - (p.slide > 0 ? SLIDE_H : CAT_H) + hr, ay1 = p.y - 3;
         for (const o of obstacles) {
           let b = null;
           if (o.type === 'spike') b = [o.x, o.y - o.h, o.x + o.w, o.y];
           else if (o.type === 'bar') b = [o.x, o.y - BAR_HIGH, o.x + o.w, o.y - BAR_LOW];
           else if (o.type === 'jet' && jetOn(o) && !catIs('van')) b = [o.x + 6, o.y - JET_H, o.x + JET_W, o.y];
-          if (b && aabb(ax0, ay0, ax1, ay1, b[0], b[1], b[2], b[3])) { o.hitIt = true; hit(o.skin === 'pipe' ? 'pipe' : o.skin === 'ac' ? 'ac' : o.type); break; }
+          else if (o.type === 'sign') b = [o.x, o.y - o.h, o.x + o.w, o.y - SIGN_LOW];
+          else if (o.type === 'roomba') b = [o.x, o.y - o.h, o.x + o.w, o.y];
+          if (b && aabb(ax0, ay0, ax1, ay1, b[0], b[1], b[2], b[3])) { o.hitIt = true; hit(o.skin === 'pipe' ? 'pipe' : o.skin === 'ac' ? 'ac' : o.type); p.slide = 0; break; }
         }
       }
 
@@ -2435,6 +2568,10 @@
       S[1] += br * 0.4; Hh[1] += br * 0.3;
       feet = [[Hh[0] + 1.5, 0], [Hh[0] - 1.5, 0], [S[0] + 2.5, 0], [S[0] - 0.5, 0]];
       tailA = -2.2; arch = 1;
+    } else if (st.slide) { // yere yatip kayar: on patiler ileri, arka patiler geri uzanir
+      S[0] += 2; S[1] += 8.5; Hh[1] += 7.5;
+      feet = [[Hh[0] - 10, 0], [Hh[0] - 8, 0], [S[0] + 11, 0], [S[0] + 9, 0]];
+      headDy = 5.5; tailA = -3.06; arch = -1.2;
     } else if (st.ground) {
       const ph = st.gait;
       const flex = Math.sin(TAU * (ph + 0.12)); // govde esner ve toplanir (dortnala)
@@ -2774,6 +2911,10 @@
       g.arc(0, 0, 5, 0, Math.PI); g.moveTo(-5, 0); g.lineTo(-5, -6); g.moveTo(5, 0); g.lineTo(5, -6);
     } else if (kind === 'slow') {
       g.arc(0, 0, 6, 0, Math.PI * 2); g.moveTo(0, 0); g.lineTo(0, -4); g.moveTo(0, 0); g.lineTo(3, 1.5);
+    } else if (kind === 'balon') {
+      g.arc(0, -2, 4.5, 0, Math.PI * 2); g.moveTo(0, 2.5); g.quadraticCurveTo(-2, 5, 1, 7.5);
+    } else if (kind === 'yay') {
+      g.moveTo(-5, 6); g.lineTo(5, 6); g.moveTo(-4, 6); g.lineTo(4, 3); g.lineTo(-4, 0); g.lineTo(4, -3); g.lineTo(-4, -6); g.moveTo(-5, -6); g.lineTo(5, -6);
     } else { // mama kabi
       g.moveTo(-6, -1); g.lineTo(6, -1); g.moveTo(-6, -1); g.quadraticCurveTo(0, 9, 6, -1);
       g.moveTo(-2, -4); g.lineTo(-1, -2); g.moveTo(2, -4.5); g.lineTo(1.5, -2);
@@ -3036,6 +3177,53 @@
     }
   }
 
+  function drawSign(o) { // yukaridan zincirle sarkan dukkan tabelasi: altindan kayarak gecilir
+    const x = o.x, y = o.y, top = y - o.h, by = y - 64;
+    ctx.fillStyle = '#6f7686'; ctx.fillRect(x - 6, top, o.w + 12, 5); // ust demir kol
+    ctx.strokeStyle = '#7d8492'; ctx.lineWidth = 1.4;
+    ctx.beginPath(); ctx.moveTo(x + 5, top + 5); ctx.lineTo(x + 5, by); ctx.moveTo(x + o.w - 5, top + 5); ctx.lineTo(x + o.w - 5, by); ctx.stroke();
+    const sw = Math.sin(clock * 1.4 + x) * 0.025;
+    ctx.save(); ctx.translate(x + o.w / 2, by); ctx.rotate(sw);
+    const cols = [['#c98f5a', '#a8703f'], ['#7f9fc4', '#5f7fa4'], ['#c97a7a', '#a85c5c']][o.v || 0];
+    const g = ctx.createLinearGradient(0, 0, 0, 46); g.addColorStop(0, cols[0]); g.addColorStop(1, cols[1]);
+    ctx.fillStyle = g; rr(ctx, -o.w / 2 - 4, 0, o.w + 8, 46, 4); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 1.2; rr(ctx, -o.w / 2 - 1.5, 2.5, o.w + 3, 41, 3); ctx.stroke();
+    ctx.save(); ctx.translate(0, 23); ctx.scale(1.3, 1.3); drawFish(ctx, 0, 0, 1, false); ctx.restore();
+    ctx.restore();
+    // uyari: yerde alcak golge isareti
+    ctx.fillStyle = 'rgba(0,0,0,0.12)'; ctx.fillRect(x - 4, y - 1, o.w + 8, 2);
+  }
+  function drawRoomba(o) { // robot supurge: duz yuvarlak, kediye dogru gelir
+    const x = o.x, y = o.y;
+    ctx.fillStyle = 'rgba(0,0,0,0.16)'; ctx.beginPath(); ctx.ellipse(x + o.w / 2, y, o.w / 2 + 2, 2.2, 0, 0, TAU); ctx.fill();
+    const g = ctx.createLinearGradient(0, y - o.h, 0, y);
+    g.addColorStop(0, '#5d6472'); g.addColorStop(1, '#3d434f');
+    ctx.fillStyle = g; rr(ctx, x, y - o.h, o.w, o.h - 2, 6); ctx.fill();
+    ctx.fillStyle = '#7d8492'; rr(ctx, x + 4, y - o.h - 2, o.w - 8, 4, 2); ctx.fill();
+    dot(ctx, x + 6, y - o.h + 5, 1.4, '#8fd18a'); // sabit yanan isik
+    ctx.fillStyle = '#2b2f37'; ctx.fillRect(x + 3, y - 3, 5, 3); ctx.fillRect(x + o.w - 8, y - 3, 5, 3);
+    for (let i = 0; i < 3; i++) { const ph = (clock * 2 + i / 3) % 1; dot(ctx, x + o.w + 3 + ph * 12, y - 3 - i * 2, 1.2, `rgba(150,140,130,${(0.5 * (1 - ph)).toFixed(2)})`); }
+  }
+  const AWN = [['#e8a0a8', '#fbeee2'], ['#8fb8de', '#f4f1ea'], ['#e9c46a', '#fbf3df']];
+  function drawLedges() { // cizgili tenteler (ust rota)
+    for (const l of ledges) {
+      if (l.x1 < camX - 20 || l.x0 > camX + VW + 20) continue;
+      const c = AWN[l.c || 0], w = l.x1 - l.x0;
+      ctx.strokeStyle = 'rgba(90,90,100,0.45)'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(l.x0 + 12, l.y + 8); ctx.lineTo(l.x0 + 30, l.y + LEDGE_UP - 2); ctx.moveTo(l.x1 - 12, l.y + 8); ctx.lineTo(l.x1 - 30, l.y + LEDGE_UP - 2); ctx.stroke();
+      for (let x = l.x0, i = 0; x < l.x1; x += 14, i++) { ctx.fillStyle = c[i % 2]; ctx.fillRect(x, l.y, Math.min(14, l.x1 - x), 8); }
+      ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.fillRect(l.x0, l.y, w, 1.5);
+      for (let x = l.x0, i = 0; x < l.x1 - 1; x += 14, i++) { ctx.fillStyle = c[i % 2]; ctx.beginPath(); ctx.arc(x + 7, l.y + 8, 7, 0, Math.PI); ctx.fill(); }
+      ctx.fillStyle = 'rgba(0,0,0,0.08)'; ctx.fillRect(l.x0, l.y + 6, w, 2);
+    }
+  }
+  function drawBox(x, y) { // hediye kutusu
+    ctx.fillStyle = 'rgba(185,155,232,0.25)'; ctx.beginPath(); ctx.arc(x, y, 15, 0, TAU); ctx.fill();
+    ctx.fillStyle = '#b99be8'; rr(ctx, x - 9, y - 6, 18, 14, 2); ctx.fill();
+    ctx.fillStyle = '#a585d8'; ctx.fillRect(x - 10, y - 9, 20, 5);
+    ctx.fillStyle = '#f6c35b'; ctx.fillRect(x - 1.8, y - 9, 3.6, 17);
+    ell(ctx, x - 4, y - 11, 4, 2.4, -0.4, '#f6c35b'); ell(ctx, x + 4, y - 11, 4, 2.4, 0.4, '#f6c35b');
+  }
   function drawItems() {
     for (const c of coins) {
       if (c.taken || c.x < camX - 20 || c.x > camX + VW + 20) continue;
@@ -3043,6 +3231,7 @@
     }
     for (const p of powerups) {
       if (p.taken || p.x < camX - 20 || p.x > camX + VW + 20) continue;
+      if (p.kind === 'box') { drawBox(p.x, p.y + Math.sin(clock * 2.5) * 2); continue; }
       ctx.save();
       ctx.translate(p.x, p.y + Math.sin(clock * 2.5) * 2);
       dot(ctx, 0, 0, 15, POWERS[p.kind].color + '33');
@@ -3096,8 +3285,19 @@
     if (invulnT > 0) ctx.globalAlpha = 0.55;
     ctx.scale(CAT_DRAW, CAT_DRAW);
     const moving = state === 'play' || state === 'hint';
-    drawCatSide(ctx, CAT_BY_ID[save.char], { gait: p.gait, ground: p.ground, vy: p.vy, squash: p.squash, stumble: p.stumble > 0 ? Math.min(1, p.stumble * 3) : 0, idle: !moving && p.ground }, clock, outfit());
+    drawCatSide(ctx, CAT_BY_ID[save.char], { gait: p.gait, ground: p.ground, slide: p.slide > 0 && p.ground, vy: p.vy, squash: p.squash, stumble: p.stumble > 0 ? Math.min(1, p.stumble * 3) : 0, idle: !moving && p.ground }, clock, outfit());
     ctx.restore();
+    if (balloonT > 0) { // kediyi tasiyan balonlar
+      const bx = p.x - 4, by = p.y - 74;
+      ctx.strokeStyle = 'rgba(90,80,90,0.55)'; ctx.lineWidth = 0.8;
+      const B = [[-10, -4, '#ec8fa6'], [2, -12, '#8fb8de'], [12, -2, '#f6c35b']];
+      ctx.beginPath(); for (const [ox, oy] of B) { ctx.moveTo(p.x + 2, p.y - 22); ctx.quadraticCurveTo(bx + ox * 0.5, by + 30, bx + ox, by + oy + 10); } ctx.stroke();
+      for (const [ox, oy, col] of B) { const sw = Math.sin(clock * 2 + ox) * 1.5; ell(ctx, bx + ox + sw, by + oy, 8, 10, 0, col); ell(ctx, bx + ox + sw - 2.5, by + oy - 3, 2, 3, -0.4, 'rgba(255,255,255,0.45)'); }
+    }
+    if (yayT > 0 && p.ground) { // yayli pati: patilerin altinda yesil yaylar
+      ctx.strokeStyle = '#6fbf8f'; ctx.lineWidth = 1.6;
+      for (const fx of [p.x - 9, p.x + 9]) { ctx.beginPath(); ctx.moveTo(fx - 3, p.y); for (let i = 1; i <= 4; i++) ctx.lineTo(fx + (i % 2 ? 3 : -3), p.y - i * 1.6); ctx.stroke(); }
+    }
     if (shieldHP > 0) {
       ctx.strokeStyle = POWERS.shield.color;
       ctx.globalAlpha = 0.55;
@@ -3113,7 +3313,7 @@
     if (x < camX - 60) return;
     const tr = trailAt(x);
     const q = platAt(x);
-    const ground = !tr.air && (!q || Math.abs(tr.y - q.y) < 2);
+    const ground = !tr.air;
     if (q && ground) { ctx.fillStyle = 'rgba(0,0,0,0.16)'; ctx.beginPath(); ctx.ellipse(x, q.y + 1, 22, 3, 0, 0, TAU); ctx.fill(); }
     ctx.save();
     ctx.translate(x, tr.y);
@@ -3212,7 +3412,7 @@
       const bw = 104, bx = (W - bw) / 2;
       ctx.fillStyle = 'rgba(255,255,255,0.15)'; rr(ctx, bx, top + 62, bw, 5, 2.5); ctx.fill();
       ctx.fillStyle = COIN; rr(ctx, bx, top + 62, Math.max(5, bw * into), 5, 2.5); ctx.fill();
-      hudText(`${stage + 1}. Sokak · puan x${stageMult()}`, W / 2, top + 82, '700 12px system-ui, sans-serif', '#e3dccf');
+      hudText(`${stage + 1}. Sokak · puan x${Math.round(stageMult() * permMult() * 10) / 10}`, W / 2, top + 82, '700 12px system-ui, sans-serif', '#e3dccf');
     }
     if (comboMult() > 1) hudText(`Kıl payı x${comboMult()}`, W / 2, top + 100, '700 14px system-ui, sans-serif', '#f6dcae');
 
@@ -3239,6 +3439,8 @@
     if (shieldHP > 0) act.push(['shield', 1]);
     if (magnetT > 0) act.push(['magnet', magnetT / (7 + 2 * upg('miknatis'))]);
     if (slowT > 0) act.push(['slow', slowT / (4 + (catIs('pamuk') ? 2 : 0))]);
+    if (balloonT > 0) act.push(['balon', Math.min(1, balloonT / BALLOON_T)]);
+    if (yayT > 0) act.push(['yay', yayT / YAY_T]);
     for (const [k, frac] of act) {
       ctx.save(); ctx.translate(x, y + 6); ctx.scale(0.75, 0.75);
       dot(ctx, 0, 0, 12, POWERS[k].color); drawPowerIcon(ctx, k);
@@ -3248,6 +3450,7 @@
       x += 26;
     }
 
+    if (stats.boxes > 0) { ctx.save(); ctx.translate(W - WALL - 14, top + 104); ctx.scale(0.75, 0.75); drawBox(0, 0); ctx.restore(); hudText('x' + stats.boxes, W - WALL - 28, top + 109, '700 13px system-ui, sans-serif', '#b99be8', 'right'); }
     for (let i = 0; i < energyMax; i++) drawPaw(ctx, W - WALL - 14 - i * 15, top + 74, i < energy ? '#c9d8ea' : 'rgba(255,255,255,0.16)');
     if (energy < energyMax) {
       ctx.fillStyle = 'rgba(201,216,234,0.5)';
@@ -3283,11 +3486,14 @@
     ctx.translate(-camX, -camY);
     drawRecord();
     drawPlats();
+    drawLedges();
     drawFinish();
     for (const o of obstacles) if (o.type === 'sticky' && o.x < camX + VW && o.x + o.w > camX) drawSticky(o);
     for (const o of obstacles) {
       if (o.x > camX + VW + 60 || o.x + o.w < camX - 60 || o.type === 'sticky' || o.type === 'mark') continue;
       if (o.type === 'bar') drawClothesline(o);
+      else if (o.type === 'sign') drawSign(o);
+      else if (o.type === 'roomba') drawRoomba(o);
       else if (o.type === 'jet') drawJet(o);
       else if (o.skin === 'ac') drawAC(o);
       else if (o.skin === 'pipe') drawPipe(o);
@@ -4244,7 +4450,7 @@
 
   function renderMissions() {
     refillMissions();
-    $('missionDone').textContent = save.missions.completed;
+    $('missionDone').textContent = `${save.missions.completed} · Kalıcı puan çarpanın: x${permMult()} (her 3 görevde +1)`;
     $('missionList').innerHTML = save.missions.list.map((m) => {
       const def = MISSIONS[m.type], pct = Math.min(100, Math.round((m.best / m.target) * 100));
       return `<div class="ms"><b>${def.text(m.target)}</b><div class="bar"><i style="width:${pct}%"></i></div>
@@ -4268,8 +4474,17 @@
     if (save.sound || save.music) ac(); // tarayici sesi ilk dokunusta acar
     if (e.target.closest && e.target.closest('button, input, summary')) return;
     if (state === 'play' || state === 'pause' || state === 'over' || state === 'count' || state === 'hint') e.preventDefault();
+    if (state === 'play') { press = { x: e.clientX, y: e.clientY, t: performance.now(), done: false }; return; } // kisa bekle: kaydirma mi dokunus mu?
     onTap();
   }, { passive: false });
+  window.addEventListener('pointermove', (e) => {
+    if (!press || press.done || state !== 'play') return;
+    const dy = e.clientY - press.y;
+    if (dy > 22) { press.done = true; slide(); } else if (dy < -22) { press.done = true; jump(); }
+  });
+  const pressEnd = () => { if (press && !press.done && state === 'play') jump(); press = null; };
+  window.addEventListener('pointerup', pressEnd);
+  window.addEventListener('pointercancel', pressEnd);
 
   document.addEventListener('click', (e) => {
     const b = e.target.closest && e.target.closest('button');
@@ -4352,6 +4567,7 @@
 
   window.addEventListener('keydown', (e) => {
     if (e.target && e.target.tagName === 'INPUT') return;
+    if ((e.code === 'ArrowDown' || e.code === 'KeyS') && state === 'play') { e.preventDefault(); if (!e.repeat) slide(); return; }
     if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'Enter') {
       if (state === 'play' || state === 'pause' || state === 'over' || state === 'hint') { e.preventDefault(); if (!e.repeat) onTap(); }
     } else if (e.code === 'Escape' || e.code === 'KeyP') {
@@ -4372,6 +4588,7 @@
   function frame(now) {
     const dt = Math.min(0.05, Math.max(0, (now - last) / 1000));
     last = now;
+    if (press && !press.done && state === 'play' && now - press.t > 75) { press.done = true; jump(); } // dokunus: 75 ms icinde kaydirma yoksa zipla
     if (state !== 'pause') update(dt);
     updatePreview(dt);
     updatePet(dt);
@@ -4396,7 +4613,7 @@
       document.title = `state:${state} score:${score()} m:${meters()} t:${clock.toFixed(1)} speed:${Math.round(speed)}` +
         ` shieldHits:${shieldHits} lost:${stats.livesLost} coins:${coinCount}/${coinsSpawned} near:${stats.near}` +
         ` lines:${stats.lines} jets:${stats.jets} stage:${stage} weather:${weather} lives:${lives}` +
-        ` dogs:${stats.dogs} crows:${stats.crows} chase:${chase ? chase.phase + Math.round(chase.gap) : '-'} x:${Math.round(player.x)} y:${Math.round(player.y)} g:${player.ground ? 1 : 0} hits:${hitLog}`;
+        ` tally:${JSON.stringify(spawnTally)} sl:${stats.slides} bx:${stats.boxes} ld:${stats.ledges} pw:${stats.powers} spd:${Math.round(speed)} dogs:${stats.dogs} crows:${stats.crows} chase:${chase ? chase.phase + Math.round(chase.gap) : '-'} x:${Math.round(player.x)} y:${Math.round(player.y)} g:${player.ground ? 1 : 0} hits:${hitLog}`;
     }
     requestAnimationFrame(frame);
   }
@@ -4421,6 +4638,7 @@
     else startRun('endless');
     if (params.has('count')) startCountdown();
     if (params.has('record')) run.recordM = Number(params.get('record'));
+    if (POWERS[params.get('power')]) collectPower({ kind: params.get('power'), x: player.x, y: player.y }); // test: guclendirmeyle basla
     if (params.has('chase')) { startChase(Number(params.get('chase'))); chase.dur = 999; }
   }
   requestAnimationFrame((t) => { last = t; frame(t); });
