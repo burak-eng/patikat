@@ -22,13 +22,13 @@
   const JUMP_V = 540;        // ziplama hizi (tepe ~83 birim)
   const PATI_V = 450;        // havada pati ziplamasi
   const CAT_HW = 15, CAT_H = 26; // kedinin carpisma kutusu
-  const CAT_DRAW = 0.8;      // kedi/kopek cizim olcegi
-  const BAR_LOW = 41, BAR_HIGH = 63; // camasir ipindeki camasirlarin yerden yuksekligi
+  const CAT_DRAW = 0.95;     // kedi/kopek cizim olcegi
+  const BAR_LOW = 46, BAR_HIGH = 68; // camasir ipindeki camasirlarin yerden yuksekligi
   const SPEED_K = 0.82;      // yatay hiz carpani (goz yormasin diye biraz yavas)
   const DOG_NEAR = 78, DOG_AWAY = 760; // kopegin kediye uzakligi
   const SLIDE_T = 0.62;      // kayma suresi (sn)
   const SLIDE_H = 13;        // kayan kedinin yuksekligi
-  const SIGN_LOW = 18;       // tabelanin alt kenari: ancak kayarak gecilir
+  const SIGN_LOW = 22;       // tabelanin alt kenari: ancak kayarak gecilir
   const LEDGE_UP = 62;       // tentelerin cati ustunden yuksekligi
   const MAX_SPEED = 365;     // ust hiz siniri (ilerisi rahat gorunsun, goz yorulmasin)
   const ROOMBA_V = 70;       // robot supurgenin kediye dogru hizi
@@ -2729,7 +2729,7 @@
   const mixC = (a, b, k) => { const A = hexRgb(a), B = hexRgb(b); return `rgb(${A.map((v, i) => Math.round(v + (B[i] - v) * k)).join(',')})`; };
 
   // Iskelet olculeri (kedi / kopek)
-  const CAT_SK = { S: [11, -22.5], H: [-11, -21.5], fore: [10.2, 11.8], hind: [11.2, 10.6], meta: [-3.6, -6.6], stride: 24, lift: 8.5, top: 6.6, belly: 7.6, chest: 7, rump: 7.5, head: [8.2, -9.5], tailN: 12, tailL: 2.5, tailW: [3.5, 1.5] };
+  const CAT_SK = { S: [11, -22.5], H: [-11, -21.5], fore: [10.2, 11.8], hind: [11.2, 10.6], meta: [-3.6, -6.6], stride: 24, lift: 8.5, top: 6.6, belly: 7.6, chest: 7, rump: 7.5, head: [9.4, -9.4], tailN: 12, tailL: 2.6, tailW: [4.6, 2.3] };
   const DOG_SK = { S: [19, -36], H: [-19, -35], fore: [16.5, 18.5], hind: [17.5, 16], meta: [-5.5, -10], stride: 38, lift: 13, top: 9.5, belly: 10.5, chest: 11, rump: 10.5, head: [10.5, -11], tailN: 9, tailL: 3.6, tailW: [5.2, 2.4] };
 
   // poz: { gait, ground, vy, squash, idle, stumble, lunge }
@@ -2789,7 +2789,10 @@
     gr.addColorStop(0, top); gr.addColorStop(0.45, mid); gr.addColorStop(1, low);
     return gr;
   }
-  function seg(g, x0, y0, x1, y1, w, col) { g.strokeStyle = col; g.lineWidth = w; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); }
+  function seg(g, x0, y0, x1, y1, w, col, soft) {
+    if (soft) { const a = g.globalAlpha; g.globalAlpha = a * 0.35; g.strokeStyle = col; g.lineWidth = w + 0.8; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); g.globalAlpha = a; } // tuylu yumusak kenar
+    g.strokeStyle = col; g.lineWidth = w; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke();
+  }
   function drawLeg(g, sk, pose, i, cols) {
     const fore = i >= 2, far = i % 2 === 0;
     const A = fore ? pose.S : pose.H, f = pose.feet[i];
@@ -2797,16 +2800,16 @@
     const up = far ? cols.far : cols.up, low = far ? cols.farLow : cols.low;
     if (fore) {
       const [ex, ey, fx, fy] = ik(ax, ay, f[0], f[1] - 1.4, sk.fore[0], sk.fore[1], 1);
-      seg(g, ax, ay, ex, ey, sk.top * 0.78, up);
-      seg(g, ex, ey, fx, fy, sk.top * 0.5, low);
-      ell(g, fx + 0.9, fy + 0.2, sk.top * 0.38, sk.top * 0.22, 0, low);
+      seg(g, ax, ay, ex, ey, sk.top * 0.78, up, sk === CAT_SK);
+      seg(g, ex, ey, fx, fy, sk.top * 0.5, low, sk === CAT_SK);
+      ell(g, fx + 0.9, fy + 0.2, sk.top * 0.38, sk.top * 0.22, 0, low, sk === CAT_SK);
     } else {
       const hx = f[0] + sk.meta[0], hy = f[1] + sk.meta[1];
       const [kx, ky] = ik(ax, ay, hx, hy, sk.hind[0], sk.hind[1], -1);
-      seg(g, ax, ay, kx, ky, sk.top * 0.95, up);
-      seg(g, kx, ky, hx, hy, sk.top * 0.55, low);
-      seg(g, hx, hy, f[0], f[1] - 1.2, sk.top * 0.44, low);
-      ell(g, f[0] + 0.9, f[1] - 0.3, sk.top * 0.38, sk.top * 0.22, 0, low);
+      seg(g, ax, ay, kx, ky, sk.top * 0.95, up, sk === CAT_SK);
+      seg(g, kx, ky, hx, hy, sk.top * 0.55, low, sk === CAT_SK);
+      seg(g, hx, hy, f[0], f[1] - 1.2, sk.top * 0.44, low, sk === CAT_SK);
+      ell(g, f[0] + 0.9, f[1] - 0.3, sk.top * 0.38, sk.top * 0.22, 0, low, sk === CAT_SK);
     }
   }
   function tailPoints(sk, pose, t, curl, wave, vy) {
@@ -2851,6 +2854,17 @@
     g.save(); g.clip();
     const hl = g.createRadialGradient(hx + 1, hy - 5, 0.5, hx + 1, hy - 4, 7); hl.addColorStop(0, 'rgba(255,255,255,0.2)'); hl.addColorStop(1, 'rgba(255,255,255,0)');
     g.fillStyle = hl; g.fillRect(hx - 7, hy - 10, 14, 12); // alinda yumusak isik
+    g.lineWidth = 0.28; // yuz tuyleri: burundan geriye dogru
+    for (const light of [false, true]) {
+      g.strokeStyle = light ? 'rgba(255,250,240,0.24)' : 'rgba(35,22,18,0.16)';
+      g.beginPath();
+      for (const f of HEAD_STRANDS) {
+        if (f.w !== light) continue;
+        const x = hx + 1 + Math.cos(f.th) * f.r, y = hy - 0.5 + Math.sin(f.th) * f.r * 0.85, dx = x - (hx + 11), dy = y - (hy + 1), d = Math.hypot(dx, dy) || 1;
+        g.moveTo(x, y); g.lineTo(x + (dx / d) * f.l, y + (dy / d) * f.l);
+      }
+      g.stroke();
+    }
     if (c.pattern === 'tabby') {
       g.strokeStyle = shadeC(c.fur2, 0.05); g.lineWidth = 1.1; g.lineCap = 'round';
       g.beginPath();
@@ -2890,14 +2904,21 @@
       const ig = g.createRadialGradient(ex + 0.5, ey - 0.3, 0.2, ex, ey, 2.4);
       ig.addColorStop(0, shadeC(c.eyes[0], 0.35)); ig.addColorStop(1, shadeC(c.eyes[0], -0.2));
       g.fillStyle = ig; g.fillRect(ex - 3, ey - 3, 6, 6);
-      ell(g, ex + 0.7, ey, 0.55, 1.5, 0, '#1a171c'); // dikey goz bebegi
+      g.strokeStyle = shadeC(c.eyes[0], -0.45); g.lineWidth = 0.35; g.beginPath(); g.arc(ex + 0.4, ey, 1.75, 0, TAU); g.stroke(); // irisin koyu dis halkasi
+      ell(g, ex + 0.7, ey, 0.5, 1.45, 0, '#141114'); // dikey goz bebegi
+      g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(ex - 3, ey - 2.2, 6, 1.1); // ust kapak golgesi
       g.restore();
-      dot(g, ex + 1.2, ey - 0.8, 0.45, 'rgba(255,255,255,0.9)');
-      g.strokeStyle = 'rgba(40,30,35,0.7)'; g.lineWidth = 0.6;
-      g.beginPath(); g.ellipse(ex, ey, 2.25, 1.75, -0.18, Math.PI * 1.05, Math.PI * 1.95); g.stroke();
+      dot(g, ex + 1.15, ey - 0.75, 0.42, 'rgba(255,255,255,0.95)');
+      dot(g, ex - 0.6, ey + 0.7, 0.22, 'rgba(255,255,255,0.5)');
+      g.strokeStyle = '#2a1f22'; g.lineWidth = 0.55; // koyu goz cevresi (kedilerde dogal)
+      g.beginPath(); g.ellipse(ex, ey, 2.25, 1.75, -0.18, 0, TAU); g.stroke();
+      g.strokeStyle = shadeC(headCol, -0.35); g.lineWidth = 0.5; // gozun arkasindan uzanan cizgi
+      g.beginPath(); g.moveTo(ex - 2.1, ey + 0.4); g.quadraticCurveTo(ex - 3.6, ey + 0.6, ex - 4.8, ey + 1.6); g.stroke();
     }
     // burun, agiz, biyiklar
     tri(g, [hx + 10.9, hy + 0.5], [hx + 9.4, hy + 0.3], [hx + 10.4, hy + 1.9], '#c97a86');
+    g.strokeStyle = 'rgba(80,40,45,0.6)'; g.lineWidth = 0.3; g.beginPath(); g.moveTo(hx + 10.9, hy + 0.5); g.lineTo(hx + 9.4, hy + 0.3); g.lineTo(hx + 10.4, hy + 1.9); g.closePath(); g.stroke();
+    g.fillStyle = 'rgba(60,40,40,0.35)'; for (const [px, py] of [[8.2, 3.2], [8.9, 3.6], [7.6, 3.8], [8.4, 4.2]]) { g.beginPath(); g.arc(hx + px, hy + py, 0.18, 0, TAU); g.fill(); } // biyik kokleri
     g.strokeStyle = 'rgba(70,45,50,0.6)'; g.lineWidth = 0.55;
     g.beginPath(); g.moveTo(hx + 10.3, hy + 2); g.quadraticCurveTo(hx + 9.6, hy + 3.8, hx + 7.4, hy + 4.1); g.stroke();
     if (o.mouth > 0) { ell(g, hx + 8.6, hy + 4.4, 1.6, 1.1 * o.mouth + 0.3, 0.2, '#5a2e38'); }
@@ -2909,7 +2930,57 @@
   }
 
   // Kediyi (0,0) = ayaklarinin bastigi yer merkezli, saga bakarken cizer.
+  // ---------- Tuy: ince tuy cizgileri (sabit tohumla uretilir, titremez; govdeyle birlikte esner) ----------
+  const FUR_RNG = (() => { let x = 987654; return () => { x = (x * 1103515245 + 12345) & 0x7fffffff; return x / 0x7fffffff; }; })();
+  const BODY_STRANDS = Array.from({ length: 220 }, () => ({ u: -0.32 + FUR_RNG() * 1.55, v: FUR_RNG() * 2 - 1, l: 1.1 + FUR_RNG() * 1.6, j: (FUR_RNG() - 0.5) * 0.5, w: FUR_RNG() < 0.5 }));
+  const EDGE_STRANDS = Array.from({ length: 70 }, (_, i) => ({ u: -0.3 + ((i % 35) / 34) * 1.5, top: i < 35, l: 0.7 + FUR_RNG() * 1.1, j: (FUR_RNG() - 0.5) * 0.5 }));
+  const HEAD_STRANDS = Array.from({ length: 70 }, () => ({ r: Math.sqrt(FUR_RNG()) * 8, th: FUR_RNG() * TAU, l: 0.9 + FUR_RNG() * 1.3, w: FUR_RNG() < 0.5 }));
+  const natCache = {};
+  function natCat(c) { // kedinin renklerini biraz daha soluk ve dogal yap
+    if (natCache[c.id]) return natCache[c.id];
+    const soft = (h, k = 0.2) => { if (!h) return h; const [r, gg, b] = hexRgb(h), l = 0.3 * r + 0.59 * gg + 0.11 * b; return '#' + [r, gg, b].map((v) => Math.max(0, Math.min(255, Math.round((v + (l - v) * k) * 0.97))).toString(16).padStart(2, '0')).join(''); };
+    return (natCache[c.id] = { ...c, fur: soft(c.fur), fur2: soft(c.fur2, 0.15), fur3: soft(c.fur3, 0.15), belly: soft(c.belly, 0.1), paws: soft(c.paws, 0.1) });
+  }
+  function bodyFrame(S, Hh) { const ax = S[0] - Hh[0], ay = S[1] - Hh[1], L = Math.hypot(ax, ay); return { L, ux: ax / L, uy: ay / L, nx: -ay / L, ny: ax / L }; }
+  function bodyPt(sk, fr, Hh, u, v) {
+    const bulge = 0.78 + 0.22 * Math.sin(Math.PI * Math.min(1, Math.max(0, u)));
+    const off = v < 0 ? v * (sk.top - 0.6) : v * (sk.belly - 0.8) * bulge;
+    return [Hh[0] + fr.ux * u * fr.L + fr.nx * off, Hh[1] + fr.uy * u * fr.L + fr.ny * off];
+  }
+  function strandDir(fr, droop) { const x = -fr.ux + fr.nx * droop, y = -fr.uy + fr.ny * droop, d = Math.hypot(x, y); return [x / d, y / d]; }
+  // govde ici: acik ve koyu notr tuyler (her renk kedide calisir); geriye ve asagi dogru akar
+  function furInside(g, sk, S, Hh, k = 1) {
+    const fr = bodyFrame(S, Hh);
+    g.lineWidth = 0.34;
+    for (const light of [false, true]) {
+      g.strokeStyle = light ? `rgba(255,250,240,${0.22 * k})` : `rgba(35,22,18,${0.17 * k})`;
+      g.beginPath();
+      for (const f of BODY_STRANDS) {
+        if (f.w !== light) continue;
+        const [x, y] = bodyPt(sk, fr, Hh, f.u, f.v), [dx, dy] = strandDir(fr, 0.15 + f.v * 0.45 + f.j);
+        g.moveTo(x, y); g.lineTo(x + dx * f.l, y + dy * f.l);
+      }
+      g.stroke();
+    }
+  }
+  // kabarik siluet: sirtta ve karinda disa tasan tuyler
+  function furEdge(g, sk, S, Hh, topCol, lowCol) {
+    const fr = bodyFrame(S, Hh);
+    g.lineWidth = 0.5;
+    for (const top of [true, false]) {
+      g.strokeStyle = top ? topCol : lowCol;
+      g.beginPath();
+      for (const f of EDGE_STRANDS) {
+        if (f.top !== top) continue;
+        const [x, y] = bodyPt(sk, fr, Hh, f.u, top ? -0.97 : 0.97), [dx, dy] = strandDir(fr, (top ? -0.55 : 0.85) + f.j);
+        g.moveTo(x, y); g.lineTo(x + dx * f.l, y + dy * f.l);
+      }
+      g.stroke();
+    }
+  }
+
   function drawCatSide(g, c, st, t, wear) {
+    c = natCat(c);
     const sk = CAT_SK, pose = quadPose(sk, st, t);
     const pawCol = c.paws || (c.pattern === 'points' ? c.fur2 : c.fur);
     const legCol = c.pattern === 'points' ? c.fur2 : c.fur;
@@ -2923,7 +2994,9 @@
     // kuyruk
     const tcol = c.pattern === 'points' || c.pattern === 'van' ? c.fur2 : c.fur;
     const pts = tailPoints(sk, pose, t, st.idle ? -0.13 : -0.035, st.idle ? 0.05 : 0.07, st.vy);
-    drawTail(g, sk, pts, (i, k) => (c.pattern === 'tabby' && i % 3 === 2 ? c.fur2 : c.pattern === 'tabby' && k > 0.85 ? c.fur2 : shadeC(tcol, -0.08 * (1 - k))));
+    const tailCol = (i, k) => (c.pattern === 'tabby' && i % 3 === 2 ? c.fur2 : c.pattern === 'tabby' && k > 0.85 ? c.fur2 : shadeC(tcol, -0.08 * (1 - k)));
+    g.globalAlpha *= 0.4; drawTail(g, { ...sk, tailW: [sk.tailW[0] + 1.8, sk.tailW[1] + 1.4] }, pts, tailCol); g.globalAlpha /= 0.4; // kabarik tuy hali
+    drawTail(g, sk, pts, tailCol);
     if (wear && wear.neck === 'pelerin') drawCape(g, pose.S[0] + 3, pose.S[1] - 5, 1, 'jump', t);
     // uzak bacaklar
     drawLeg(g, sk, pose, 0, cols); drawLeg(g, sk, pose, 2, cols);
@@ -2932,20 +3005,14 @@
     const bodyLow = c.pattern === 'tuxedo' || c.pattern === 'van' || c.pattern === 'spots' ? c.belly : mixC(c.fur, c.belly, 0.55);
     g.fillStyle = furGrad(g, pose.S[1] - sk.top, pose.S[1] + sk.belly, shadeC(c.fur, -0.12), c.fur, bodyLow);
     g.fill();
-    g.strokeStyle = 'rgba(45,30,30,0.28)'; g.lineWidth = 0.7; g.stroke(); // ince dis hat: sekil netlesir
-    g.save(); g.clip();
+    g.strokeStyle = 'rgba(45,30,30,0.14)'; g.lineWidth = 0.6; g.stroke();
+    furEdge(g, sk, pose.S, pose.H, shadeC(c.fur, -0.1), bodyLow);
+    g.save(); bodyPath(g, sk, pose.S, pose.H, pose.arch); g.clip();
     const S = pose.S, Hh = pose.H;
     // isik ve golge: sirtta yumusak parlaklik, karin altinda golge
     const sh2 = g.createLinearGradient(0, S[1] - sk.top, 0, S[1] + sk.belly);
     sh2.addColorStop(0, 'rgba(255,255,255,0.16)'); sh2.addColorStop(0.35, 'rgba(255,255,255,0)'); sh2.addColorStop(0.8, 'rgba(0,0,0,0)'); sh2.addColorStop(1, 'rgba(40,25,25,0.16)');
     g.fillStyle = sh2; g.fillRect(Hh[0] - 14, S[1] - sk.top - 4, S[0] - Hh[0] + 28, sk.top + sk.belly + 8);
-    // tuy dokusu: sirt boyunca kisa tuy cizgileri
-    g.lineWidth = 0.45;
-    for (let i = 0; i < 16; i++) {
-      const x = Hh[0] + 1 + i * ((S[0] - Hh[0]) / 16), y = S[1] - sk.top + 2.2 + (i % 3) * 1.6;
-      g.strokeStyle = i % 2 ? 'rgba(255,255,255,0.22)' : 'rgba(40,25,20,0.16)';
-      g.beginPath(); g.moveTo(x, y); g.lineTo(x - 1.6, y + 2.4); g.stroke();
-    }
     if (c.pattern === 'tabby') {
       g.strokeStyle = shadeC(c.fur2, 0.06);
       for (let i = 0; i < 7; i++) {
@@ -2964,6 +3031,7 @@
     } else if (c.pattern === 'tuxedo') {
       ell(g, S[0] + 4, S[1] + 2, 6, 7.5, 0.3, c.belly); // beyaz gogus
     }
+    furInside(g, sk, S, Hh); // desenlerin ustunden tuy dokusu
     g.restore();
     // kalca kasi, sonra yakin bacaklar
     const thighCol = c.fur;
@@ -2971,6 +3039,9 @@
     g.beginPath(); g.ellipse(Hh[0] + 0.8, Hh[1] + 2, 5, 6.8, 0.35, 0, TAU); g.fill();
     if (c.pattern === 'tabby') { g.strokeStyle = shadeC(c.fur2, 0.05); g.lineWidth = 1.2; g.beginPath(); g.arc(Hh[0] + 1.5, Hh[1] + 2.5, 3.6, -2.3, -0.9); g.stroke(); }
     if (c.pattern === 'spots') ell(g, Hh[0] - 1, Hh[1] - 1, 3.6, 3, 0, c.fur2);
+    g.lineWidth = 0.4; g.strokeStyle = 'rgba(35,22,18,0.22)'; g.beginPath();
+    for (let i = 0; i < 9; i++) { const a = -2.4 + i * 0.32, x = Hh[0] + 0.8 + Math.cos(a) * 4.2, y = Hh[1] + 2 + Math.sin(a) * 5.6; g.moveTo(x, y); g.lineTo(x - 1.2, y + 1.8); }
+    g.stroke();
     drawLeg(g, sk, pose, 1, cols); drawLeg(g, sk, pose, 3, cols);
     // boyun
     const [hx, hy] = pose.head;
@@ -2983,7 +3054,9 @@
     g.fillStyle = furGrad(g, hy - 4, S[1] + 2, shadeC(c.fur, -0.1), c.fur, c.pattern === 'tuxedo' ? c.belly : mixC(c.fur, c.belly, 0.5));
     g.fill();
     if (wear && wear.neck) { g.save(); g.translate(hx - 3.5, hy + 5.5); g.scale(0.75, 0.75); drawNeckItem(g, wear.neck, 0, 0, 1, t); g.restore(); }
+    g.save(); g.translate(hx, hy); g.scale(0.9, 0.9); g.translate(-hx, -hy);
     drawCatHead(g, c, hx, hy, t, { blink: (t % 4.3) < 0.12, mouth: st.mouth || 0 });
+    g.restore();
     if (wear && (wear.face || wear.hat)) {
       g.save(); g.translate(hx + 0.5, hy - 0.2); g.scale(0.82, 0.82);
       if (wear.face) drawHeadItem(g, wear.face, 0, 0, 1, 3);
