@@ -318,6 +318,8 @@
     play: store.get('play', { date: '', catches: 0, rewarded: 0 }),
     playerName: store.get('playerName', ''),
     playerId: store.get('playerId', ''),
+    catNames: store.get('catNames', {}), // oyuncunun kedilerine verdigi isimler
+    welcomed: store.get('welcomed', false),
   };
   const KEYS = { stars: 'stars15', sound: 'sfx', music: 'music2' };
   const persist = (k) => store.set(KEYS[k] || k, save[k]);
@@ -333,6 +335,13 @@
   if (DEMO && DIFFS[params.get('diff')]) save.diff = params.get('diff');
   if (DEMO && CAT_BY_ID[params.get('cat')]) save.char = params.get('cat');
   if (DEMO && params.get('wear')) for (const id of params.get('wear').split(',')) if (COS_BY_ID[id]) save.wardrobe[COS_BY_ID[id].slot] = id;
+  const catName = (id = save.char) => (save.catNames && save.catNames[id]) || (CAT_BY_ID[id] ? CAT_BY_ID[id].name : '');
+  function genitive(name) { // Turkce iyelik eki: Sarman'ın, Pamuk'un, İrmik'in, Gece'nin
+    const low = String(name).toLocaleLowerCase('tr'), vs = low.match(/[aeıioöuü]/g);
+    const v = vs ? vs[vs.length - 1] : 'e';
+    const suf = { a: 'ın', ı: 'ın', e: 'in', i: 'in', o: 'un', u: 'un', ö: 'ün', ü: 'ün' }[v];
+    return name + '’' + (/[aeıioöuü]$/.test(low) ? 'n' : '') + suf;
+  }
   const upg = (id) => save.upg[id] || 0;
   const catIs = (id) => save.char === id;
   const outfit = () => save.wardrobe;
@@ -525,7 +534,7 @@
     audio.ctx = c;
   }
   // Gercek kayitlar (telifsiz: CC0 / kamu mali, kaynaklar sounds/KAYNAKLAR.txt). Yuklenemezse kodla uretilen ses calar.
-  const SAMPLE_FILES = ['miyav1', 'miyav2', 'miyav3', 'miyav4', 'siyam', 'mirlama'];
+  const SAMPLE_FILES = ['miyav3', 'mirlama', 'havlama']; // havlama.mp3 varsa gercek kayit calar, yoksa kodla uretilir
   const samples = {};
   let samplesRequested = false;
   function loadSamples() {
@@ -639,30 +648,46 @@
     src.stop(t + d + 0.05); lfo.stop(t + d + 0.05);
   }
 
-  // Kopek havlamasi: sert baslangic, kisa "hav": perde hizla yukselip iner, gogus rezonansi ve nefes gurultusu
+  // Kopek havlamasi: buyuk bir bekci kopegi gibi kalin ve gur "HAV".
+  // Alcak temel ses (gogus), hafif hirli titresim, "a/o" unlusu ve sert bir nefes baslangici.
+  let barkCurve = null;
   function dogBark(delay = 0, pitch = 1) {
-    // Yumusak "huf": "w" ile baslayip "o" unlusune gecen, kisa ve yuvarlak bir havlama.
-    const c = audio.ctx, t = c.currentTime + delay, d = 0.2;
-    const p = 240 * pitch * (0.96 + Math.random() * 0.08);
-    const src = c.createOscillator(); src.type = 'sawtooth';
-    src.frequency.setValueAtTime(p * 0.7, t);
-    src.frequency.exponentialRampToValueAtTime(p * 1.25, t + 0.035);
-    src.frequency.exponentialRampToValueAtTime(p * 0.75, t + d);
-    const body = c.createOscillator(); body.type = 'triangle';
-    body.frequency.setValueAtTime(p * 0.5, t); body.frequency.exponentialRampToValueAtTime(p * 0.38, t + d);
-    const out = c.createGain();
-    env(out, t, 0.3, 0.012, d);
-    const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.Q.value = 0.7;
-    lp.frequency.setValueAtTime(900, t); lp.frequency.exponentialRampToValueAtTime(2200, t + 0.03); lp.frequency.exponentialRampToValueAtTime(700, t + d);
-    for (const [f, q, gn] of [[520, 4, 1], [950, 5, 0.6]]) { // "o" unlusu
+    const c = audio.ctx, t = c.currentTime + delay, d = 0.34;
+    const p = 150 * pitch * (0.96 + Math.random() * 0.08);
+    if (!barkCurve) { barkCurve = new Float32Array(256); for (let i = 0; i < 256; i++) { const x = i / 128 - 1; barkCurve[i] = Math.tanh(x * 2.4); } }
+    const mix = c.createGain(); mix.gain.value = 1;
+    const mk = (type, mul, gain) => {
+      const o = c.createOscillator(); o.type = type;
+      o.frequency.setValueAtTime(p * 0.8 * mul, t);
+      o.frequency.exponentialRampToValueAtTime(p * 1.3 * mul, t + 0.045);
+      o.frequency.exponentialRampToValueAtTime(p * 0.72 * mul, t + d);
+      const g = c.createGain(); g.gain.value = gain;
+      o.connect(g).connect(mix); o.start(t); o.stop(t + d + 0.05);
+    };
+    mk('sawtooth', 1, 0.8);
+    mk('sawtooth', 1.012, 0.5); // hafif ayri ikinci ses: kalin ve dolgun
+    mk('sine', 0.5, 0.9);       // gogus rezonansi
+    // hirli titresim (genlik modulasyonu)
+    const rough = c.createGain(); rough.gain.value = 0.75;
+    const lfo = c.createOscillator(), lg = c.createGain(); lfo.frequency.value = 38; lg.gain.value = 0.25;
+    lfo.connect(lg).connect(rough.gain); lfo.start(t); lfo.stop(t + d + 0.05);
+    const shaper = c.createWaveShaper(); shaper.curve = barkCurve;
+    mix.connect(rough).connect(shaper);
+    const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.Q.value = 0.8;
+    lp.frequency.setValueAtTime(1200, t); lp.frequency.exponentialRampToValueAtTime(2600, t + 0.04); lp.frequency.exponentialRampToValueAtTime(650, t + d);
+    for (const [f, q, gn] of [[430, 3, 1.1], [820, 4, 0.8], [1500, 5, 0.3]]) { // "a/o" unlusu
       const bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = f * pitch; bp.Q.value = q;
       const gg = c.createGain(); gg.gain.value = gn;
-      src.connect(bp).connect(gg).connect(lp);
+      shaper.connect(bp).connect(gg).connect(lp);
     }
-    const bg = c.createGain(); bg.gain.value = 0.5; body.connect(bg).connect(lp);
+    const dry = c.createGain(); dry.gain.value = 0.35; shaper.connect(dry).connect(lp);
+    const out = c.createGain();
+    out.gain.setValueAtTime(0.0001, t);
+    out.gain.exponentialRampToValueAtTime(0.62, t + 0.012);
+    out.gain.setValueAtTime(0.62, t + 0.09);
+    out.gain.exponentialRampToValueAtTime(0.0001, t + d);
     lp.connect(out).connect(audio.sfx);
-    src.start(t); body.start(t); src.stop(t + d + 0.05); body.stop(t + d + 0.05);
-    hiss(0.05, { freq: 800, q: 0.8, vol: 0.06, delay, attack: 0.004 }); // hafif nefes
+    hiss(0.07, { freq: 900, q: 0.7, vol: 0.14, delay, attack: 0.003 }); // sert "h" baslangici
   }
 
   // Karga: genizden, cizik "gaak"
@@ -703,10 +728,9 @@
     meowSad() { catVoice('sad'); },
     meowHappy() { catVoice('happy'); },
     purr() {
-      const v = CAT_VOICE[save.char] || CAT_VOICE.sarman;
-      if (playSample('mirlama', { vol: 0.9, rate: 0.85 + v.rate * 0.15 })) return;
+      if (playSample('mirlama', { vol: 0.9, rate: 1 })) return;
       const c = audio.ctx, t = c.currentTime; const o = c.createOscillator(); o.type = 'sawtooth'; o.frequency.value = 26; const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 260; const g = c.createGain(); env(g, t, 0.18, 0.15, 1.2); o.connect(lp).connect(g).connect(audio.sfx); o.start(t); o.stop(t + 1.3); },
-    bark() { dogBark(0); dogBark(0.26, 1.05); }, // "hav hav" (kodla, temiz ve yumusak)
+    bark() { if (playSample('havlama', { vol: 1, rate: jitter(0.03) })) return; dogBark(0); dogBark(0.34, 0.96); }, // gur, kalin "HAV HAV"
     growlDog() { const c = audio.ctx, t = c.currentTime; const o = c.createOscillator(); o.type = 'sawtooth'; o.frequency.setValueAtTime(95, t); o.frequency.linearRampToValueAtTime(80, t + 0.6); const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 500; const g = c.createGain(); env(g, t, 0.14, 0.08, 0.6); o.connect(lp).connect(g).connect(audio.sfx); o.start(t); o.stop(t + 0.7); },
     caw() { crowCaw(0); crowCaw(0.3); },
     dash() { hiss(0.22, { freq: 500, sweep: 3000, q: 1, vol: 0.12 }); tone(600, 0.15, { vol: 0.04, slide: 1200 }); },
@@ -789,27 +813,11 @@
     return (C.Plugins && C.Plugins[name]) || (C.registerPlugin ? C.registerPlugin(name) : null);
   }
 
-  // ---------- Her kedinin kendi ses tonu ----------
-  // set: kullanilacak gercek kayitlar, rate: perde (1 = dogal; kucuk sayi daha kalin ses)
-  const CAT_VOICE = {
-    sarman:  { set: ['miyav3', 'miyav4'], rate: 1.0 },
-    tekir:   { set: ['miyav1', 'miyav4'], rate: 0.93 },
-    pamuk:   { set: ['miyav3', 'miyav2'], rate: 1.16 },
-    kara:    { set: ['miyav1', 'miyav4'], rate: 0.82 },
-    duman:   { set: ['miyav4', 'miyav1'], rate: 0.95 },
-    benekli: { set: ['miyav2', 'miyav3'], rate: 1.08 },
-    siyam:   { set: ['siyam'], rate: 1.0 },          // gercek bir Siyam kedisi kaydi
-    karamel: { set: ['miyav3'], rate: 1.1 },
-    benek:   { set: ['miyav4', 'miyav2'], rate: 1.04 },
-    zeytin:  { set: ['miyav1', 'miyav4'], rate: 0.88 },
-    van:     { set: ['miyav2', 'miyav3'], rate: 1.13 },
-  };
-  const KIND_RATE = { normal: 1, short: 1.08, sad: 0.9, happy: 1.12 };
-  function catVoice(kind = 'normal', catId = save.char) {
-    const v = CAT_VOICE[catId] || CAT_VOICE.sarman;
-    const name = kind === 'sad' && v.set.includes('miyav1') ? 'miyav1' : pickOne(v.set);
-    const vol = kind === 'short' ? 0.65 : 0.75;
-    if (!playSample(name, { vol, rate: v.rate * KIND_RATE[kind] * jitter(0.03) })) catMeow(kind, 0, v.rate);
+  // ---------- Kedi sesi: butun kediler ayni, dogal miyavi kullanir ----------
+  const MEOW_SAMPLE = 'miyav3';
+  const KIND_VOL = { normal: 0.8, short: 0.6, sad: 0.75, happy: 0.8 };
+  function catVoice(kind = 'normal') {
+    if (!playSample(MEOW_SAMPLE, { vol: KIND_VOL[kind] || 0.8, rate: 1 })) catMeow(kind, 0, 1);
   }
 
   // ---------- Oyuncak sesleri (kodla) ----------
@@ -903,7 +911,7 @@
   let stage = 0, darkAmt = 0, darkTarget = 0, fogAmt = 0, weather = 'clear';
   const toastMsg = { text: '', sub: '', t: 0 };
 
-  const MENU_STATES = ['menu', 'levels', 'chars', 'shop', 'missions', 'wardrobe', 'board', 'settings', 'ach', 'house', 'photo'];
+  const MENU_STATES = ['menu', 'levels', 'chars', 'shop', 'missions', 'wardrobe', 'board', 'settings', 'ach', 'photo'];
   const meters = () => Math.floor(dist / METER);
   const score = () => Math.floor(points) + bonus;
   const isRunMode = () => run && (run.mode === 'endless' || run.mode === 'daily');
@@ -2891,87 +2899,19 @@
     drawHud();
   }
 
-  // ================= Karsilama: 360 derece dondurulebilen kedi ve oyuncakla oyun =================
-  const hero = { ang: -0.5, vel: 0.35, drag: false, lastX: 0, lastT: 0, downX: 0, hop: 0, msgT: 0, greeted: false };
-  const HERO_MSGS = ['Miyav!', 'Hadi tırmanalım!', 'Balık var mı?', 'Prrr prrr...', 'Beni çevirsene!', 'Bugün rekor kırarız!', 'Karabaş uyuyor mu?', 'Süpürgeden korkarım ama!', 'Oltayı salla!'];
-  // Oyuncak modu: yukaridan sarkitilan oyuncagi parmakla gezdirirsin, kedi pati atip yakalamaya calisir
-  const toy = { on: false, x: 0, y: -26, tx: 0, ty: -26, paw: 0, cool: 0, hearts: [], heldT: 0 };
+  // ================= Oyuncaklar (Kedi Evi'nde "Oyna") =================
+  const hero = { greeted: false };
   const PLAY_DAILY_FISH = 20; // gunde oyundan en fazla bu kadar balik
-  function heroSay(text) {
-    $('heroBubble').textContent = text;
-    $('heroBubble').classList.add('on');
-    hero.msgT = 3;
-  }
   function playState() {
     const k = todayKey();
     if (save.play.date !== k) save.play = { date: k, catches: 0, rewarded: 0 };
     return save.play;
   }
-  function setToyMode(on) {
-    toy.on = on;
-    if (on) {
-      hero.ang = Math.atan2(Math.sin(hero.ang), Math.cos(hero.ang)); // -pi..pi araligina getir
-      toy.x = toy.tx = 0; toy.y = toy.ty = -26;
-      heroSay(TOY_BY_ID[save.toys.sel].name + ' ile oynayalım!');
-      sfx('meowHappy');
-    }
-    $('toyBtn').textContent = on ? 'Oyunu bitir' : '🎣 Oyuncakla oyna';
-    $('toyChips').classList.toggle('hidden', !on);
-    $('heroHint').textContent = on ? 'Oyuncağı parmağınla gezdir, kedin yakalamaya çalışsın' : 'Kedini parmağınla çevir · dokununca miyavlar';
-    renderToyChips();
-  }
   function renderToyChips() {
     const ts = save.toys;
+    $('toyChips').classList.toggle('hidden', pet.tool !== 'play');
     $('toyChips').innerHTML = ts.owned.map((id) => `<button class="chip${ts.sel === id ? ' on' : ''}" data-toysel="${id}">${TOY_BY_ID[id].name}</button>`).join('') +
       (ts.owned.length < TOYS.length ? '<button class="chip more" data-tab="shop">+ Yeni oyuncak</button>' : '');
-  }
-  function heroUnits(e) { // ekran koordinatini kedi birimine cevir
-    const cv = $('heroCat'), r = cv.getBoundingClientRect ? cv.getBoundingClientRect() : { left: 0, top: 0, width: 230, height: 230 };
-    const k = r.width / 58;
-    return { x: (e.clientX - r.left - r.width / 2) / k, y: (e.clientY - r.top - r.height * 0.55) / k };
-  }
-  function updateHero(dt) {
-    if (state !== 'menu') return;
-    hero.hop = Math.max(0, hero.hop - dt * 1.8);
-    if (hero.msgT > 0) { hero.msgT -= dt; if (hero.msgT <= 0) $('heroBubble').classList.remove('on'); }
-    if (!toy.on) {
-      if (!hero.drag) {
-        hero.ang += hero.vel * dt;
-        hero.vel += (0.35 - hero.vel) * Math.min(1, dt * 0.9); // yavasca kendi kendine donmeye doner
-      }
-      return;
-    }
-    // oyuncak hareketi: lazer aninda gider, digerleri ip ucunda yumusakca sallanir
-    const fast = save.toys.sel === 'lazer' ? 1 : Math.min(1, dt * 9);
-    toy.x += (toy.tx - toy.x) * fast;
-    toy.y += (toy.ty - toy.y) * fast;
-    toy.x = Math.max(-27, Math.min(27, toy.x));
-    toy.y = Math.max(-30, Math.min(20, toy.y));
-    // kedi oyuncaga doner
-    const want = Math.max(-0.95, Math.min(0.95, toy.x / 26));
-    hero.ang += (want - hero.ang) * Math.min(1, dt * 5);
-    toy.paw = Math.max(0, toy.paw - dt * 2.4);
-    toy.cool -= dt;
-    const d = Math.hypot(toy.x - 2, toy.y + 3);
-    if (d < 17 && toy.cool <= 0) {
-      toy.paw = 1; toy.cool = 0.75;
-      if (toy.y < -16 && Math.random() < 0.5) hero.hop = 1;
-      if (d < 11 || Math.random() < 0.25) { // yakaladi!
-        const ps = playState();
-        ps.catches++;
-        save.life.catches++; persist('life'); if (save.life.catches % 10 === 0) checkAchievements();
-        for (let i = 0; i < 5; i++) toy.hearts.push({ x: toy.x + rand(-3, 3), y: toy.y, vy: rand(-14, -8), t: 1.2 });
-        toySound('catch');
-        sfx(Math.random() < 0.5 ? 'purr' : 'meowHappy');
-        let msg = pickOne(['Yakaladım!', 'Hap!', 'Benim bu!', 'Bir daha!']);
-        if (ps.catches % 5 === 0 && ps.rewarded < PLAY_DAILY_FISH) { ps.rewarded++; save.wallet++; persist('wallet'); msg += ' 🐟 +1'; $('wallet').textContent = save.wallet; }
-        persist('play');
-        heroSay(msg);
-        toy.tx = rand(-24, 24); toy.ty = -28; toy.y = -18; // oyuncak kacar
-      }
-    }
-    for (const h of toy.hearts) { h.y += h.vy * dt; h.t -= dt; }
-    toy.hearts = toy.hearts.filter((h) => h.t > 0);
   }
   function drawToy(g, id, x, y, t) {
     g.save();
@@ -3005,59 +2945,6 @@
     }
     g.restore();
   }
-  function drawHero() {
-    if (state !== 'menu') return;
-    const cv = $('heroCat');
-    const g = cv.getContext('2d');
-    g.setTransform(1, 0, 0, 1, 0, 0);
-    g.clearRect(0, 0, cv.width, cv.height);
-    const k = cv.width / 58;
-    g.setTransform(k, 0, 0, k, cv.width / 2, cv.height * 0.55);
-    drawCat3D(g, CAT_BY_ID[save.char], hero.ang, clock, outfit(), hero.hop, toy.on ? toy.paw : 0);
-    if (!toy.on) return;
-    const id = save.toys.sel, topY = -(cv.height * 0.55) / k;
-    const sx = toy.x + Math.sin(clock * 2.2) * 0.8, sy = toy.y;
-    if (id === 'kelebek') { // cubuga bagli kelebek
-      g.strokeStyle = '#8a6a4a'; g.lineWidth = 0.8; g.beginPath(); g.moveTo(sx * 0.4 + 18, topY); g.lineTo(sx, sy); g.stroke();
-    } else if (id !== 'lazer') { // olta ipi
-      g.strokeStyle = 'rgba(70,60,80,0.55)'; g.lineWidth = 0.5;
-      g.beginPath(); g.moveTo(sx * 0.6, topY); g.quadraticCurveTo(sx * 0.8, (topY + sy) / 2 + 2, sx, sy - 1); g.stroke();
-    }
-    drawToy(g, id, sx, sy, clock);
-    for (const h of toy.hearts) { g.globalAlpha = Math.min(1, h.t); drawHeart(g, h.x, h.y, 4, '#f28fa8'); }
-    g.globalAlpha = 1;
-  }
-  (() => {
-    const cv = $('heroCat');
-    cv.addEventListener('pointerdown', (e) => {
-      if (cv.setPointerCapture) try { cv.setPointerCapture(e.pointerId); } catch { /* yoksay */ }
-      if (toy.on) { const u = heroUnits(e); toy.tx = u.x; toy.ty = u.y; hero.drag = true; return; }
-      hero.drag = true; hero.lastX = hero.downX = e.clientX; hero.lastT = e.timeStamp; hero.vel = 0;
-      if (!hero.purred || e.timeStamp - hero.purred > 4000) { hero.purred = e.timeStamp; setTimeout(() => { if (hero.drag) sfx('purr'); }, 250); } // cevirirken mirlar
-    });
-    cv.addEventListener('pointermove', (e) => {
-      if (!hero.drag) return;
-      if (toy.on) { const u = heroUnits(e); if (Math.hypot(u.x - toy.tx, u.y - toy.ty) > 1.5) toySound('move'); toy.tx = u.x; toy.ty = u.y; return; }
-      const dx = e.clientX - hero.lastX, dtm = Math.max(1, e.timeStamp - hero.lastT) / 1000;
-      hero.ang += dx * 0.016;
-      hero.vel = Math.max(-9, Math.min(9, (dx * 0.016) / dtm));
-      hero.lastX = e.clientX; hero.lastT = e.timeStamp;
-    });
-    const up = (e) => {
-      if (!hero.drag) return;
-      hero.drag = false;
-      if (toy.on) return;
-      if (Math.abs(e.clientX - hero.downX) < 6) { // dokunus: miyavla ve zipla
-        hero.hop = 1;
-        hero.vel = 0.35;
-        sfx(['meow', 'meowShort', 'meowHappy'][Math.floor(Math.random() * 3)]);
-        heroSay(HERO_MSGS[Math.floor(Math.random() * HERO_MSGS.length)]);
-      }
-    };
-    cv.addEventListener('pointerup', up);
-    cv.addEventListener('pointercancel', up);
-  })();
-
 
   // ================= Bildirim, gunluk odul, basarimlar, etkinlik =================
   let noteTimer = null;
@@ -3187,7 +3074,8 @@
   const PET_HOURS = { food: 10, clean: 18, fun: 8, energy: 14 };
   const PET_ICON = { food: '🍗', clean: '🛁', fun: '🧶', energy: '💤' };
   const pet = { tool: '', px: 150, py: 120, down: false, foam: [], drops: [], hearts: [], zz: [], sparkles: [],
-    mouth: 0, eatT: 0, flyT: -1, rubT: 0, purr: 0, saveT: 0, sayT: 0, say: '', paw: 0, lastMove: 0, dirtFade: 0 };
+    mouth: 0, eatT: 0, flyT: -1, rubT: 0, purr: 0, saveT: 0, sayT: 0, say: '', paw: 0, lastMove: 0, dirtFade: 0,
+    spin: 0, spinVel: 0, downX: 0, downY: 0, dragX: 0, hop: 0, catchCool: 0 };
   const DIRT = [[-5, 4, 3.2], [6, 10, 2.6], [-3, 15, 2.8], [4, -10, 2.2], [-6, -4, 2.4], [3, 3, 2]];
   const snd = (fn) => { if (!save.sound || DEMO) return; try { if (ac()) fn(); } catch { /* ses yok */ } };
   function petTick(force) {
@@ -3245,7 +3133,7 @@
     if (tool === 'feed') {
       if (p.food >= 95) { petSay('Tokum, teşekkürler!'); sfx('meowShort'); return; }
       if (save.wallet < 2) { petSay('Mama için 2 balık lazım'); sfx('nope'); return; }
-      save.wallet -= 2; persist('wallet'); $('wallet5').textContent = save.wallet;
+      save.wallet -= 2; persist('wallet'); $('wallet').textContent = save.wallet;
       pet.flyT = 0; pet.tool = '';
       petBars();
       return;
@@ -3254,8 +3142,9 @@
     pet.tool = pet.tool === tool ? '' : tool;
     if (pet.tool === 'wash') { pet.foam = []; pet.dirtFade = 0; petSay('Süngerle kedini köpürt!'); }
     if (pet.tool === 'pet') petSay('Başını ve sırtını okşa');
-    if (pet.tool === 'play') petSay('Tüyü parmağınla gezdir');
+    if (pet.tool === 'play') { petSay(TOY_BY_ID[save.toys.sel].name + ' ile oynayalım! Parmağınla gezdir'); sfx('meowHappy'); }
     sfx('click');
+    renderToyChips();
     petBars();
   }
   // kedi uzerinde mi? (oda koordinatlari: kedi merkezi 150,228; olcek 3.4)
@@ -3270,11 +3159,21 @@
     const x = ((e.clientX - r.left) * 300) / r.width, y = ((e.clientY - r.top) * 300) / r.height;
     const moved = Math.hypot(x - pet.px, y - pet.py);
     pet.px = x; pet.py = y;
-    if (kind === 'down') { pet.down = true; if (save.sound || save.music) ac(); }
-    if (kind === 'up') { pet.down = false; purrSet(false); return; }
-    if (!pet.down && kind !== 'down') return;
     const p = save.pet;
-    if (!pet.tool && kind === 'down' && onCat(x, y) && !p.sleep) { sfx('meowShort'); pet.mouth = 1; pet.hearts.push({ x, y, t: 0 }); return; }
+    if (kind === 'down') { pet.down = true; pet.downX = pet.dragX = x; pet.downY = y; pet.spinVel = 0; if (save.sound || save.music) ac(); }
+    if (kind === 'up') {
+      if (pet.down && !pet.tool && !p.sleep && Math.hypot(x - pet.downX, y - pet.downY) < 6 && onCat(x, y)) { // dokunus: miyavla, zipla
+        sfx(pickOne(['meow', 'meowShort', 'meowHappy'])); pet.mouth = 1; pet.hop = 1; pet.hearts.push({ x, y, t: 0 });
+        petSay(pickOne(HOUSE_MSGS));
+      }
+      pet.down = false; purrSet(false); return;
+    }
+    if (!pet.down && kind !== 'down') return;
+    if (!pet.tool && kind === 'move' && !p.sleep) { // surukle: kediyi 360 derece cevir
+      const dx = x - pet.dragX; pet.dragX = x;
+      pet.spin += dx * 0.03; pet.spinVel = dx * 1.2;
+      return;
+    }
     if (pet.tool === 'wash' && onCat(x, y) && moved > 1.5) {
       if (pet.foam.length < 40 && Math.random() < 0.6) pet.foam.push({ x: x + rand(-6, 6), y: y + rand(-6, 6), r: rand(3, 6.5), t: 0 });
       pet.dirtFade = Math.min(1, pet.dirtFade + 0.012);
@@ -3296,12 +3195,32 @@
     } else if (pet.tool === 'play' && moved > 1) {
       pet.lastMove = clock;
       petAdd('fun', 0.18); petAdd('energy', -0.04);
-      if (Math.hypot(x - CAT_X, y - (CAT_Y - 30)) < 45 && pet.paw <= 0) { pet.paw = 1; toySound('catch'); if (Math.random() < 0.35) pet.hearts.push({ x, y, t: 0 }); }
-      else toySound('move');
+      const d = Math.hypot(x - CAT_X, y - (CAT_Y - 30));
+      if (d < 50 && pet.catchCool <= 0) { // pati atar; bazen yakalar
+        pet.paw = 1; pet.catchCool = 0.75;
+        if (y < CAT_Y - 60 && Math.random() < 0.5) pet.hop = 1;
+        if (d < 30 || Math.random() < 0.25) toyCaught(x, y); else toySound('move');
+      } else if (Math.random() < 0.5) toySound('move');
     }
   }
+  const HOUSE_MSGS = ['Miyav!', 'Hadi koşalım!', 'Balık var mı?', 'Prrr prrr...', 'Beni çevirsene!', 'Bugün rekor kırarız!', 'Karabaş uyuyor mu?', 'Oynayalım mı?'];
+  function toyCaught(x, y) {
+    const ps = playState();
+    ps.catches++;
+    save.life.catches++; persist('life'); if (save.life.catches % 10 === 0) checkAchievements();
+    for (let i = 0; i < 4; i++) pet.hearts.push({ x: x + rand(-8, 8), y, t: rand(-0.2, 0) });
+    toySound('catch');
+    sfx(Math.random() < 0.5 ? 'purr' : 'meowHappy');
+    let msg = pickOne(['Yakaladım!', 'Hap!', 'Benim bu!', 'Bir daha!']);
+    if (ps.catches % 5 === 0 && ps.rewarded < PLAY_DAILY_FISH) { ps.rewarded++; save.wallet++; persist('wallet'); msg += ' 🐟 +1'; $('wallet').textContent = save.wallet; }
+    persist('play');
+    petSay(msg);
+  }
   function updatePet(dt) {
-    if (state !== 'house') { if (purrSrc) purrSet(false); return; }
+    if (state !== 'menu') { if (purrSrc) purrSet(false); return; }
+    pet.hop = Math.max(0, pet.hop - dt * 1.8);
+    pet.catchCool -= dt;
+    if (!pet.down) { pet.spin += pet.spinVel * dt; pet.spinVel *= Math.max(0, 1 - dt * 3); if (Math.abs(pet.spinVel) < 0.2) pet.spin *= Math.max(0, 1 - dt * 1.2); } // birakinca yavasca one doner
     const p = save.pet;
     pet.saveT += dt;
     if (pet.saveT > 2) { pet.saveT = 0; petTick(); petBars(); }
@@ -3337,7 +3256,8 @@
     if (pet.tool === 'play') ang = Math.max(-0.9, Math.min(0.9, -(pet.px - CAT_X) / 120));
     if (p.sleep || pet.tool === 'wash' || pet.tool === 'rinse' || pet.rubT > 0 || pet.eatT > 0) ang = -0.12;
     const mood = { eyes: p.sleep ? 'closed' : pet.rubT > 0 || pet.tool === 'rinse' ? 'happy' : pet.tool === 'wash' ? 'closed' : '', mouth: pet.mouth, big: true, wide: pet.tool === 'play' };
-    const hop = pet.tool === 'play' && clock - pet.lastMove < 0.4 ? Math.abs(Math.sin(clock * 6)) * 0.35 : 0;
+    if (!pet.tool && !p.sleep) ang += pet.spin;
+    const hop = Math.max(pet.hop, pet.tool === 'play' && clock - pet.lastMove < 0.4 ? Math.abs(Math.sin(clock * 6)) * 0.35 : 0);
     g.save(); g.translate(CAT_X, CAT_Y); g.scale(CAT_S, CAT_S);
     if (p.sleep) { g.translate(0, 2); g.scale(1, 0.97 + Math.sin(clock * 1.6) * 0.02); }
     drawCat3D(g, c, ang, clock, save.wardrobe, hop, pet.paw, mood);
@@ -3369,8 +3289,10 @@
     }
     // oyun tuyu parmagi izler
     if (pet.tool === 'play') {
-      g.strokeStyle = 'rgba(80,70,90,0.5)'; g.lineWidth = 1; g.beginPath(); g.moveTo(pet.px, 0); g.lineTo(pet.px, pet.py); g.stroke();
-      ell(g, pet.px, pet.py + 6, 3, 9, Math.sin(clock * 5) * 0.4, '#f2a6b8'); ell(g, pet.px + 3, pet.py + 8, 2.4, 7, 0.5 + Math.sin(clock * 5) * 0.4, '#9cc3e6');
+      const id = save.toys.sel;
+      if (id === 'kelebek') { g.strokeStyle = '#8a6a4a'; g.lineWidth = 2; g.beginPath(); g.moveTo(pet.px * 0.4 + 170, 0); g.lineTo(pet.px, pet.py); g.stroke(); }
+      else if (id !== 'lazer') { g.strokeStyle = 'rgba(80,70,90,0.5)'; g.lineWidth = 1; g.beginPath(); g.moveTo(pet.px, 0); g.lineTo(pet.px, pet.py); g.stroke(); }
+      g.save(); g.translate(pet.px, pet.py + 4); g.scale(3, 3); drawToy(g, id, 0, 0, clock); g.restore();
     }
     // sunger / dus imleci
     if ((pet.tool === 'wash' || pet.tool === 'rinse') && pet.down) { g.font = '22px sans-serif'; g.textAlign = 'center'; g.fillText(pet.tool === 'wash' ? '🧽' : '🚿', pet.px, pet.py - 10); }
@@ -3398,7 +3320,7 @@
   // ================= Kedi evi =================
   const house = { ang: -0.45, t: 0 };
   function drawHouse() {
-    if (state !== 'house') return;
+    if (state !== 'menu') return;
     const cv = $('houseCv'), g = cv.getContext('2d');
     if (!cv.width) return;
     const k = cv.width / 300;
@@ -3460,7 +3382,9 @@
   }
   function renderHouse() {
     petTick(true); petBars();
-    $('wallet5').textContent = save.wallet;
+    $('wallet').textContent = save.wallet;
+    $('houseTitle').textContent = genitive(catName()) + ' Evi';
+    renderToyChips();
     const H2 = save.house;
     $('houseList').innerHTML = Object.keys(HOUSE_SLOTS).map((slot) => {
       const items = HOUSE_ITEMS.filter((h) => h.slot === slot).map((h) => {
@@ -3511,15 +3435,15 @@
     if (ch) {
       g.fillStyle = '#3b3552'; g.font = '900 150px ' + FONT; g.fillText(m + ' m', 540, 360);
       g.font = '800 64px ' + FONT; g.fillText('Beni geçebilir misin?', 540, 460);
-      g.fillStyle = '#7a7391'; g.font = '700 44px ' + FONT; g.fillText(CAT_BY_ID[save.char].name + ' ile tırmandım', 540, 1170);
+      g.fillStyle = '#7a7391'; g.font = '700 44px ' + FONT; g.fillText(catName() + ' ile tırmandım', 540, 1170);
       g.fillStyle = '#ff8f70'; g.font = '800 40px ' + FONT; g.fillText(SITE_URL.replace('https://', ''), 540, 1250);
       shareLink = SITE_URL + '?vs=' + m;
       shareText = 'Patikat\'ta ' + m + ' metre tırmandım! 🐾 Beni geçebilir misin? ' + shareLink;
     } else {
-      g.fillStyle = '#3b3552'; g.font = '800 70px ' + FONT; g.fillText(CAT_BY_ID[save.char].name, 540, 1150);
+      g.fillStyle = '#3b3552'; g.font = '800 70px ' + FONT; g.fillText(catName(), 540, 1150);
       g.fillStyle = '#7a7391'; g.font = '600 40px ' + FONT; g.fillText('duvardan duvara, kat kat yukarı', 540, 1225);
       shareLink = SITE_URL;
-      shareText = 'Kedim ' + CAT_BY_ID[save.char].name + ' 🐾 #Patikat ' + SITE_URL;
+      shareText = 'Kedim ' + catName() + ' 🐾 #Patikat ' + SITE_URL;
     }
     photoUrl = cv.toDataURL('image/png');
     $('photoImg').src = photoUrl;
@@ -3555,7 +3479,7 @@
     try {
       await LN.cancel({ notifications: [{ id: 1 }, { id: 2 }, { id: 3 }] });
       petTick(true);
-      const name = CAT_BY_ID[save.char].name, now = Date.now();
+      const name = catName(), now = Date.now();
       const hungrySec = Math.max(1800, ((save.pet.food - 25) * PET_HOURS.food * 3600) / 100);
       const noon = new Date(); noon.setDate(noon.getDate() + 1); noon.setHours(12, 0, 0, 0);
       await LN.schedule({ notifications: [
@@ -3576,11 +3500,12 @@
 
   // ================= Ana sayfa turu: onemli yerleri tek tek gosterir =================
   const TOUR = [
-    ['endlessBtn', 'Sonsuz Koşu', 'Ne kadar yükseğe çıkabilirsin? Her 200 metre yeni bir kat.'],
-    ['toyBtn', 'Kedinle oyna', 'Oltayla oyuncak sarkıt, kedin yakalasın. Her 5 yakalamada 1 balık.'],
+    ['houseCv', 'Kedin burada yaşıyor', 'Parmağınla sürükleyip çevir, dokununca miyavlar.'],
+    ['petActs', 'Kedine bak', 'Besle, yıka, sev, oyna, uyut. Mutlu kedi oyunda %10 fazla balık getirir.'],
+    ['endlessBtn', 'Sonsuz Koşu', 'Ne kadar uzağa gidebilirsin? Her 200 metre yeni bir kat.'],
     ['dailyBtn', 'Günün Seferi', 'Herkes aynı parkurda yarışır. Günde 3 hakkın var.'],
     ['levelsBtn', 'Bölümler', '18 kat, Karabaş bölümleri ve yıldızlar seni bekliyor.'],
-    ['houseBtn', 'Kedi Evi', 'Balıklarla eşya al, kedinin odasını döşe.'],
+    ['houseFurn', 'Evi döşe', 'Balıklarla eşya al, kedinin odasını döşe.'],
     ['tab:cat', 'Kedim', 'Yeni kediler ve kıyafetler. Önce dene, beğenirsen satın al.'],
     ['tab:shop', 'Dükkan', 'Yükseltmeler ve yeni oyuncaklar.'],
     ['tab:goals', 'Görevler', 'Görevleri ve başarımları tamamla, balık kazan.'],
@@ -3619,8 +3544,8 @@
   $('coach').addEventListener('click', (e) => { e.stopPropagation && e.stopPropagation(); if (e.target && e.target.id === 'coachSkip') endTour(); else nextTour(); });
 
   // ================= Ekranlar =================
-  const SCREENS = ['menu', 'levels', 'chars', 'shop', 'missions', 'wardrobe', 'board', 'settings', 'ach', 'house', 'photo', 'pause', 'over', 'win'];
-  const TAB_OF = { menu: 'home', settings: 'home', house: 'home', photo: 'cat', ach: 'goals', levels: 'map', chars: 'cat', wardrobe: 'cat', shop: 'shop', missions: 'goals', board: 'goals' };
+  const SCREENS = ['menu', 'levels', 'chars', 'shop', 'missions', 'wardrobe', 'board', 'settings', 'ach', 'photo', 'pause', 'over', 'win'];
+  const TAB_OF = { menu: 'home', settings: 'home', photo: 'cat', ach: 'goals', levels: 'map', chars: 'cat', wardrobe: 'cat', shop: 'shop', missions: 'goals', board: 'goals' };
   const TAB_TARGET = { home: 'menu', map: 'levels', cat: 'chars', shop: 'shop', goals: 'missions' };
   function show(id) {
     for (const s of SCREENS) $(s).classList.toggle('hidden', s !== id);
@@ -3630,6 +3555,7 @@
     document.querySelectorAll('[data-tab]').forEach((b) => b.classList.toggle('on', b.dataset.tab === tab));
   }
   function showScreen(name) {
+    if (name === 'house') name = 'menu'; // Kedi Evi artik acilis ekrani
     const prev = state;
     state = name;
     if (name === 'chars' && prev !== 'wardrobe' && prev !== 'chars') pv.cat = save.char; // onizleme secili kediden baslar
@@ -3641,16 +3567,15 @@
     if (name === 'missions') renderMissions();
     if (name === 'wardrobe') renderWardrobe();
     if (name === 'board') renderBoard();
-    if (name !== 'menu' && toy.on) setToyMode(false);
+    if (name !== 'menu' && pet.tool) { pet.tool = ''; purrSet(false); }
     if (name === 'settings') renderMenu();
     if (name === 'ach') renderAch();
-    if (name === 'house') renderHouse();
     show(name);
-    if (name === 'menu' && save.tutorialDone && !save.tourDone && tourStep < 0) setTimeout(startTour, 600);
+    if (name === 'menu' && save.tutorialDone && !save.tourDone && tourStep < 0 && $('nameBox').classList.contains('hidden')) setTimeout(startTour, 600);
     if (name === 'menu' && !hero.greeted) {
       hero.greeted = true;
-      hero.hop = 1;
-      heroSay(`Miyav! Hoş geldin${save.playerName ? ', ' + save.playerName : ''}!`);
+      pet.hop = 1;
+      petSay(`Miyav! Hoş geldin${save.playerName ? ', ' + save.playerName : ''}!`, 3);
     }
   }
   function toMenu() {
@@ -3673,6 +3598,8 @@
 
   const MODE_NAMES = { endless: 'Sonsuz Koşu', daily: 'Günün Seferi', level: 'Bölüm' };
   function renderMenu() {
+    renderHouse();
+    $('playerBtn').textContent = save.playerName ? save.playerName + ' ✏️' : 'Adını yaz ✏️';
     renderLogin();
     renderEvent();
     checkAchievements();
@@ -3694,7 +3621,7 @@
     const df = DIFFS[save.diff];
     $('diffInfo').textContent = `${df.lives} can · ${save.diff === 'kolay' ? 'yavaş' : save.diff === 'zor' ? 'hızlı' : 'normal'} hız · ${save.diff === 'kolay' ? 'az' : save.diff === 'zor' ? 'çok' : 'orta'} acıkma`;
     $('tutorialBtn').classList.toggle('resume', !save.tutorialDone);
-    $('tutorialBtn').textContent = save.tutorialDone ? 'Eğitim' : 'Yeni misin? Önce eğitimi oyna';
+    $('tutorialBtn').textContent = save.tutorialDone ? 'Eğitimi tekrar oyna' : 'Yeni misin? Önce eğitimi oyna';
     const r = save.resume;
     $('resumeBtn').classList.toggle('hidden', !r);
     if (r) {
@@ -3741,7 +3668,8 @@
     const btn = $(state === 'wardrobe' ? 'wardPvBtn' : 'charPvBtn');
     if (state === 'chars') {
       const c = CAT_BY_ID[pv.cat], owned = save.owned.includes(c.id);
-      $('charPvName').textContent = c.name;
+      $('charPvName').textContent = catName(c.id);
+      $('renameBtn').classList.toggle('hidden', !owned);
       $('charPvDesc').textContent = c.ability + (CAT_STORY[c.id] ? ' · ' + CAT_STORY[c.id] : '');
       if (owned) { btn.textContent = save.char === c.id ? 'Seçili ✓' : 'Bu kediyi seç'; btn.disabled = save.char === c.id; btn.dataset.mode = 'select'; }
       else if (save.wallet >= c.price) { btn.textContent = `Satın al · 🐟 ${c.price}`; btn.disabled = false; btn.dataset.mode = 'buy'; }
@@ -3770,7 +3698,7 @@
         save.wallet -= c.price; save.owned.push(c.id); save.char = c.id;
         persist('wallet'); persist('owned'); persist('char');
         sfx('buy'); sfx('meowHappy'); vibrate(30);
-        showNote('Yeni kedi!', `${c.name} artık senin`);
+        showNote('Yeni kedi!', `${catName(c.id)} artık senin`);
       } else { sfx('nope'); return; }
       renderChars();
     } else if (state === 'wardrobe' && pv.item) {
@@ -3818,7 +3746,7 @@
       const owned = save.owned.includes(c.id), sel = save.char === c.id;
       const status = sel ? 'Seçili' : owned ? 'Senin' : `🐟 ${c.price}`;
       const cls = (pv.cat === c.id ? ' sel' : '') + (!owned && save.wallet < c.price ? ' cant' : '') + (owned ? ' own' : '');
-      return `<button class="ch${cls}" data-char="${c.id}"><canvas width="128" height="128"></canvas><b>${c.name}</b><small>${c.ability}</small><span>${status}</span></button>`;
+      return `<button class="ch${cls}" data-char="${c.id}"><canvas width="128" height="128"></canvas><b>${esc(catName(c.id))}</b><small>${c.ability}</small><span>${status}</span></button>`;
     }).join('');
     $('charGrid').querySelectorAll('button').forEach((b) => {
       const g = b.querySelector('canvas').getContext('2d');
@@ -3961,8 +3889,10 @@
     else if (b.dataset.cos) cosClick(b.dataset.cos);
     else if (b.dataset.upg) buyUpgrade(b.dataset.upg);
     else if (b.dataset.toy) toyClick(b.dataset.toy);
-    else if (b.dataset.toysel) { save.toys.sel = b.dataset.toysel; persist('toys'); renderToyChips(); sfx('meowShort'); }
-    else if (a === 'toyMode') setToyMode(!toy.on);
+    else if (b.dataset.toysel) { save.toys.sel = b.dataset.toysel; persist('toys'); renderToyChips(); sfx('meowShort'); petSay(TOY_BY_ID[save.toys.sel].name + ' ile oynayalım!'); }
+    else if (a === 'rename') openNameBox('cat', pv.cat);
+    else if (a === 'playerName') openNameBox('player');
+    else if (a === 'nameOk') closeNameBox();
     else if (a === 'pvAction') pvAction();
     else if (a === 'claimLogin') claimLogin();
     else if (a === 'photo') makePhoto('cat');
@@ -3981,6 +3911,40 @@
     e.target.value = save.playerName;
     persist('playerName');
   });
+
+  // ---------- Isim penceresi: oyuncunun adi (istege bagli) ve kedinin adi ----------
+  const clean = (v, n) => String(v || '').replace(/[\u0000-\u001f<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, n);
+  let nameFor = { kind: '', cat: '', then: null };
+  function openNameBox(kind, catId = save.char, then = null) {
+    nameFor = { kind, cat: catId, then };
+    const welcome = kind === 'welcome';
+    $('nameBoxTitle').textContent = welcome ? 'Hoş geldin! 🐾' : kind === 'player' ? 'Adın' : 'Kedine isim ver';
+    $('playerRow').classList.toggle('hidden', kind === 'cat');
+    $('catRow').classList.toggle('hidden', kind === 'player');
+    $('playerNameIn').value = save.playerName;
+    $('catNameIn').value = catName(catId);
+    $('catNameIn').placeholder = CAT_BY_ID[catId].name;
+    $('nameBox').classList.remove('hidden');
+  }
+  function closeNameBox() {
+    const k = nameFor.kind;
+    if (k !== 'cat') { save.playerName = clean($('playerNameIn').value, 16); persist('playerName'); if ($('nameInput')) $('nameInput').value = save.playerName; }
+    if (k !== 'player') {
+      const n = clean($('catNameIn').value, 14);
+      if (n && n !== CAT_BY_ID[nameFor.cat].name) save.catNames[nameFor.cat] = n; else delete save.catNames[nameFor.cat];
+      persist('catNames');
+    }
+    if (k === 'welcome') { save.welcomed = true; persist('welcomed'); }
+    $('nameBox').classList.add('hidden');
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+    sfx('meowHappy');
+    if (state === 'chars') { renderChars(); updatePreviewPanel(); }
+    if (state === 'menu' || state === 'settings') renderMenu();
+    const then = nameFor.then; nameFor = { kind: '', cat: '', then: null };
+    if (then) then();
+    else if (k === 'welcome' && state === 'menu') { pet.hop = 1; petSay(`Miyav! Ben ${catName()}${save.playerName ? ', sen de ' + save.playerName : ''}. Hoş geldin!`, 3); if (save.tutorialDone && !save.tourDone) setTimeout(startTour, 800); }
+  }
+  for (const id of ['playerNameIn', 'catNameIn']) $(id).addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); closeNameBox(); } });
 
   window.addEventListener('keydown', (e) => {
     if (e.target && e.target.tagName === 'INPUT') return;
@@ -4005,7 +3969,6 @@
     const dt = Math.min(0.05, Math.max(0, (now - last) / 1000));
     last = now;
     if (state !== 'pause') update(dt);
-    updateHero(dt);
     updatePreview(dt);
     updatePet(dt);
     // oyun sirasinda kare suresini olc; surekli yavassa cozunurlugu dusur
@@ -4021,7 +3984,6 @@
     const behind = MENU_STATES.includes(state);
     frameNo++;
     if (!behind || frameNo % 4 === 0) draw();
-    drawHero();
     drawPreview();
     drawHouse();
     musicTick();
@@ -4045,7 +4007,8 @@
   reset();
   showScreen('menu');
   if (!DEMO && MENU_STATES.includes(params.get('screen'))) showScreen(params.get('screen')); // dogrudan ekran (test icin)
-  else if (!DEMO && !save.tutorialDone && save.life.runs === 0 && !save.resume) startRun('tutorial'); // yeni oyuncu: dogrudan egitim
+  else if (!DEMO && !save.tutorialDone && save.life.runs === 0 && !save.resume) openNameBox('welcome', save.char, () => startRun('tutorial')); // yeni oyuncu: once isim, sonra egitim
+  else if (!DEMO && !save.welcomed) openNameBox('welcome'); // eski oyunculara bir kez isim sorulur
   if (DEMO) {
     const lv = Number(params.get('lv'));
     const mode = params.get('mode');

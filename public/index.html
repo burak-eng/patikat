@@ -19,26 +19,31 @@
 
 <button id="pauseBtn" class="icon-btn hidden" data-act="pause" aria-label="Duraklat">❚❚</button>
 
-<!-- ============ Ana sayfa: kedin seni karsilar ============ -->
+<!-- ============ Kedi Evi: oyun acilinca kedin seni evinde karsilar ============ -->
 <div id="menu" class="overlay tabbed home">
   <div class="topbar">
     <div class="wallet">🐟 <span id="wallet">0</span></div>
+    <h2 id="houseTitle" class="housetitle">Kedi Evi</h2>
     <button id="settingsBtn" class="iconbtn" data-act="settings" aria-label="Ayarlar">
       <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Zm8.6 4.6-.1-1.1 1.8-1.4-1.8-3.1-2.2.8a7.7 7.7 0 0 0-1.9-1.1L16 4h-3.6l-.4 2.2a7.7 7.7 0 0 0-1.9 1.1l-2.2-.8-1.8 3.1 1.8 1.4-.1 1.1.1 1.1-1.8 1.4 1.8 3.1 2.2-.8c.6.5 1.2.8 1.9 1.1L12.4 20H16l.4-2.2c.7-.3 1.3-.6 1.9-1.1l2.2.8 1.8-3.1-1.8-1.4.1-1.1Z" transform="translate(-2 0)"/></svg>
     </button>
   </div>
-  <h1>Patikat</h1>
-  <p class="tagline">duvardan duvara, kat kat yukarı</p>
-  <div class="hero">
-    <div class="halo"></div>
-    <canvas id="heroCat" width="440" height="440" aria-label="Kedin: parmağınla çevir"></canvas>
-    <div id="heroBubble" class="bubble">Miyav!</div>
+  <canvas id="houseCv" class="room" width="600" height="600" aria-label="Kedinin evi: parmağınla çevir, dokununca miyavlar"></canvas>
+  <div class="petbars">
+    <div><span>🍗</span><b><i id="pet_food"></i></b></div>
+    <div><span>🛁</span><b><i id="pet_clean"></i></b></div>
+    <div><span>🧶</span><b><i id="pet_fun"></i></b></div>
+    <div><span>💤</span><b><i id="pet_energy"></i></b></div>
   </div>
-  <p class="hint small" id="heroHint">Kedini parmağınla çevir · dokununca miyavlar</p>
-  <div class="toybar">
-    <button id="toyBtn" class="chip main" data-act="toyMode">🎣 Oyuncakla oyna</button>
-    <div id="toyChips" class="chips hidden"></div>
+  <div class="petacts" id="petActs">
+    <button data-pet="feed"><span>🐟</span>Besle<small>2 balık</small></button>
+    <button data-pet="wash"><span>🧽</span>Yıka</button>
+    <button data-pet="pet"><span>🤚</span>Sev</button>
+    <button data-pet="play"><span>🎣</span>Oyna</button>
+    <button data-pet="sleep"><span>💡</span>Uyut</button>
   </div>
+  <div id="toyChips" class="chips hidden"></div>
+  <p id="petMood" class="hint small"></p>
   <div id="loginCard" class="card login hidden">
     <b id="loginTitle">Günlük ödül</b>
     <div id="loginDays" class="days"></div>
@@ -56,35 +61,21 @@
     <button id="dailyBtn" class="big alt" data-act="daily">Günün Seferi <small id="dailyInfo"></small></button>
     <button id="levelsBtn" class="big alt" data-act="levels">Bölümler <small id="levelsInfo"></small></button>
   </div>
-  <div class="row">
-    <button id="houseBtn" class="big alt" data-act="house">🏠 Kedi Evi</button>
-    <button id="tutorialBtn" class="big alt" data-act="tutorial">Eğitim</button>
-  </div>
-</div>
-
-<!-- ============ Kedi evi ============ -->
-<div id="house" class="overlay tabbed hidden">
-  <h2>Kedi Evi</h2>
-  <div class="wallet">🐟 <span id="wallet5">0</span></div>
-  <canvas id="houseCv" class="room" width="600" height="600" aria-label="Kedinin evi"></canvas>
-  <div class="petbars">
-    <div><span>🍗</span><b><i id="pet_food"></i></b></div>
-    <div><span>🛁</span><b><i id="pet_clean"></i></b></div>
-    <div><span>🧶</span><b><i id="pet_fun"></i></b></div>
-    <div><span>💤</span><b><i id="pet_energy"></i></b></div>
-  </div>
-  <div class="petacts">
-    <button data-pet="feed"><span>🐟</span>Besle<small>2 balık</small></button>
-    <button data-pet="wash"><span>🧽</span>Yıka</button>
-    <button data-pet="pet"><span>🤚</span>Sev</button>
-    <button data-pet="play"><span>🎣</span>Oyna</button>
-    <button data-pet="sleep"><span>💡</span>Uyut</button>
-  </div>
-  <p id="petMood" class="hint small"></p>
-  <details class="card housefurn"><summary>🛋️ Evi döşe</summary>
+  <details class="card housefurn" id="houseFurn"><summary>🛋️ Evi döşe</summary>
   <div id="houseList" class="ward"></div>
   </details>
-  <button class="toggle" data-act="menu">Ana sayfa</button>
+  <button id="tutorialBtn" class="big alt wide" data-act="tutorial">Eğitim</button>
+</div>
+
+<!-- ============ Isim: oyuncunun adi ve kedinin adi ============ -->
+<div id="nameBox" class="modal hidden">
+  <div class="card namecard">
+    <h2 id="nameBoxTitle">Hoş geldin!</h2>
+    <label id="playerRow" class="name">Senin adın <small>(istersen)</small><input id="playerNameIn" maxlength="16" placeholder="Adını yaz" autocomplete="off"></label>
+    <label id="catRow" class="name">Kedinin adı<input id="catNameIn" maxlength="14" autocomplete="off"></label>
+    <p class="hint small">İstediğin zaman Kedim ekranından değiştirebilirsin.</p>
+    <button class="big buy" data-act="nameOk">Tamam</button>
+  </div>
 </div>
 
 <!-- ============ Fotograf ============ -->
@@ -109,6 +100,10 @@
 <!-- ============ Ayarlar ============ -->
 <div id="settings" class="overlay tabbed hidden">
   <h2>Ayarlar</h2>
+  <div class="card">
+    <h3>Adın</h3>
+    <button id="playerBtn" class="toggle" data-act="playerName"></button>
+  </div>
   <div class="card">
     <h3>Zorluk</h3>
     <div class="seg" id="diffSeg">
@@ -150,8 +145,7 @@
     <summary>Ses kaynakları</summary>
     <ul>
       <li>Kedi sesleri ve müzik telifsiz (CC0 / kamu malı) kayıtlardan düzenlendi:</li>
-      <li><b>Miyav:</b> Heismark (kamu malı), George Miquilena (CC0)</li>
-      <li><b>Siyam miyavı:</b> freemaster2 (CC0)</li>
+      <li><b>Miyav:</b> George Miquilena (CC0)</li>
       <li><b>Mırlama:</b> Mysid (kamu malı)</li>
       <li><b>Oyun müziği:</b> Zane Little Music, congusbongus, SubspaceAudio (OpenGameArt, CC0)</li>
       <li>Köpek, yemek, oyuncak ve diğer bütün efektler oyunun içinde kodla üretilir.</li>
@@ -169,7 +163,7 @@
     <canvas id="charPv" width="300" height="300" aria-label="Kedi önizlemesi: parmağınla çevir"></canvas>
     <div class="pvinfo"><b id="charPvName"></b><small id="charPvDesc"></small></div>
     <button id="charPvBtn" class="big buy" data-act="pvAction"></button>
-    <button class="chip" data-act="photo">📸 Fotoğrafını çek</button>
+    <div class="row"><button id="renameBtn" class="chip" data-act="rename">✏️ İsim ver</button><button class="chip" data-act="photo">📸 Fotoğrafını çek</button></div>
   </div>
   <p class="hint small">Bir kediye dokun, önce burada gör. Beğenirsen satın al.</p>
   <div id="charGrid" class="grid chars-grid"></div>
@@ -200,7 +194,7 @@
   <h3>Yükseltmeler</h3>
   <div id="shopList" class="grid shop-grid"></div>
   <h3>Oyuncaklar</h3>
-  <p class="hint small">Ana sayfada oltayla sarkıt, kedin yakalamaya çalışsın.</p>
+  <p class="hint small">Kedi Evi’nde “Oyna”ya dokun, oyuncağı gezdir; kedin yakalamaya çalışsın.</p>
   <div id="toyList" class="grid shop-grid"></div>
 </div>
 
@@ -223,8 +217,8 @@
 <div id="pause" class="overlay hidden">
   <h2>Durdu</h2>
   <p class="tap">Devam etmek için dokun</p>
-  <p class="hint">Turun kaydedildi. Ana sayfadan sonra da devam edebilirsin.</p>
-  <button class="toggle" data-act="menu">Ana sayfa</button>
+  <p class="hint">Turun kaydedildi. Kedi Evi’nden sonra da devam edebilirsin.</p>
+  <button class="toggle" data-act="menu">Kedi Evi</button>
 </div>
 
 <div id="over" class="overlay hidden">
@@ -235,7 +229,7 @@
   <button id="reviveBtn" class="big resume hidden" data-act="revive">İkinci şans <small id="reviveInfo"></small></button>
   <button id="challengeBtn" class="big buy" data-act="challenge">🏆 Meydan oku, paylaş</button>
   <p class="tap" id="overTap">Tekrar için dokun</p>
-  <button class="toggle" data-act="menu">Ana sayfa</button>
+  <button class="toggle" data-act="menu">Kedi Evi</button>
 </div>
 
 <div id="win" class="overlay hidden">
@@ -251,8 +245,8 @@
 
 <!-- ============ Alt menu ============ -->
 <nav id="tabbar" class="tabbar hidden">
-  <button data-tab="home" aria-label="Ana sayfa">
-    <svg viewBox="0 0 24 24"><path d="M4 11.5 12 5l8 6.5V19a1.5 1.5 0 0 1-1.5 1.5H15v-5h-6v5H5.5A1.5 1.5 0 0 1 4 19v-7.5Z"/></svg><span>Ana Sayfa</span>
+  <button data-tab="home" aria-label="Kedi Evi">
+    <svg viewBox="0 0 24 24"><path d="M4 11.5 12 5l8 6.5V19a1.5 1.5 0 0 1-1.5 1.5H15v-5h-6v5H5.5A1.5 1.5 0 0 1 4 19v-7.5Z"/></svg><span>Kedi Evi</span>
   </button>
   <button data-tab="map" aria-label="Harita">
     <svg viewBox="0 0 24 24"><path d="M6 21V4.5A1.5 1.5 0 0 1 7.5 3h9A1.5 1.5 0 0 1 18 4.5V21M9 7h2m2 0h2M9 11h2m2 0h2M9 15h2m2 0h2M10.5 21v-3h3v3"/></svg><span>Harita</span>

@@ -3,14 +3,8 @@ Patikat - ses ve muzik kaynaklari
 Bu klasordeki gercek kayitlar Wikimedia Commons'taki telifsiz (CC0 ya da kamu mali)
 dosyalardan kesilip duzenlenmistir. Atif zorunlu degildir; yine de tesekkur olarak listeliyoruz.
 
-miyav1.mp3, miyav2.mp3  <- "Meow of a pleading cat.oga", Heismark, kamu mali
-    https://commons.wikimedia.org/wiki/File:Meow_of_a_pleading_cat.oga
 miyav3.mp3              <- "Maullido de gata hembra joven.ogg", George Miquilena, CC0
     https://commons.wikimedia.org/wiki/File:Maullido_de_gata_hembra_joven.ogg
-miyav4.mp3              <- "Maullido de gata hembra.ogg", George Miquilena, CC0
-    https://commons.wikimedia.org/wiki/File:Maullido_de_gata_hembra.ogg
-siyam.mp3               <- "Meow of a Siamese cat - freemaster2.wav", freemaster2, CC0
-    https://commons.wikimedia.org/wiki/File:Meow_of_a_Siamese_cat_-_freemaster2.wav
 mirlama.mp3             <- "Purring cat.oga", Mysid, kamu mali
     https://commons.wikimedia.org/wiki/File:Purring_cat.oga
 oyun1.mp3               <- "Starlight City", Zane Little Music, CC0
@@ -22,4 +16,5 @@ oyun3.mp3               <- "Retro Sports bgm_stage_3" (12 Music Loops), Subspace
 
 Yapilan islemler: kesme, filtre, giris/cikis sonumlemesi, ses seviyesi esitleme,
 MP3'e donusturme (ffmpeg).
+Butun kediler ayni miyav kaydini (miyav3) kullanir.
 Kopek havlamasi, yemek sesi, oyuncak sesleri ve diger butun efektler kodla uretilir.
