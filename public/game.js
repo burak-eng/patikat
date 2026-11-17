@@ -253,6 +253,9 @@
     { id: 'zigzag', w: 0.2, from: 1, name: 'Çatı çatı!' },
     { id: 'merdiven', w: 0.15, from: 2, name: 'Merdiven' },
     { id: 'balik', w: 0.1, from: 0, name: 'Balık yolu' },
+    { id: 'tabela', w: 0.12, from: 1, name: 'Tabela sırası!' },
+    { id: 'filo', w: 0.1, from: 2, name: 'Süpürge filosu!' },
+    { id: 'tente', w: 0.12, from: 0, name: 'Tente yolu' },
   ];
   const LONG_LEN = [100, 180, 300];
   // Bolumler: daha hizli, daha kisa tepki suresi, daha cok engel karisimi (yine de her desen gecilebilir)
@@ -737,8 +740,9 @@
   }
 
   const SFX = {
-    jump() { tone(330, 0.09, { vol: 0.12, slide: 820, attack: 0.003, type: 'triangle' }); hiss(0.12, { freq: 900, sweep: 3200, q: 0.9, vol: 0.06 }); }, // hizli 'fiyuv'
-    land() { hiss(0.06, { freq: 500, q: 0.8, vol: 0.09, type: 'lowpass' }); tone(150, 0.08, { vol: 0.1, slide: 85 }); },
+    jump() { hiss(0.17, { freq: 520, sweep: 1500, q: 0.6, vol: 0.075, attack: 0.01 }); tone(170, 0.05, { vol: 0.045, slide: 120 }); }, // yumusak hava sesi ve pati itisi
+    land() { tone(105, 0.07, { vol: 0.075, slide: 70 }); hiss(0.05, { freq: 420, q: 0.7, vol: 0.045, type: 'lowpass' }); }, // yumusak pati inisi
+    step() { hiss(0.028, { freq: 1100 + Math.random() * 500, q: 1.6, vol: 0.014 }); }, // cati ustunde hafif pati sesi
     coin() { // balik yeme: sevimli, yumusak "nyam" ve kucuk bir zil
       const p = jitter(0.06);
       for (const [d, f] of [[0, 330], [0.11, 300]]) {
@@ -821,7 +825,7 @@
       musicEl.preload = 'auto';
       musicEl.volume = 0;
     }
-    const target = state === 'hint' ? 0.12 : 0.4;
+    const target = state === 'hint' ? 0.08 : 0.24; // muzik efektleri bastirmasin
     musicEl.volume = Math.max(0, Math.min(1, musicEl.volume + (target - musicEl.volume) * 0.05));
     const now = performance.now();
     if (musicEl.paused && now - musicTry > 1500) {
@@ -906,6 +910,33 @@
 
   // Yagmur sesi: yagmur yagarken kisik, surekli bir hisirti
   let rainSrc = null, rainGain = null;
+  let cityGain = null, citySrc = null, birdT = 4;
+  function cityAmbience(dt) {
+    const want = save.sound && !DEMO && audio.ctx && (state === 'play' || state === 'count');
+    try {
+      const c = audio.ctx;
+      if (want && !citySrc) {
+        citySrc = c.createBufferSource(); citySrc.buffer = audio.noise; citySrc.loop = true;
+        const f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 260;
+        cityGain = c.createGain(); cityGain.gain.setValueAtTime(0.0001, c.currentTime);
+        cityGain.gain.exponentialRampToValueAtTime(0.06, c.currentTime + 2);
+        citySrc.connect(f).connect(cityGain).connect(audio.sfx);
+        citySrc.start();
+      } else if (!want && citySrc) {
+        cityGain.gain.setValueAtTime(Math.max(0.0001, cityGain.gain.value), c.currentTime);
+        cityGain.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + 0.8);
+        citySrc.stop(c.currentTime + 0.9); citySrc = null;
+      }
+      if (want && state === 'play' && P && P.stars < 0.2 && weather !== 'rain') {
+        birdT -= dt;
+        if (birdT <= 0) { // uzaktan, kisa bir kus civiltisi
+          birdT = rand(6, 13);
+          const f0 = rand(2600, 3400), n = 2 + Math.floor(Math.random() * 3);
+          for (let i = 0; i < n; i++) tone(f0 * (1 + (i % 2) * 0.12), 0.06, { vol: 0.012, slide: f0 * 1.25, delay: i * 0.11, attack: 0.004 });
+        }
+      }
+    } catch { citySrc = null; }
+  }
   function rainAmbience() {
     const want = save.sound && !DEMO && audio.ctx && weather === 'rain' && (state === 'play' || state === 'count');
     try {
@@ -1028,7 +1059,12 @@
   // dh kadar asagidaki (+) / yukaridaki (-) yuzeye inene kadar havada kalma suresi
   function airTime(dh, v = JUMP_V) { const disc = v * v + 2 * GRAV * dh; return disc < 0 ? 0 : (v + Math.sqrt(disc)) / GRAV; }
   function platAt(x) { for (const q of plats) if (x >= q.x0 && x <= q.x1) return q; return null; }
-  function addPlat(x0, x1, y) { const q = { x0, x1, y, s: Math.floor(rnd() * 4) }; plats.push(q); genX = x1; genY = y; return q; }
+  const DECO = ['baca', 'anten', 'canak', 'depo', 'baca', 'kumes'];
+  function addPlat(x0, x1, y) {
+    const q = { x0, x1, y, s: Math.floor(rnd() * 4), deco: [] };
+    for (let x = x0 + 30 + rnd() * 80; x < x1 - 40; x += 150 + rnd() * 220) q.deco.push({ x, k: DECO[Math.floor(rnd() * DECO.length)], v: rnd() }); // arka planda, engel degil
+    plats.push(q); genX = x1; genY = y; return q;
+  }
   // ziplama yayi boyunca balik dizisi (kalkis x0, yuzey y)
   function fishArc(x0, y, n, step) { for (let i = 1; i <= n; i++) { const t = (i * step) / speed; addCoin(x0 + i * step, y + arcY(t) - 14); } }
 
@@ -1098,7 +1134,7 @@
     const a0 = x0 + Math.max(flight + 40, sp * react + 60), a1 = x0 + len - flight * 0.9 - sp * react - 30; // engelden sonra duvar bitmeden tepki payi
     // tente (ust rota): yukarida balik ve odul, altinda ip/tabela olmaz
     let led = null;
-    if ((k === 'ledge' || (!item && len > 400 && rnd() < F.ledge)) && a1 - a0 > 90) {
+    if ((k === 'ledge' || pat === 'tente' || (!item && len > 400 && rnd() < F.ledge)) && a1 - a0 > 90) {
       const lx0 = a0 - 20 + rnd() * 40, lw = Math.min(a1 - lx0 + flight * 0.5, 190 + rnd() * 150);
       led = { x0: lx0, x1: lx0 + lw, y: ny - LEDGE_UP, c: Math.floor(rnd() * 3) };
       ledges.push(led);
@@ -1118,6 +1154,8 @@
       if (!item && led && sx > led.x1 - 40 && sx < led.x1 + flight * 0.85) continue; // tenteden inen kedinin onu bos kalsin
       let type;
       if (item) type = k === 'spike' ? 'spike' : k;
+      else if (pat === 'tabela') type = 'sign';
+      else if (pat === 'filo') type = rnd() < 0.75 ? 'roomba' : 'spike';
       else { // agirlikli secim: her engel turu kendi oraninda gelir
         const W8 = [['spike', 1], ['bar', F.bars * 1.3], ['jet', F.jets * 1.3], ['sticky', F.sticky], ['ac', F.ac * 1.2], ['sign', F.sign * 2.2], ['roomba', F.roomba * 3.2], ['power', F.power ? 0.14 : 0]];
         let r = rnd() * W8.reduce((a, w) => a + w[1], 0);
@@ -1372,7 +1410,9 @@
     const sp = speed * (p.stumble > 0 ? 0.7 : 1) * (onSticky() ? 0.8 : 1);
     const dx = sp * wdt;
     p.x += dx;
+    const g0 = Math.floor(p.gait * 2);
     p.gait += dx / (p.ground ? 58 : 80);
+    if (p.ground && p.slide <= 0 && Math.floor(p.gait * 2) !== g0 && state === 'play') sfx('step');
     if (balloonT > 0) { // balon: catilarin ustunde suzulur
       balloonT -= wdt;
       const ys = [platAt(p.x), platAt(p.x + 90), platAt(p.x + 180)].filter(Boolean).map((q) => q.y); // onundeki yuksek binayi onceden gor
@@ -2807,7 +2847,10 @@
     g.closePath();
     g.fillStyle = furGrad(g, hy - 8, hy + 7, shadeC(headCol, -0.1), headCol, mixC(headCol, c.belly, 0.45));
     g.fill();
+    g.strokeStyle = 'rgba(45,30,30,0.28)'; g.lineWidth = 0.6; g.stroke();
     g.save(); g.clip();
+    const hl = g.createRadialGradient(hx + 1, hy - 5, 0.5, hx + 1, hy - 4, 7); hl.addColorStop(0, 'rgba(255,255,255,0.2)'); hl.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = hl; g.fillRect(hx - 7, hy - 10, 14, 12); // alinda yumusak isik
     if (c.pattern === 'tabby') {
       g.strokeStyle = shadeC(c.fur2, 0.05); g.lineWidth = 1.1; g.lineCap = 'round';
       g.beginPath();
@@ -2828,9 +2871,14 @@
     if (c.pattern === 'tuxedo' || c.pattern === 'van' || c.pattern === 'spots' || c.pattern === 'calico') ell(g, hx + 7.5, hy + 4, 4.2, 2.6, -0.2, c.belly); // beyaz agiz cevresi
     else if (c.pattern !== 'points') ell(g, hx + 7, hy + 3.6, 3.8, 2.3, -0.2, mixC(c.fur, c.belly, 0.6));
     g.restore();
+    // yanak tuyleri (cenenin arkasinda kabarik)
+    g.fillStyle = mixC(headCol, c.belly, 0.25);
+    g.beginPath(); g.moveTo(hx - 6.2, hy + 1.5); g.lineTo(hx - 8, hy + 3.6); g.lineTo(hx - 6, hy + 4.2); g.lineTo(hx - 7.2, hy + 6.2); g.lineTo(hx - 4.4, hy + 6); g.closePath(); g.fill();
     // yakin kulak
     tri(g, [hx - 3.4, hy - 5.8], [hx - 1.2 + twitch, hy - 14.6], [hx + 3.4, hy - 6.6], earCol);
     tri(g, [hx - 2, hy - 6.6], [hx - 1.1 + twitch * 0.8, hy - 12.6], [hx + 1.9, hy - 7.1], 'rgba(232,160,168,0.75)');
+    g.strokeStyle = 'rgba(255,255,255,0.6)'; g.lineWidth = 0.35; // kulak ici tuyler
+    g.beginPath(); g.moveTo(hx - 0.6, hy - 7.4); g.lineTo(hx - 1.2 + twitch * 0.6, hy - 10.5); g.moveTo(hx + 0.6, hy - 7.2); g.lineTo(hx + 0.2 + twitch * 0.6, hy - 10); g.stroke();
     // goz
     const ex = hx + 5, ey = hy - 1.7;
     if (o.blink) {
@@ -2884,8 +2932,20 @@
     const bodyLow = c.pattern === 'tuxedo' || c.pattern === 'van' || c.pattern === 'spots' ? c.belly : mixC(c.fur, c.belly, 0.55);
     g.fillStyle = furGrad(g, pose.S[1] - sk.top, pose.S[1] + sk.belly, shadeC(c.fur, -0.12), c.fur, bodyLow);
     g.fill();
+    g.strokeStyle = 'rgba(45,30,30,0.28)'; g.lineWidth = 0.7; g.stroke(); // ince dis hat: sekil netlesir
     g.save(); g.clip();
     const S = pose.S, Hh = pose.H;
+    // isik ve golge: sirtta yumusak parlaklik, karin altinda golge
+    const sh2 = g.createLinearGradient(0, S[1] - sk.top, 0, S[1] + sk.belly);
+    sh2.addColorStop(0, 'rgba(255,255,255,0.16)'); sh2.addColorStop(0.35, 'rgba(255,255,255,0)'); sh2.addColorStop(0.8, 'rgba(0,0,0,0)'); sh2.addColorStop(1, 'rgba(40,25,25,0.16)');
+    g.fillStyle = sh2; g.fillRect(Hh[0] - 14, S[1] - sk.top - 4, S[0] - Hh[0] + 28, sk.top + sk.belly + 8);
+    // tuy dokusu: sirt boyunca kisa tuy cizgileri
+    g.lineWidth = 0.45;
+    for (let i = 0; i < 16; i++) {
+      const x = Hh[0] + 1 + i * ((S[0] - Hh[0]) / 16), y = S[1] - sk.top + 2.2 + (i % 3) * 1.6;
+      g.strokeStyle = i % 2 ? 'rgba(255,255,255,0.22)' : 'rgba(40,25,20,0.16)';
+      g.beginPath(); g.moveTo(x, y); g.lineTo(x - 1.6, y + 2.4); g.stroke();
+    }
     if (c.pattern === 'tabby') {
       g.strokeStyle = shadeC(c.fur2, 0.06);
       for (let i = 0; i < 7; i++) {
@@ -2986,6 +3046,11 @@
     drawLeg(g, sk, pose, 0, cols); drawLeg(g, sk, pose, 2, cols);
     bodyPath(g, sk, pose.S, pose.H, pose.arch);
     g.fillStyle = furGrad(g, pose.S[1] - sk.top, pose.S[1] + sk.belly, C.back, C.fur, C.belly); g.fill();
+    g.strokeStyle = 'rgba(45,30,25,0.3)'; g.lineWidth = 0.8; g.stroke();
+    g.save(); g.clip();
+    g.lineWidth = 0.6;
+    for (let i = 0; i < 14; i++) { const x = pose.H[0] + i * ((pose.S[0] - pose.H[0]) / 14), y = pose.S[1] - sk.top + 2.5 + (i % 3) * 2; g.strokeStyle = i % 2 ? 'rgba(255,240,220,0.25)' : 'rgba(60,40,20,0.18)'; g.beginPath(); g.moveTo(x, y); g.lineTo(x - 2.2, y + 3.4); g.stroke(); }
+    g.restore();
     drawLeg(g, sk, pose, 1, cols); drawLeg(g, sk, pose, 3, cols);
     const Hh = pose.H, S = pose.S;
     g.fillStyle = furGrad(g, Hh[1] - 9, Hh[1] + 10, C.back, C.fur, C.fur);
@@ -3192,6 +3257,13 @@
           }
           ctx.fillStyle = P.edge; rr(ctx, x - 4, y + wh + 2, ww + 8, 3.5, 1.5); ctx.fill(); // pervaz
           if (kis) { ctx.fillStyle = 'rgba(255,255,255,0.9)'; rr(ctx, x - 4, y + wh + 0.5, ww + 8, 3, 1.5); ctx.fill(); }
+          if (hsh === 6) { // kucuk balkon ve korkuluk
+            ctx.fillStyle = shadeA(wallA, -0.18); ctx.fillRect(x - 7, y + wh + 6, ww + 14, 3);
+            ctx.strokeStyle = shadeA(wallA, -0.35); ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(x - 7, y + wh - 6); ctx.lineTo(x + ww + 7, y + wh - 6);
+            for (let bx = x - 6; bx <= x + ww + 7; bx += 4) { ctx.moveTo(bx, y + wh - 6); ctx.lineTo(bx, y + wh + 6); }
+            ctx.stroke();
+          }
           if (hsh === 4 || (save.theme === 'ilkbahar' && hsh === 2)) { // saksi (susleme)
             ctx.fillStyle = '#c8724f'; rr(ctx, x - 2, y + wh + 5, ww + 4, 6, 2); ctx.fill();
             for (let i = 0; i < 3; i++) { const fx = x + 2 + i * 5.5, fy = y + wh + 3 - (i % 2) * 2; dot(ctx, fx, fy, 2.2, FLOWERS[(r + i) & 3]); dot(ctx, fx, fy, 0.8, '#fff3b0'); }
@@ -3199,6 +3271,8 @@
         }
       }
       if (ist) { ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.fillRect(q.x0, q.y + 12, q.x1 - q.x0, 7); for (let x = q.x0 + 6; x < q.x1 - 4; x += 14) { if (x < L || x > Rr) continue; dot(ctx, x, q.y + 15.5, 2.3, '#4f7fbf'); dot(ctx, x, q.y + 15.5, 0.9, '#d9534f'); } }
+      // yagmur borusu (binanin kosesinde)
+      if (q.x1 - q.x0 > 260) { ctx.fillStyle = shadeA(P.pipeA, -0.05); ctx.fillRect(q.x1 - 9, q.y + 9, 3.5, bottom - q.y); for (let y = q.y + 40; y < bottom; y += 70) ctx.fillRect(q.x1 - 10.5, y, 6.5, 2.5); }
       // yan yuzlerde yumusak golge (ara sokak derinligi)
       const lg = ctx.createLinearGradient(q.x0, 0, q.x0 + 12, 0);
       lg.addColorStop(0, 'rgba(0,0,0,0.18)'); lg.addColorStop(1, 'rgba(0,0,0,0)');
@@ -3339,6 +3413,22 @@
     for (let i = 0; i < 3; i++) { const ph = (clock * 2 + i / 3) % 1; dot(ctx, x + o.w + 3 + ph * 12, y - 3 - i * 2, 1.2, `rgba(150,140,130,${(0.5 * (1 - ph)).toFixed(2)})`); }
   }
   // bina arasi: arka duvar (ic avlu), sol bina ve duvarlardaki hortum/borular
+  function drawDeco() {
+    for (const q of plats) {
+      if (!q.deco || q.x1 < camX - 40 || q.x0 > camX + VW + 40) continue;
+      for (const d of q.deco) {
+        if (d.x < camX - 40 || d.x > camX + VW + 40) continue;
+        const base = q.y - 1, col = shadeA(mixA(P.cityA, P.wallA, 0.35), -0.05), dark = shadeA(mixA(P.cityA, P.wallA, 0.35), -0.22);
+        ctx.save(); ctx.globalAlpha = 0.85;
+        if (d.k === 'baca') { ctx.fillStyle = col; ctx.fillRect(d.x, base - 30, 12, 30); ctx.fillStyle = dark; ctx.fillRect(d.x - 2, base - 33, 16, 4); if (P.stars < 0.5) { ctx.globalAlpha = 0.25; dot(ctx, d.x + 6 + Math.sin(clock + d.v * 9) * 2, base - 40 - ((clock * 8 + d.v * 30) % 20), 4, '#ffffff'); } }
+        else if (d.k === 'anten') { ctx.strokeStyle = dark; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(d.x, base); ctx.lineTo(d.x, base - 46); for (let i = 0; i < 3; i++) { ctx.moveTo(d.x - 9 + i * 2, base - 40 + i * 7); ctx.lineTo(d.x + 9 - i * 2, base - 40 + i * 7); } ctx.stroke(); }
+        else if (d.k === 'canak') { ctx.strokeStyle = dark; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(d.x, base); ctx.lineTo(d.x + 2, base - 14); ctx.stroke(); ctx.fillStyle = col; ctx.beginPath(); ctx.ellipse(d.x + 3, base - 20, 5, 9, -0.5, 0, TAU); ctx.fill(); }
+        else if (d.k === 'depo') { ctx.fillStyle = col; rr(ctx, d.x, base - 26, 26, 22, 4); ctx.fill(); ctx.fillStyle = dark; ctx.fillRect(d.x + 3, base - 4, 3, 4); ctx.fillRect(d.x + 20, base - 4, 3, 4); ctx.fillRect(d.x, base - 18, 26, 2); }
+        else { ctx.fillStyle = col; ctx.fillRect(d.x, base - 18, 34, 18); ctx.fillStyle = dark; ctx.beginPath(); ctx.moveTo(d.x - 3, base - 18); ctx.lineTo(d.x + 17, base - 28); ctx.lineTo(d.x + 37, base - 18); ctx.closePath(); ctx.fill(); } // kucuk cati odasi
+        ctx.restore();
+      }
+    }
+  }
   function drawShaftBack() {
     for (const sh of shafts) {
       if (sh.x1 < camX - 60 || sh.x0 - 40 > camX + VW + 20) continue;
@@ -3675,6 +3765,7 @@
     drawRecord();
     drawShaftBack();
     drawPlats();
+    drawDeco();
     drawShaftFront();
     drawLedges();
     drawFinish();
@@ -4810,6 +4901,7 @@
     drawHouse();
     musicTick();
     rainAmbience();
+    cityAmbience(1 / 60);
     if (DEMO) {
       document.title = `state:${state} score:${score()} m:${meters()} t:${clock.toFixed(1)} speed:${Math.round(speed)}` +
         ` shieldHits:${shieldHits} lost:${stats.livesLost} coins:${coinCount}/${coinsSpawned} near:${stats.near}` +
