@@ -101,7 +101,7 @@ button { font: inherit; color: var(--ink); cursor: pointer; }
   transition: transform 0.12s ease, box-shadow 0.12s ease;
 }
 .big:active { transform: scale(0.97); }
-.big.play { font-size: 22px; padding: 16px 28px; }
+.big.play { font-size: 18px; padding: 13px 24px; background: rgba(255, 255, 255, 0.82); color: var(--ink); border: 1.5px solid rgba(214, 160, 130, 0.55); box-shadow: 0 3px 10px rgba(120, 100, 160, 0.12); } /* Cati Kosusu: sade, goze batmayan */
 .big.alt {
   font-size: 15px; flex: 1; padding: 12px 10px;
   background: var(--card); color: var(--ink);

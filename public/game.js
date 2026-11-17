@@ -33,6 +33,10 @@
   const MAX_SPEED = 365;     // ust hiz siniri (ilerisi rahat gorunsun, goz yorulmasin)
   const ROOMBA_V = 70;       // robot supurgenin kediye dogru hizi
   const BALLOON_T = 6, YAY_T = 10;
+  // Bina arasi (duvardan duvara): kedi dar araliga girer, duvarlar arasinda ziplayarak ust catiya tirmanir
+  const WJ_V = 500, WJ_VX = 330; // duvardan ziplama: yukari ve yana hiz
+  const WALL_SLIDE = 48;     // duvarda tutunurken asagi kayma hizi
+  const PASSAGE_H = 58;      // sol binanin altindaki gecit yuksekligi
 
   // Vakit paletleri: aydinlik ve ic acici pasteller (neon yok, yanip sonme yok).
   // hose = supurge hortumu, pipe = islak oluk borusu
@@ -180,9 +184,9 @@
   function currentEvent() {
     const d = new Date(), m = d.getMonth() + 1, day = d.getDate(), y = d.getFullYear();
     if ((m === 12 && day >= 15) || (m === 1 && day <= 7)) {
-      return { id: 'yilbasi-' + (m === 12 ? y : y - 1), name: 'Yılbaşı Şenliği', fx: 'snow', item: 'noel', goal: 600, text: "Sonsuz koşuda 600 m'ye ulaş, Noel Şapkası kazan" };
+      return { id: 'yilbasi-' + (m === 12 ? y : y - 1), name: 'Yılbaşı Şenliği', fx: 'snow', item: 'noel', goal: 600, text: "Çatı Koşusunda 600 m'ye ulaş, Noel Şapkası kazan" };
     }
-    if (m === 11) return { id: 'sonbahar-' + y, name: 'Sonbahar Şenliği', fx: 'leaves', item: 'yaprak', goal: 500, text: "Sonsuz koşuda 500 m'ye ulaş, Yaprak Taç kazan" };
+    if (m === 11) return { id: 'sonbahar-' + y, name: 'Sonbahar Şenliği', fx: 'leaves', item: 'yaprak', goal: 500, text: "Çatı Koşusunda 500 m'ye ulaş, Yaprak Taç kazan" };
     return null;
   }
   const COS_BY_ID = Object.fromEntries(COSMETICS.map((c) => [c.id, c]));
@@ -233,6 +237,7 @@
     crow:  { stat: 'crows',  tiers: [1, 2, 4, 6],         text: (n) => `Kargadan ${n} kez balık kap` },
     slide: { stat: 'slides', tiers: [3, 6, 10, 15],       text: (n) => `Tek turda ${n} kez kay` },
     box:   { stat: 'boxes',  tiers: [1, 2, 3, 4],         text: (n) => `Tek turda ${n} sürpriz kutu topla` },
+    shaft: { stat: 'shafts', tiers: [1, 2, 4, 6],         text: (n) => `Tek turda ${n} kez bina arasından tırman` },
     ledge: { stat: 'ledges', tiers: [2, 4, 7, 10],        text: (n) => `Tek turda ${n} tentede koş` },
   };
   const MISSION_REWARD = [30, 50, 80, 120];
@@ -288,6 +293,7 @@
     { kind: 'ledge', hint: ['Tente', 'Yukarıdaki tentelere zıpla, üstlerinde koşabilirsin. Balıklar orada!'] },
     { kind: 'jet', hint: ['Fıskiye', 'Açılıp kapanır. Açıkken üstünden atla, kapalıyken rahatça geç.'] },
     { kind: 'sticky', hint: ['Bal', 'Bala basınca yapışırsın. Zıplamak için iki kez dokun.'] },
+    { kind: 'shaft', hint: ['Duvardan duvara!', 'Bina arasına girince kedin duvara tutunur. Dokun: karşı duvara zıplar. Hortumlara değmeden yukarı tırman, üstteki çatıya çık!'] },
     { kind: 'empty', hint: ['Pati zıplaması', 'Bu boşluk çok geniş! Zıpla, havadayken bir kez daha dokun. Sağ üstteki patileri harcar.'] },
     { kind: 'ac', hint: ['Klima', 'Geniş ama alçak. Biraz erken zıpla.'] },
     { kind: 'roomba', hint: ['Robot süpürge', 'Sana doğru gelir! Zamanlamayı iyi ayarla, üstünden atla.'] },
@@ -406,6 +412,9 @@
     { id: 'istanbul', name: 'İstanbul',  icon: '🕌', fx: 'gulls',  mix: { skyBot: ['#fad3b6', 0.22], wall: ['#dcb79a', 0.3], city: ['#8e8bb0', 0.35], mark: ['#efd8c4', 0.25], edge: ['#a77e62', 0.25] } },
   ];
   const THEME_BY_ID = Object.fromEntries(THEMES.map((x) => [x.id, x]));
+  const SOFT = { wall: 0.45, edge: 0.4, mark: 0.35, hose: 0.2, city: 0.15 };
+  // binalarin kendi renkleri: krem, kum, soluk gul, acik gri-mavi (gunun saatine gore isikla karisir)
+  const BUILD_TINTS = [[236, 224, 206], [226, 208, 182], [222, 204, 206], [204, 213, 222]].map((c) => c.join(','));
   let PAL_NUM = [];
   function buildPalettes() {
     const th = THEME_BY_ID[save.theme] || THEMES[0];
@@ -415,7 +424,9 @@
         if (k === 'name') continue;
         if (typeof p[k] !== 'string') { o[k] = p[k]; continue; }
         const c = hexRgb(p[k]), m = th.mix[k];
-        o[k] = m ? c.map((v, i) => Math.round(v + (hexRgb(m[0])[i] - v) * m[1])) : c;
+        let cc = m ? c.map((v, i) => Math.round(v + (hexRgb(m[0])[i] - v) * m[1])) : c;
+        if (SOFT[k]) { const lum = 0.3 * cc[0] + 0.59 * cc[1] + 0.11 * cc[2]; cc = cc.map((v) => Math.round(v + (lum - v) * SOFT[k])); } // daha soluk, goz yormayan tonlar
+        o[k] = cc;
       }
       return o;
     });
@@ -923,7 +934,7 @@
   let run = null;
   let player = null, obstacles = [], coins = [], powerups = [], particles = [], floaters = [], crows = [];
   let speed = 0, dist = 0, bonus = 0, coinCount = 0, coinsSpawned = 0;
-  let ledges = [], balloonT = 0, yayT = 0, press = null;
+  let ledges = [], shafts = [], balloonT = 0, yayT = 0, press = null;
   let plats = [], trail = [], camX = 0, camY = 0, genX = 0, genY = 0, spawnDone = false;
   let shieldHP = 0, magnetT = 0, slowT = 0, invulnT = 0, shieldHits = 0;
   let lives = 3, maxLives = 3, tokluk = 100, energy = 3, energyMax = 3, energyT = 0, stickTaps = 0;
@@ -965,7 +976,7 @@
       return { bars: c.bars, power: c.power, long: false, jets: c.jets, sticky: c.sticky, ac: c.ac, crows: c.crows, dogs: c.dogs,
         sign: c.sign !== undefined ? c.sign : run.mode === 'level' ? (lv >= 1 ? 0.14 : 0.06) : 0,
         roomba: c.roomba !== undefined ? c.roomba : run.mode === 'level' && lv >= 4 ? Math.min(0.25, 0.1 + lv * 0.01) : 0,
-        ledge: c.ledge || 0, box: c.box || 0 };
+        ledge: c.ledge || 0, box: c.box || 0, shaft: c.shaft !== undefined ? c.shaft : run.mode === 'level' ? 0.14 : 0 };
     }
     const S = stageAt(stage), k = Math.max(0, stage - 1);
     return {
@@ -980,6 +991,7 @@
       sign: Math.min(0.28, 0.16 + 0.03 * stage),
       roomba: S.roomba ? Math.min(0.25, 0.1 + 0.025 * k) : 0,
       ledge: 0.5,
+      shaft: Math.min(0.22, 0.13 + 0.02 * stage),
       box: 0.08,
     };
   }
@@ -995,8 +1007,8 @@
   // Kedi kendi kendine saga kosar; dokununca ziplar, havada tekrar dokununca pati ziplamasi yapar.
   const SX = (wx) => (wx - camX) * ZOOM, SY = (wy) => (wy - camY) * ZOOM; // dunya -> ekran
   function reset() {
-    player = { x: 0, y: 0, vy: 0, ground: true, coyote: 0, buffer: 0, squash: 0, wiggle: 0, stumble: 0, gait: 0, air: 0, lastGy: 0, pati: false, minClr: 0, slide: 0, dropSlide: false, ledge: null };
-    ledges = []; balloonT = 0; yayT = 0;
+    player = { x: 0, y: 0, vy: 0, ground: true, coyote: 0, buffer: 0, squash: 0, wiggle: 0, stumble: 0, gait: 0, air: 0, lastGy: 0, pati: false, minClr: 0, slide: 0, dropSlide: false, ledge: null, shaft: null, wall: null, dir: 1, wallT: 0, camEase: 0 };
+    ledges = []; shafts = []; balloonT = 0; yayT = 0;
     plats = [{ x0: -500, x1: 900, y: 0, s: 0 }];
     obstacles = []; coins = []; powerups = []; particles = []; floaters = []; crows = []; trail = [];
     camX = -CAT_SX / ZOOM; camY = -(H * CAM_Y) / ZOOM;
@@ -1006,7 +1018,7 @@
     combo = 0; comboT = 0; runT = 0; jetClock = 0; missionT = 0; stickTaps = 0;
     chase = null; crowT = rand(7, 11); hintSlow = 0;
     pattern = null; points = 0;
-    stats = { fish: 0, near: 0, lines: 0, jets: 0, dashes: 0, powers: 0, livesLost: 0, cleanM: -1, dogs: 0, crows: 0, slides: 0, boxes: 0, ledges: 0 };
+    stats = { fish: 0, near: 0, lines: 0, jets: 0, dashes: 0, powers: 0, livesLost: 0, cleanM: -1, dogs: 0, crows: 0, slides: 0, boxes: 0, ledges: 0, shafts: 0 };
     stage = 0; weather = 'clear';
   }
 
@@ -1016,7 +1028,7 @@
   // dh kadar asagidaki (+) / yukaridaki (-) yuzeye inene kadar havada kalma suresi
   function airTime(dh, v = JUMP_V) { const disc = v * v + 2 * GRAV * dh; return disc < 0 ? 0 : (v + Math.sqrt(disc)) / GRAV; }
   function platAt(x) { for (const q of plats) if (x >= q.x0 && x <= q.x1) return q; return null; }
-  function addPlat(x0, x1, y) { const q = { x0, x1, y, s: Math.floor(rnd() * 3) }; plats.push(q); genX = x1; genY = y; return q; }
+  function addPlat(x0, x1, y) { const q = { x0, x1, y, s: Math.floor(rnd() * 4) }; plats.push(q); genX = x1; genY = y; return q; }
   // ziplama yayi boyunca balik dizisi (kalkis x0, yuzey y)
   function fishArc(x0, y, n, step) { for (let i = 1; i <= n; i++) { const t = (i * step) / speed; addCoin(x0 + i * step, y + arcY(t) - 14); } }
 
@@ -1050,10 +1062,11 @@
     }
 
     // yukseklik farki ve bosluk
-    let dh = Math.round((rnd() * 2 - 1) * 42);
+    let dh = Math.round((rnd() * 2 - 1) * 42 - genY * 0.18); // tirmanmalardan sonra yavasca eski yukseklige iner
     if (pat === 'merdiven') dh = -28;
     if (item) dh = k === 'gap' ? 20 : 0;
-    const ny = Math.max(-110, Math.min(110, genY + dh));
+    if (k === 'shaft' || (!item && pat === 'normal' && rnd() < F.shaft && run.lastShaft !== plats.length)) { buildShaft(item, sp); run.lastShaft = plats.length; return; }
+    const ny = genY + Math.max(-70, Math.min(80, dh));
     dh = ny - genY;
     const reach = sp * airTime(dh);
     let gap;
@@ -1145,6 +1158,27 @@
     if (pat === 'balik' || (!slots.length && rnd() < cfg.coins)) for (let x = x0 + 50; x < x0 + len - 50; x += 40) addCoin(x, ny - 16);
   }
 
+  // Bina arasi: onceki cati arali gin icine uzar (zemin), sag duvar ust binanin cephesi, sol duvarin altinda gecit vardir.
+  function buildShaft(item, sp) {
+    const A = plats[plats.length - 1];
+    const w = Math.round(124 + rnd() * 18), hgt = Math.round(230 + rnd() * 120 + Math.min(120, stage * 25));
+    const x0 = A.x1 + 50, x1 = x0 + w;
+    A.x1 = x1; // zemin gecidin ve araligin altinda devam eder
+    const yb = A.y, yt = A.y - hgt;
+    const sh = { x0, x1, yb, yt, haz: [] };
+    // duvarlardaki tehlikeler: hep bir taraf bos kalir, kayarak beklenebilir
+    let side = rnd() < 0.5 ? 0 : 1;
+    for (let y = yb - 110 - rnd() * 30; y > yt + 70; y -= 95 + rnd() * 45) {
+      if (rnd() < 0.78 || item) sh.haz.push({ side, y0: y - 30 - rnd() * 14, y1: y, kind: rnd() < 0.5 ? 'hose' : 'pipe' });
+      side = rnd() < 0.65 ? 1 - side : side;
+    }
+    for (let y = yb - 70; y > yt + 30; y -= 52) addCoin((x0 + x1) / 2 + (Math.floor((yb - y) / 52) % 2 ? -18 : 18), y);
+    if (item && item.hint) obstacles.push({ type: 'mark', x: x0 - 140, y: yb, w: 1, h: 1, hint: item.hint });
+    shafts.push(sh);
+    const len = Math.round(grand(520, 900) * Math.max(1, sp / 250));
+    addPlat(x1, x1 + len, yt);
+  }
+
   // ================= Kopek: Subway usulu kovalama =================
   // Her kosunun basinda 8-10 sn arkandan kosar, sonra yorulup geride kalir. Bir yere takilinca yine yetisir;
   // yakindayken bir daha takilirsan yakalar (bir can gider). Kedinin gectigi yolu izler, o nereden ziplarsa o da oradan ziplar.
@@ -1154,7 +1188,7 @@
     else { chase.phase = 'near'; chase.t = 0; chase.dur = rand(8, 10); chase.barkT = Math.min(chase.barkT, 0.25); }
     if (why) toast('Bekçi köpeği peşinde!', why, 1.8);
   }
-  const dogNear = () => !!(chase && chase.phase === 'near' && chase.gap < 190);
+  const dogNear = () => !!(chase && chase.phase === 'near' && chase.gap < 190 && !player.shaft); // kopek tirmanamaz
   function updateChase(dt, wdt) {
     if (!chase) return;
     const karabas = !!(run && run.cfg.dogsAll);
@@ -1252,6 +1286,17 @@
 
   function jump() {
     const p = player;
+    if (p.shaft) { // bina arasinda: duvardan karsi duvara
+      if (p.wall !== null || p.ground) {
+        p.dir = p.wall === 1 ? -1 : 1;
+        if (p.ground && p.wall === null) p.dir = 1;
+        p.wall = null; p.ground = false;
+        p.vy = -WJ_V * (yayT > 0 ? 1.15 : 1);
+        sfx('jump');
+        burst(p.x + (p.dir < 0 ? 10 : -10), p.y - 12, 'rgba(220,215,205,0.55)', 3, 50);
+      } else p.buffer = 0.16;
+      return;
+    }
     if (p.ground || p.coyote > 0) {
       if (onSticky() && stickTaps < 1) {
         stickTaps++;
@@ -1261,6 +1306,7 @@
         return;
       }
       stickTaps = 0;
+      p.jLedge = p.ledge;
       p.ground = false; p.coyote = 0; p.air = 0; p.pati = false; p.slide = 0; p.ledge = null;
       p.vy = -JUMP_V * (weather === 'rain' ? 0.95 : 1) * (yayT > 0 ? 1.28 : 1);
       p.jx = p.x; p.jy = p.y;
@@ -1270,12 +1316,12 @@
     }
     if (balloonT > 0) return;
     if (!p.pati && energy >= 1) { dash(); return; }
-    p.buffer = 0.13; // inise yakin dokunusu kacirma
+    p.buffer = 0.16; // inise yakin dokunusu kacirma
   }
   // Kayma: yerde yere yatip kayar (alcak tabelalarin altindan gecer); havada hizla iner ve inince kayar
   function slide() {
     const p = player;
-    if (balloonT > 0) return;
+    if (balloonT > 0 || p.shaft) return;
     if (p.ground) {
       if (p.slide <= 0.05) { sfx('slide'); stats.slides++; burst(p.x - 8, p.y, 'rgba(220,215,205,0.6)', 4, 60); }
       p.slide = SLIDE_T; p.buffer = 0;
@@ -1296,6 +1342,7 @@
   }
 
   function respawn() { // dustukten sonra bir sonraki duvarin basina konur
+    player.shaft = null; player.wall = null;
     const pl = plats.find((q) => q.x1 > player.x + 60);
     if (!pl) return;
     player.x = Math.max(pl.x0 + 26, player.x);
@@ -1311,14 +1358,25 @@
     p.wiggle = Math.max(0, p.wiggle - dt * 3);
     p.stumble = Math.max(0, p.stumble - dt);
     p.slide = Math.max(0, p.slide - wdt);
+    if (p.shaft) { updateShaft(dt, wdt); return; }
+    // bina arasina giris: sag duvara gelince tutunur
+    for (const sh of shafts) {
+      if (p.x + CAT_HW >= sh.x1 && p.x < sh.x1 && p.y > sh.yt + 4) {
+        p.shaft = sh; p.wall = 1; p.ground = false; p.ledge = null; p.slide = 0; p.vy = 0; p.wallT = 0; p.x = sh.x1 - 13; p.pati = false;
+        if (chase && chase.phase === 'near' && !(run && run.cfg.dogsAll)) chase.phase = 'away';
+        if (!run.shaftSeen) { run.shaftSeen = true; toast('Duvardan duvara!', 'Dokun: karşı duvara zıpla. Hortumlara değme!', 1.8); }
+        sfx('land');
+        return;
+      }
+    }
     const sp = speed * (p.stumble > 0 ? 0.7 : 1) * (onSticky() ? 0.8 : 1);
     const dx = sp * wdt;
     p.x += dx;
     p.gait += dx / (p.ground ? 58 : 80);
     if (balloonT > 0) { // balon: catilarin ustunde suzulur
       balloonT -= wdt;
-      const under = platAt(p.x);
-      if (under) p.lastGy = under.y;
+      const ys = [platAt(p.x), platAt(p.x + 90), platAt(p.x + 180)].filter(Boolean).map((q) => q.y); // onundeki yuksek binayi onceden gor
+      if (ys.length) p.lastGy = Math.min(...ys);
       p.ground = false; p.ledge = null; p.vy = 0; p.slide = 0;
       p.y += (p.lastGy - 128 - p.y) * Math.min(1, wdt * 2.5);
       if (balloonT <= 0) { if (!platAt(p.x + 30) || !platAt(p.x + 140)) balloonT = 0.05; else { invulnT = Math.max(invulnT, 1.2); floater('Balon söndü', '#ec8fa6'); } }
@@ -1332,7 +1390,7 @@
         else p.y = p.ledge.y;
       } else {
         const pl = platAt(p.x);
-        if (!pl) { p.ground = false; p.coyote = 0.09; p.vy = 0; p.air = 0; p.pati = false; }
+        if (!pl) { p.ground = false; p.coyote = 0.11; p.vy = 0; p.air = 0; p.pati = false; }
         else { p.y = pl.y; p.lastGy = pl.y; }
       }
     }
@@ -1366,11 +1424,68 @@
         respawn(); hit('fall'); return;
       }
     }
-    // kopek bu izi takip eder
+    // kopek bu izi takip eder (bina arasinda kopek tirmanamaz, geride kalir)
     trail.push({ x: p.x, y: p.y, air: !p.ground, vy: p.vy });
     while (trail.length > 2 && trail[1].x < p.x - DOG_AWAY - 40) trail.shift();
   }
 
+  // Bina arasinda tirmanma: duvarda yavasca kayar, dokununca karsi duvara capraz ziplar; ust catiya varinca cikar.
+  function updateShaft(dt, wdt) {
+    const p = player, sh = p.shaft;
+    const L = sh.x0 + 13, Rr = sh.x1 - 13;
+    const y0 = p.y;
+    if (p.wall !== null) {
+      p.wallT += wdt;
+      p.vy = Math.min(WALL_SLIDE, p.vy + 300 * wdt);
+      p.y += p.vy * wdt;
+      if (p.y >= sh.yb) { p.y = sh.yb; p.vy = 0; if (p.wall === 0) { p.wall = null; p.ground = true; } }
+      if (p.wall === 1 && p.y < sh.yt + 26) { exitShaft(); return; }
+      if (p.buffer > 0) { p.buffer = 0; jump(); }
+    } else if (p.ground) { // aralik zemininde saga kosar, duvara gelince tutunur
+      p.x += speed * 0.6 * wdt; p.gait += (speed * 0.6 * wdt) / 58;
+      if (p.x >= Rr) { p.x = Rr; p.wall = 1; p.ground = false; p.wallT = 0; }
+      if (p.buffer > 0) { p.buffer = 0; jump(); }
+    } else {
+      p.x += p.dir * WJ_VX * wdt;
+      p.vy += GRAV * wdt;
+      p.y += p.vy * wdt;
+      p.gait += wdt * 3;
+      if (p.y >= sh.yb) { p.y = sh.yb; p.vy = 0; p.ground = true; p.squash = 1; sfx('land'); }
+      if (p.dir > 0 && p.x >= Rr) {
+        if (p.y <= sh.yt + 6) { exitShaft(); return; }
+        p.x = Rr; p.wall = 1; p.vy = 0; p.wallT = 0; p.squash = 1; sfx('land');
+      } else if (p.dir < 0 && p.x <= L) {
+        p.x = L;
+        if (p.y < sh.yb - PASSAGE_H) { p.wall = 0; p.vy = 0; p.wallT = 0; p.squash = 1; sfx('land'); }
+      }
+      if (p.buffer > 0 && p.wall !== null) { p.buffer = 0; jump(); }
+      if (p.buffer > 0) p.buffer -= wdt;
+    }
+    if (y0 > p.y) points += ((y0 - p.y) / METER) * 0.6 * stageMult() * permMult(); // tirmanmak da puan kazandirir
+    // duvardaki hortum ve borular
+    if (invulnT <= 0 && balloonT <= 0) {
+      const near = p.x <= L + 6 ? 0 : p.x >= Rr - 6 ? 1 : -1;
+      for (const h of sh.haz) {
+        if (h.side !== near) continue;
+        if (p.y - 22 + diffOf().hit < h.y1 && p.y - diffOf().hit > h.y0) {
+          p.wall = null; p.ground = false; p.vy = 60; p.dir = near === 1 ? -1 : 1;
+          hit(h.kind === 'pipe' ? 'pipe' : 'spike');
+          break;
+        }
+      }
+    }
+  }
+  function exitShaft() {
+    const p = player, sh = p.shaft;
+    p.shaft = null; p.wall = null;
+    p.x = sh.x1 + 8; p.y = p.lastGy = sh.yt; p.vy = 0; p.ground = true; p.squash = 1; p.pati = false;
+    p.camEase = 0.8;
+    stats.shafts++;
+    bonus += 25;
+    floater('Tırmandın! +25', '#c9d8ea');
+    sfx('land'); sfx('meowShort');
+    trail = [];
+  }
   function aabb(ax0, ay0, ax1, ay1, bx0, by0, bx1, by1) { return ax0 < bx1 && ax1 > bx0 && ay0 < by1 && ay1 > by0; }
 
   function burst(x, y, color, n, sp) {
@@ -1383,6 +1498,14 @@
   // Demo botu: engelin hemen onunde, duvarin kenarinda ve acik fiskiyede ziplar; camasir ipinin altinda ziplamaz.
   function bot() {
     const p = player;
+    if (p.shaft) { // karsi duvarda varis yuksekliginde tehlike yoksa zipla
+      if (p.wall === null && !p.ground) return;
+      const target = p.wall === 1 ? 0 : 1, ay = p.y - 62;
+      const bad = !!p.shaft && p.shaft.haz.some((h) => h.side === target && ay - 22 < h.y1 + 6 && ay > h.y0 - 6);
+      const mine = p.shaft.haz.some((h) => h.side === p.wall && p.y - 20 < h.y1 + 6 && p.y + 30 > h.y0);
+      if ((!bad || mine || p.wallT > 1.4) && (p.wallT > 0.08 || p.ground)) jump();
+      return;
+    }
     if (!p.ground) {
       if (p.vy > 120 && !platAt(p.x + 24) && p.y > p.lastGy - 6 && energy > 0 && !p.pati) jump();
       return;
@@ -1478,12 +1601,12 @@
     invulnT = 1.1;
     player.stumble = 0.45;
     player.wiggle = 1;
-    toast(HIT_REASON[kind] || 'Takıldın!', 'Köpek arkanda! Bir daha takılırsan yakalar', 1.6);
+    toast(HIT_REASON[kind] || 'Takıldın!', player.shaft ? 'Duvardan kaydın, tekrar tırman!' : 'Köpek arkanda! Bir daha takılırsan yakalar', 1.6);
     burst(player.x, player.y - 14, '#e0a05f', 6, 110);
     vibrate(45);
     sfx('hit');
     sfx('meowShort');
-    startChase(null, chase ? chase.gap : CAT_SX + 120);
+    if (!player.shaft) startChase(null, chase ? chase.gap : CAT_SX + 120);
   }
   function loseLife(kind) {
     if (isTutorial()) { // egitimde can gitmez
@@ -1628,7 +1751,7 @@
     if (mode === 'tutorial' && !DEMO) { // egitimin ilk karti: ne yapacagini soyle
       state = 'hint';
       $('hintTitle').textContent = 'Hoş geldin! 🐾';
-      $('hintSub').textContent = 'Kedin çatıların üstünde koşacak. Ekrana dokununca zıplar, parmağını aşağı kaydırınca kayar. Hadi dene!';
+      $('hintSub').textContent = 'Kedin çatıların üstünde koşacak. Ekrana dokununca zıplar, parmağını aşağı kaydırınca kayar. Bina aralarında duvardan duvara zıplayarak tırmanır. Hadi dene!';
       $('hintCard').classList.remove('hidden');
       $('pauseBtn').classList.add('hidden');
     }
@@ -1640,7 +1763,7 @@
       player: { ...player }, plats, obstacles, coins: coins.map((c) => ({ x: c.x, y: c.y, f: c.f })), powerups,
       speed, dist, bonus, coinCount, coinsSpawned, genX, genY, spawnDone, camX, camY,
       shieldHP, magnetT, slowT, invulnT, shieldHits, stage, rngState, weather,
-      lives, maxLives, tokluk, energy, energyMax, energyT, runT, jetClock, stats, chase, ledges, balloonT, yayT,
+      lives, maxLives, tokluk, energy, energyMax, energyT, runT, jetClock, stats, chase, ledges, shafts, balloonT, yayT,
       points, pattern, revived: !!run.revived, bankedCount: run.bankedCount || 0,
     };
   }
@@ -1668,7 +1791,9 @@
     ({ speed, dist, bonus, coinCount, coinsSpawned, genX, genY, spawnDone, camX, camY,
       shieldHP, magnetT, slowT, invulnT, shieldHits, stage, rngState, weather,
       lives, maxLives, tokluk, energy, energyMax, energyT, runT, jetClock, stats, chase } = d);
-    ledges = d.ledges || []; balloonT = d.balloonT || 0; yayT = d.yayT || 0; player.ledge = null;
+    ledges = d.ledges || []; shafts = d.shafts || []; balloonT = d.balloonT || 0; yayT = d.yayT || 0; player.ledge = null;
+    if (player.shaft) player.shaft = shafts.find((q) => q.x0 === player.shaft.x0) || null;
+    if (!player.shaft) player.wall = null;
     points = d.points || dist / METER;
     pattern = d.pattern || null;
     run.revived = !!d.revived;
@@ -1692,7 +1817,7 @@
     lives = 1;
     tokluk = Math.max(tokluk, 70);
     chase = null;
-    if (!player.ground || !platAt(player.x)) respawn();
+    if (player.shaft) { /* bina arasinda kalir */ } else if (!player.ground || !platAt(player.x)) respawn();
     // kedinin hemen onundeki engelleri temizle ki geri donunce haksiz yere carpmasin
     obstacles = obstacles.filter((o) => o.type === 'mark' || o.x + o.w < player.x - 30 || o.x > player.x + speed * 1.6);
     player.buffer = 0; player.stumble = 0;
@@ -1872,13 +1997,21 @@
       plats = plats.filter((q) => q.x1 > cut);
       ledges = ledges.filter((l) => l.x1 > camX - 60);
       obstacles = obstacles.filter((o) => o.x + o.w > camX - 80);
+      shafts = shafts.filter((q) => q.x1 > camX - 80 || q === player.shaft);
       coins = coins.filter((c) => !c.taken && c.x > camX - 40);
       powerups = powerups.filter((p) => !p.taken && p.x > camX - 40);
 
       // kamera: yatayda kediyle sabit, dikeyde yalnizca duvar yuksekligi degisince yavasca kayar
-      camX = player.x - CAT_SX / ZOOM;
-      const ty = player.lastGy - (H * CAM_Y) / ZOOM;
-      camY += (ty - camY) * Math.min(1, dt * 1.6);
+      if (player.shaft) { // bina arasinda kamera araligi ortalar ve kediyle yukari cikar
+        const sh = player.shaft;
+        camX += ((sh.x0 + sh.x1) / 2 - VW * 0.5 - camX) * Math.min(1, dt * 3);
+        camY += (player.y - (H * 0.58) / ZOOM - camY) * Math.min(1, dt * 2.4);
+      } else {
+        const tx = player.x - CAT_SX / ZOOM;
+        if (player.camEase > 0) { player.camEase -= dt; camX += (tx - camX) * Math.min(1, dt * 5); } else camX = tx;
+        const ty = player.lastGy - (H * CAM_Y) / ZOOM;
+        camY += (ty - camY) * Math.min(1, dt * 1.6);
+      }
 
       if (run.mode === 'endless' || run.mode === 'daily') {
         const st = Math.floor(dist / (STAGE_M * METER));
@@ -2987,6 +3120,7 @@
     }
   }
 
+  function mixA(a, b, k) { const A = a.split(',').map(Number), B = b.split(',').map(Number); return A.map((v, i) => Math.round(v + (B[i] - v) * k)).join(','); }
   // "r,g,b" bicimindeki palet rengini acar (amt > 0) ya da koyulastirir (amt < 0)
   function shadeA(rgb, amt) {
     const [r, g, b] = rgb.split(",").map(Number);
@@ -3037,7 +3171,7 @@
     const win = ist ? (x, y, w, h) => archWin(ctx, x, y, w, h) : (x, y, w, h, r) => rr(ctx, x, y, w, h, r);
     for (const q of plats) {
       if (q.x1 < L || q.x0 > Rr) continue;
-      const wallA = shadeA(P.wallA, [0, -0.06, 0.05][q.s]).slice(4, -1);
+      const wallA = mixA(P.wallA, BUILD_TINTS[q.s % BUILD_TINTS.length], 0.55);
       ctx.fillStyle = `rgb(${wallA})`;
       ctx.fillRect(q.x0, q.y + 6, q.x1 - q.x0, bottom - q.y);
       // kat kat pencereler (cephe sabit, kediyle birlikte kayar)
@@ -3204,6 +3338,49 @@
     ctx.fillStyle = '#2b2f37'; ctx.fillRect(x + 3, y - 3, 5, 3); ctx.fillRect(x + o.w - 8, y - 3, 5, 3);
     for (let i = 0; i < 3; i++) { const ph = (clock * 2 + i / 3) % 1; dot(ctx, x + o.w + 3 + ph * 12, y - 3 - i * 2, 1.2, `rgba(150,140,130,${(0.5 * (1 - ph)).toFixed(2)})`); }
   }
+  // bina arasi: arka duvar (ic avlu), sol bina ve duvarlardaki hortum/borular
+  function drawShaftBack() {
+    for (const sh of shafts) {
+      if (sh.x1 < camX - 60 || sh.x0 - 40 > camX + VW + 20) continue;
+      const g = ctx.createLinearGradient(0, sh.yt - 60, 0, sh.yb);
+      g.addColorStop(0, shadeA(P.wallA, -0.18)); g.addColorStop(1, shadeA(P.wallA, -0.38));
+      ctx.fillStyle = g; ctx.fillRect(sh.x0 - 34, sh.yt - 60, sh.x1 - sh.x0 + 40, sh.yb - sh.yt + 62);
+      ctx.fillStyle = 'rgba(0,0,0,0.08)';
+      for (let y = sh.yt - 40; y < sh.yb - 10; y += 46) ctx.fillRect((sh.x0 + sh.x1) / 2 - 7, y, 14, 20); // kucuk havalandirma pencereleri
+      ctx.strokeStyle = shadeA(P.pipeA, -0.15); ctx.lineWidth = 3; // arka duvarda uzun su borusu
+      ctx.beginPath(); ctx.moveTo(sh.x0 + 18, sh.yt - 60); ctx.lineTo(sh.x0 + 18, sh.yb); ctx.stroke();
+    }
+  }
+  function drawShaftFront() {
+    for (const sh of shafts) {
+      if (sh.x1 < camX - 60 || sh.x0 - 40 > camX + VW + 20) continue;
+      // sol bina: ust catiya kadar yukselir, altinda kemerli gecit vardir
+      const lx0 = sh.x0 - 30, top = sh.yt - 46, pb = sh.yb - PASSAGE_H;
+      ctx.fillStyle = shadeA(P.wallA, 0.04); ctx.fillRect(lx0, top, 30, pb - top);
+      for (let y = top + 22; y < pb - 30; y += 48) { ctx.fillStyle = P.mark; rr(ctx, lx0 + 7, y, 16, 22, 3); ctx.fill(); ctx.fillStyle = P.stars > 0.2 ? `rgba(${P.winA},0.55)` : P.win; rr(ctx, lx0 + 9, y + 2, 12, 18, 2); ctx.fill(); }
+      ctx.fillStyle = P.edge; rr(ctx, lx0 - 3, top - 2, 36, 9, 3); ctx.fill();
+      ctx.fillStyle = shadeA(P.wallA, -0.12); ctx.beginPath(); ctx.moveTo(lx0, pb); ctx.lineTo(lx0 + 30, pb); ctx.lineTo(lx0 + 30, pb + 6); ctx.quadraticCurveTo(lx0 + 15, pb - 4, lx0, pb + 6); ctx.closePath(); ctx.fill();
+      const ig = ctx.createLinearGradient(sh.x0, 0, sh.x0 + 12, 0); ig.addColorStop(0, 'rgba(0,0,0,0.18)'); ig.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = ig; ctx.fillRect(sh.x0, top, 12, pb - top);
+      // duvarlardaki tehlikeler
+      for (const h of sh.haz) {
+        const wx = h.side === 0 ? sh.x0 : sh.x1, s2 = h.side === 0 ? 1 : -1, hh = h.y1 - h.y0;
+        if (h.kind === 'hose') {
+          const g = ctx.createLinearGradient(0, h.y0, 0, h.y1);
+          g.addColorStop(0, shadeA(P.hoseA, 0.15)); g.addColorStop(1, shadeA(P.hoseA, -0.2));
+          ctx.fillStyle = g; rr(ctx, h.side === 0 ? wx : wx - 13, h.y0, 13, hh, 5); ctx.fill();
+          ctx.fillStyle = 'rgba(60,20,30,0.16)'; for (let y = h.y0 + 5; y < h.y1 - 3; y += 7) ctx.fillRect(h.side === 0 ? wx : wx - 13, y, 13, 2);
+          ctx.fillStyle = '#4f5563'; rr(ctx, h.side === 0 ? wx : wx - 17, h.y1 - 6, 17, 7, 3); ctx.fill();
+        } else {
+          const g = ctx.createLinearGradient(0, h.y0, 0, h.y1);
+          g.addColorStop(0, shadeA(P.pipeA, 0.25)); g.addColorStop(1, shadeA(P.pipeA, -0.22));
+          ctx.fillStyle = g; rr(ctx, h.side === 0 ? wx : wx - 11, h.y0, 11, hh, 3); ctx.fill();
+          const ph = (clock * 0.9 + h.y0 * 0.01) % 1;
+          ell(ctx, wx + s2 * 13, h.y1 + ph * 30, 1.6, 2.4, 0, `rgba(120,170,220,${(0.85 * (1 - ph)).toFixed(2)})`);
+        }
+      }
+    }
+  }
   const AWN = [['#e8a0a8', '#fbeee2'], ['#8fb8de', '#f4f1ea'], ['#e9c46a', '#fbf3df']];
   function drawLedges() { // cizgili tenteler (ust rota)
     for (const l of ledges) {
@@ -3279,11 +3456,22 @@
     const p = player;
     const air = !p.ground ? Math.min(1, (p.lastGy - p.y) / 90) : 0;
     ctx.fillStyle = `rgba(0,0,0,${(0.16 * (1 - air * 0.6)).toFixed(3)})`;
-    if (platAt(p.x)) { ctx.beginPath(); ctx.ellipse(p.x + 2, (platAt(p.x) || p).y + 1, 16 * (1 - air * 0.4), 2.6, 0, 0, TAU); ctx.fill(); }
+    if (platAt(p.x) && !p.shaft) { ctx.beginPath(); ctx.ellipse(p.x + 2, (platAt(p.x) || p).y + 1, 16 * (1 - air * 0.4), 2.6, 0, 0, TAU); ctx.fill(); }
     ctx.save();
+    if (p.shaft && p.wall !== null) { // duvara tutunmus: bas yukarida, karni duvara donuk
+      const wx = p.wall === 1 ? p.shaft.x1 : p.shaft.x0;
+      ctx.translate(wx + Math.sin(clock * 40) * 1.2 * p.wiggle, p.y - 15);
+      if (invulnT > 0) ctx.globalAlpha = 0.55;
+      if (p.wall === 0) ctx.scale(-1, 1);
+      ctx.rotate(-Math.PI / 2);
+      ctx.scale(CAT_DRAW, CAT_DRAW);
+      drawCatSide(ctx, CAT_BY_ID[save.char], { gait: p.wallT * 0.6, ground: true, squash: p.squash }, clock, outfit());
+      ctx.restore();
+      return;
+    }
     ctx.translate(p.x + Math.sin(clock * 40) * 1.2 * p.wiggle, p.y);
     if (invulnT > 0) ctx.globalAlpha = 0.55;
-    ctx.scale(CAT_DRAW, CAT_DRAW);
+    ctx.scale(CAT_DRAW * (p.shaft && p.dir < 0 && !p.ground ? -1 : 1), CAT_DRAW);
     const moving = state === 'play' || state === 'hint';
     drawCatSide(ctx, CAT_BY_ID[save.char], { gait: p.gait, ground: p.ground, slide: p.slide > 0 && p.ground, vy: p.vy, squash: p.squash, stumble: p.stumble > 0 ? Math.min(1, p.stumble * 3) : 0, idle: !moving && p.ground }, clock, outfit());
     ctx.restore();
@@ -3485,7 +3673,9 @@
     ctx.scale(ZOOM, ZOOM);
     ctx.translate(-camX, -camY);
     drawRecord();
+    drawShaftBack();
     drawPlats();
+    drawShaftFront();
     drawLedges();
     drawFinish();
     for (const o of obstacles) if (o.type === 'sticky' && o.x < camX + VW && o.x + o.w > camX) drawSticky(o);
@@ -4112,7 +4302,7 @@
   const TOUR = [
     ['houseCv', 'Kedin burada yaşıyor', 'Parmağınla sürükleyip çevir, dokununca miyavlar.'],
     ['petActs', 'Kedine bak', 'Besle, yıka, sev, oyna, uyut. Mutlu kedi oyunda %10 fazla balık getirir.'],
-    ['endlessBtn', 'Sonsuz Koşu', 'Ne kadar uzağa gidebilirsin? Her 200 metre yeni bir kat.'],
+    ['endlessBtn', 'Çatı Koşusu', 'Ne kadar uzağa gidebilirsin? Her 200 metre yeni bir kat.'],
     ['dailyBtn', 'Günün Seferi', 'Herkes aynı parkurda yarışır. Günde 3 hakkın var.'],
     ['levelsBtn', 'Bölümler', '18 kat, Karabaş bölümleri ve yıldızlar seni bekliyor.'],
     ['houseFurn', 'Evi döşe', 'Balıklarla eşya al, kedinin odasını döşe.'],
@@ -4206,7 +4396,7 @@
   }
   function resume() { clearResume(); startCountdown(); }
 
-  const MODE_NAMES = { endless: 'Sonsuz Koşu', daily: 'Günün Seferi', level: 'Bölüm' };
+  const MODE_NAMES = { endless: 'Çatı Koşusu', daily: 'Günün Seferi', level: 'Bölüm' };
   function renderMenu() {
     renderHouse();
     $('playerBtn').textContent = save.playerName ? save.playerName + ' ✏️' : 'Adını yaz ✏️';
@@ -4474,15 +4664,27 @@
     if (save.sound || save.music) ac(); // tarayici sesi ilk dokunusta acar
     if (e.target.closest && e.target.closest('button, input, summary')) return;
     if (state === 'play' || state === 'pause' || state === 'over' || state === 'count' || state === 'hint') e.preventDefault();
-    if (state === 'play') { press = { x: e.clientX, y: e.clientY, t: performance.now(), done: false }; return; } // kisa bekle: kaydirma mi dokunus mu?
+    if (state === 'play') { // beklemeden zipla
+      const p = player, fromGround = (p.ground || p.coyote > 0) && !p.shaft;
+      jump();
+      press = { x: e.clientX, y: e.clientY, t: performance.now(), done: false, jumped: fromGround && !p.ground };
+      return;
+    }
     onTap();
   }, { passive: false });
   window.addEventListener('pointermove', (e) => {
     if (!press || press.done || state !== 'play') return;
     const dy = e.clientY - press.y;
-    if (dy > 22) { press.done = true; slide(); } else if (dy < -22) { press.done = true; jump(); }
+    if (dy > 18) {
+      press.done = true;
+      const p = player;
+      if (press.jumped && performance.now() - press.t < 180 && p.jy !== undefined && p.y > p.jy - 34 && p.vy < 0 && !p.shaft) { // yanlislikla baslayan ziplamayi geri al
+        p.y = p.jy; p.vy = 0; p.ground = true; p.ledge = p.jLedge || null; p.pati = false;
+      }
+      slide();
+    }
   });
-  const pressEnd = () => { if (press && !press.done && state === 'play') jump(); press = null; };
+  const pressEnd = () => { press = null; };
   window.addEventListener('pointerup', pressEnd);
   window.addEventListener('pointercancel', pressEnd);
 
@@ -4588,7 +4790,6 @@
   function frame(now) {
     const dt = Math.min(0.05, Math.max(0, (now - last) / 1000));
     last = now;
-    if (press && !press.done && state === 'play' && now - press.t > 75) { press.done = true; jump(); } // dokunus: 75 ms icinde kaydirma yoksa zipla
     if (state !== 'pause') update(dt);
     updatePreview(dt);
     updatePet(dt);
@@ -4620,7 +4821,7 @@
 
   if (THEME_BY_ID[params.get('theme')]) save.theme = params.get('theme'); // test icin
   const vs = Math.floor(Number(params.get('vs'))); // meydan okuma linkiyle gelindi
-  if (vs > 0 && vs < 100000 && !DEMO) { save.rival = { m: vs, beaten: false }; persist('rival'); setTimeout(() => showNote('Meydan okuma! 🏆', 'Arkadaşın ' + vs + ' m tırmandı. Sonsuz Koşuda onu geçebilir misin?'), 1500); }
+  if (vs > 0 && vs < 100000 && !DEMO) { save.rival = { m: vs, beaten: false }; persist('rival'); setTimeout(() => showNote('Meydan okuma! 🏆', 'Arkadaşın ' + vs + ' m tırmandı. Çatı Koşusuda onu geçebilir misin?'), 1500); }
   buildPalettes();
   setPalette(0, true);
   resize();
