@@ -2736,7 +2736,12 @@
   function quadPose(sk, st, t) {
     const S = [...sk.S], Hh = [...sk.H];
     let feet, rot = 0, headDy = 0, tailA, arch = 0;
-    if (st.idle) { // ayakta, nefes alir
+    if (st.sit) { // oturur: kalca yerde, on bacaklar dik, arka bacaklar katli; nefes alir
+      const br = Math.sin(t * 2.2) * 0.4;
+      S[0] = 7; S[1] = -22 + br; Hh[0] = -6; Hh[1] = -8.5 + br * 0.3;
+      feet = [[Hh[0] + 7, 0], [Hh[0] + 9, 0], [S[0] + 0.5, 0], [S[0] + 2.5, 0]];
+      tailA = Math.PI - 0.62; arch = -2; headDy = -2.5;
+    } else if (st.idle) { // ayakta, nefes alir
       const br = Math.sin(t * 2.2) * 0.5;
       S[1] += br * 0.4; Hh[1] += br * 0.3;
       feet = [[Hh[0] + 1.5, 0], [Hh[0] - 1.5, 0], [S[0] + 2.5, 0], [S[0] - 0.5, 0]];
@@ -2802,15 +2807,36 @@
       const [ex, ey, fx, fy] = ik(ax, ay, f[0], f[1] - 1.4, sk.fore[0], sk.fore[1], 1);
       seg(g, ax, ay, ex, ey, sk.top * 0.78, up, sk === CAT_SK);
       seg(g, ex, ey, fx, fy, sk.top * 0.5, low, sk === CAT_SK);
-      ell(g, fx + 0.9, fy + 0.2, sk.top * 0.38, sk.top * 0.22, 0, low, sk === CAT_SK);
+      if (sk === CAT_SK && fy > -0.6) ell(g, fx + 1, 0.5, sk.top * 0.42, 0.55, 0, 'rgba(0,0,0,0.2)');
+      ell(g, fx + 0.9, fy + 0.2, sk.top * 0.38, sk.top * 0.22, 0, low);
     } else {
       const hx = f[0] + sk.meta[0], hy = f[1] + sk.meta[1];
       const [kx, ky] = ik(ax, ay, hx, hy, sk.hind[0], sk.hind[1], -1);
       seg(g, ax, ay, kx, ky, sk.top * 0.95, up, sk === CAT_SK);
       seg(g, kx, ky, hx, hy, sk.top * 0.55, low, sk === CAT_SK);
       seg(g, hx, hy, f[0], f[1] - 1.2, sk.top * 0.44, low, sk === CAT_SK);
-      ell(g, f[0] + 0.9, f[1] - 0.3, sk.top * 0.38, sk.top * 0.22, 0, low, sk === CAT_SK);
+      if (sk === CAT_SK && f[1] > -0.6) ell(g, f[0] + 1, 0.5, sk.top * 0.42, 0.55, 0, 'rgba(0,0,0,0.2)');
+      ell(g, f[0] + 0.9, f[1] - 0.3, sk.top * 0.38, sk.top * 0.22, 0, low);
     }
+  }
+  function tailSim(sk, pose, sim, curl, wave, t, vy) {
+    const N = sk.tailN;
+    if (!sim.a) { sim.a = new Array(N).fill(curl); sim.v = new Array(N).fill(0); sim.root = pose.tailA; sim.rv = 0; sim.t = t; sim.vy = vy || 0; }
+    const dt = Math.min(0.04, Math.max(0, t - sim.t)); sim.t = t;
+    const acc = dt > 0 ? ((vy || 0) - sim.vy) / dt : 0; sim.vy = vy || 0;
+    const kick = Math.max(-2500, Math.min(2500, acc)) * 0.0011; // govdenin ani hiz degisimi kuyrugu savurur
+    if (dt > 0) {
+      sim.rv += (60 * (pose.tailA - sim.root) - 8 * sim.rv + kick * 0.6) * dt; sim.root += sim.rv * dt;
+      for (let i = 0; i < N; i++) {
+        const target = curl + Math.sin(t * 4.2 - i * 0.55) * wave * (0.6 + i * 0.1);
+        sim.v[i] += (75 * (target - sim.a[i]) - 7 * sim.v[i] + kick * (0.4 + i * 0.12)) * dt;
+        sim.a[i] += sim.v[i] * dt;
+      }
+    }
+    const pts = [[pose.H[0] - 2, pose.H[1] - sk.top * 0.55]];
+    let a = sim.root;
+    for (let i = 1; i <= N; i++) { a += sim.a[i - 1]; const p = pts[i - 1]; pts.push([p[0] + Math.cos(a) * sk.tailL, p[1] + Math.sin(a) * sk.tailL]); }
+    return pts;
   }
   function tailPoints(sk, pose, t, curl, wave, vy) {
     const pts = [[pose.H[0] - 2, pose.H[1] - sk.top * 0.55]];
@@ -2835,8 +2861,9 @@
     const headCol = c.pattern === 'points' ? c.fur : c.fur;
     const earCol = c.pattern === 'points' ? c.fur2 : c.pattern === 'van' ? c.fur2 : c.fur;
     const twitch = (t % 5.3) < 0.18 ? Math.sin(((t % 5.3) / 0.18) * Math.PI) * 1.2 : 0;
+    const eb = o.earBack || 0, ebx = -3.6 * eb, eby = 2.6 * eb; // ruzgarda kulaklar geriye yatar
     // uzak kulak
-    tri(g, [hx - 4.8, hy - 4.5], [hx - 3.4 + twitch * 0.3, hy - 13.4], [hx - 0.2, hy - 5.6], shadeC(earCol, -0.25));
+    tri(g, [hx - 4.8, hy - 4.5], [hx - 3.4 + twitch * 0.3 + ebx, hy - 13.4 + eby], [hx - 0.2, hy - 5.6], shadeC(earCol, -0.25));
     // kafa (yandan): ense, alin, burun kemeri, burun, cene
     g.beginPath();
     g.moveTo(hx - 6.6, hy + 3.2);
@@ -2889,8 +2916,8 @@
     g.fillStyle = mixC(headCol, c.belly, 0.25);
     g.beginPath(); g.moveTo(hx - 6.2, hy + 1.5); g.lineTo(hx - 8, hy + 3.6); g.lineTo(hx - 6, hy + 4.2); g.lineTo(hx - 7.2, hy + 6.2); g.lineTo(hx - 4.4, hy + 6); g.closePath(); g.fill();
     // yakin kulak
-    tri(g, [hx - 3.4, hy - 5.8], [hx - 1.2 + twitch, hy - 14.6], [hx + 3.4, hy - 6.6], earCol);
-    tri(g, [hx - 2, hy - 6.6], [hx - 1.1 + twitch * 0.8, hy - 12.6], [hx + 1.9, hy - 7.1], 'rgba(232,160,168,0.75)');
+    tri(g, [hx - 3.4, hy - 5.8], [hx - 1.2 + twitch + ebx, hy - 14.6 + eby], [hx + 3.4, hy - 6.6], earCol);
+    tri(g, [hx - 2, hy - 6.6], [hx - 1.1 + twitch * 0.8 + ebx * 0.85, hy - 12.6 + eby * 0.85], [hx + 1.9, hy - 7.1], 'rgba(232,160,168,0.75)');
     g.strokeStyle = 'rgba(255,255,255,0.6)'; g.lineWidth = 0.35; // kulak ici tuyler
     g.beginPath(); g.moveTo(hx - 0.6, hy - 7.4); g.lineTo(hx - 1.2 + twitch * 0.6, hy - 10.5); g.moveTo(hx + 0.6, hy - 7.2); g.lineTo(hx + 0.2 + twitch * 0.6, hy - 10); g.stroke();
     // goz
@@ -2905,7 +2932,7 @@
       ig.addColorStop(0, shadeC(c.eyes[0], 0.35)); ig.addColorStop(1, shadeC(c.eyes[0], -0.2));
       g.fillStyle = ig; g.fillRect(ex - 3, ey - 3, 6, 6);
       g.strokeStyle = shadeC(c.eyes[0], -0.45); g.lineWidth = 0.35; g.beginPath(); g.arc(ex + 0.4, ey, 1.75, 0, TAU); g.stroke(); // irisin koyu dis halkasi
-      ell(g, ex + 0.7, ey, 0.5, 1.45, 0, '#141114'); // dikey goz bebegi
+      const dil = o.dilate || 0; ell(g, ex + 0.65, ey, 0.5 + dil * 0.85, 1.45 - dil * 0.05, 0, '#141114'); // goz bebegi: gunduz ince, gece yuvarlak
       g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(ex - 3, ey - 2.2, 6, 1.1); // ust kapak golgesi
       g.restore();
       dot(g, ex + 1.15, ey - 0.75, 0.42, 'rgba(255,255,255,0.95)');
@@ -2993,7 +3020,8 @@
     g.translate(0, -18); g.rotate(pose.rot); g.translate(0, 18);
     // kuyruk
     const tcol = c.pattern === 'points' || c.pattern === 'van' ? c.fur2 : c.fur;
-    const pts = tailPoints(sk, pose, t, st.idle ? -0.13 : -0.035, st.idle ? 0.05 : 0.07, st.vy);
+    const curl = st.sit ? 0.105 : st.idle ? -0.13 : -0.035, wave = st.sit ? 0.035 : st.idle ? 0.05 : 0.07;
+    const pts = st.tail ? tailSim(sk, pose, st.tail, curl, wave, t, st.vy) : tailPoints(sk, pose, t, curl, wave, st.vy);
     const tailCol = (i, k) => (c.pattern === 'tabby' && i % 3 === 2 ? c.fur2 : c.pattern === 'tabby' && k > 0.85 ? c.fur2 : shadeC(tcol, -0.08 * (1 - k)));
     g.globalAlpha *= 0.4; drawTail(g, { ...sk, tailW: [sk.tailW[0] + 1.8, sk.tailW[1] + 1.4] }, pts, tailCol); g.globalAlpha /= 0.4; // kabarik tuy hali
     drawTail(g, sk, pts, tailCol);
@@ -3032,6 +3060,9 @@
       ell(g, S[0] + 4, S[1] + 2, 6, 7.5, 0.3, c.belly); // beyaz gogus
     }
     furInside(g, sk, S, Hh); // desenlerin ustunden tuy dokusu
+    const rim = g.createLinearGradient(0, S[1] - sk.top - 1, 0, S[1] - sk.top + 4);
+    rim.addColorStop(0, 'rgba(255,248,230,0.5)'); rim.addColorStop(1, 'rgba(255,248,230,0)');
+    g.strokeStyle = rim; g.lineWidth = 1.6; bodyPath(g, sk, S, Hh, pose.arch); g.stroke(); // sirtta gunes isigi
     g.restore();
     // kalca kasi, sonra yakin bacaklar
     const thighCol = c.fur;
@@ -3055,7 +3086,8 @@
     g.fill();
     if (wear && wear.neck) { g.save(); g.translate(hx - 3.5, hy + 5.5); g.scale(0.75, 0.75); drawNeckItem(g, wear.neck, 0, 0, 1, t); g.restore(); }
     g.save(); g.translate(hx, hy); g.scale(0.9, 0.9); g.translate(-hx, -hy);
-    drawCatHead(g, c, hx, hy, t, { blink: (t % 4.3) < 0.12, mouth: st.mouth || 0 });
+    const bt = t % 5.7, blink = bt < 0.11 || (bt > 2.9 && bt < 3.0) || (bt > 3.12 && bt < 3.2); // bazen tek, bazen cift goz kirpma
+    drawCatHead(g, c, hx, hy, t, { blink, mouth: st.mouth || 0, earBack: st.earBack || 0, dilate: st.dilate || 0 });
     g.restore();
     if (wear && (wear.face || wear.hat)) {
       g.save(); g.translate(hx + 0.5, hy - 0.2); g.scale(0.82, 0.82);
@@ -3636,7 +3668,7 @@
     if (invulnT > 0) ctx.globalAlpha = 0.55;
     ctx.scale(CAT_DRAW * (p.shaft && p.dir < 0 && !p.ground ? -1 : 1), CAT_DRAW);
     const moving = state === 'play' || state === 'hint';
-    drawCatSide(ctx, CAT_BY_ID[save.char], { gait: p.gait, ground: p.ground, slide: p.slide > 0 && p.ground, vy: p.vy, squash: p.squash, stumble: p.stumble > 0 ? Math.min(1, p.stumble * 3) : 0, idle: !moving && p.ground }, clock, outfit());
+    drawCatSide(ctx, CAT_BY_ID[save.char], { gait: p.gait, ground: p.ground, slide: p.slide > 0 && p.ground, vy: p.vy, squash: p.squash, stumble: p.stumble > 0 ? Math.min(1, p.stumble * 3) : 0, idle: false, sit: !moving && p.ground && !p.shaft, tail: p.tailSim || (p.tailSim = {}), earBack: moving ? (p.ground ? 0.45 : 0.85) : 0, dilate: P ? Math.min(1, P.stars * 1.5) : 0 }, clock, outfit());
     ctx.restore();
     if (balloonT > 0) { // kediyi tasiyan balonlar
       const bx = p.x - 4, by = p.y - 74;
