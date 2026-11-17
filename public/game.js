@@ -282,6 +282,18 @@
     { name: 'Büyük Kaçış',      goal: 650, speed: 340, react: [0.42, 0.27], bars: 0.35, jets: 0.25, sticky: 0.2, power: true, pal: 5, dark: true, dogsAll: 1.3, karabas: true },
   ];
 
+  // Bolumler 80 olur: ilk 18 el yapimi, gerisi giderek zorlasan mahalle sokaklari (her 10. bolum Karabas)
+  { const N1 = ['Kadıköy', 'Balat', 'Cihangir', 'Moda', 'Kuzguncuk', 'Fener', 'Galata', 'Ortaköy', 'Bebek', 'Üsküdar', 'Karaköy', 'Kuledibi', 'Arnavutköy', 'Samatya', 'Beşiktaş', 'Tophane', 'Kumkapı', 'Emirgan', 'Cibali', 'Yeldeğirmeni'];
+    const N2 = ['Çatıları', 'Sokakları', 'Arası', 'Damları', 'Gecesi', 'Sabahı', 'Yokuşu', 'Pazarı'];
+    for (let i = LEVELS.length; i < 80; i++) {
+      const d = (i - 18) / 61;
+      const lv = { name: N1[i % N1.length] + ' ' + N2[Math.floor(i / 3) % N2.length], goal: Math.round(450 + d * 550), speed: Math.round(300 + d * 70),
+        react: [0.46 - d * 0.06, 0.3 - d * 0.05], bars: 0.2 + 0.3 * d, jets: 0.15 + 0.15 * d, sticky: 0.1 + 0.2 * d, ac: 0.2 + 0.2 * d,
+        power: true, pal: i % 7, crows: true, dogs: true, dark: i % 7 === 5, weather: ['clear', 'rain', 'clear', 'fog'][i % 4] };
+      if (i % 10 === 9) Object.assign(lv, { name: 'Karabaş: ' + lv.name, dogsAll: 1 + d * 0.3, karabas: true });
+      LEVELS.push(lv);
+    }
+  }
   // Egitim: her mekanigi sirayla, yavaslatilmis ortamda gosterir (can gitmez)
   const TUTORIAL = { name: 'Eğitim', speed: 200, ramp: 0, cap: 0, react: [0.9, 0.9], len: [70, 84, 84], coins: 0.8, sameMax: 2, hunger: true, power: true, pal: 1, weather: 'clear', bars: 0, jets: 0, sticky: 0, ac: 0, crows: false, dogs: false };
   const TUTORIAL_SCRIPT = [
@@ -569,7 +581,7 @@
     audio.ctx = c;
   }
   // Gercek kayitlar (telifsiz: CC0 / kamu mali, kaynaklar sounds/KAYNAKLAR.txt). Yuklenemezse kodla uretilen ses calar.
-  const SAMPLE_FILES = ['miyav3', 'mirlama', 'havlama']; // havlama.mp3 varsa gercek kayit calar, yoksa kodla uretilir
+  const SAMPLE_FILES = ['miyav1', 'miyav2', 'mirlama', 'havlama']; // havlama.mp3 varsa gercek kayit calar, yoksa kodla uretilir
   const samples = {};
   let samplesRequested = false;
   function loadSamples() {
@@ -852,10 +864,10 @@
   }
 
   // ---------- Kedi sesi: butun kediler ayni, dogal miyavi kullanir ----------
-  const MEOW_SAMPLE = 'miyav3';
+  const MEOW_SAMPLES = ['miyav1', 'miyav2']; // yeni miyav: ayni kedinin iki dogal kaydi
   const KIND_VOL = { normal: 0.8, short: 0.6, sad: 0.75, happy: 0.8 };
   function catVoice(kind = 'normal') {
-    if (!playSample(MEOW_SAMPLE, { vol: KIND_VOL[kind] || 0.8, rate: 1 })) catMeow(kind, 0, 1);
+    if (!playSample(pickOne(MEOW_SAMPLES), { vol: KIND_VOL[kind] || 0.8, rate: 1 })) catMeow(kind, 0, 1);
   }
 
   // ---------- Oyuncak sesleri (kodla) ----------
