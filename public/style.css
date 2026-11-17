@@ -345,7 +345,7 @@ button { font: inherit; color: var(--ink); cursor: pointer; }
 .event .bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #ffb48f, #ff8f70); }
 
 /* ---------- Kedi evi ve fotograf ---------- */
-.room { width: min(330px, calc(var(--gw) - 30px)); height: auto; aspect-ratio: 1; touch-action: none; border-radius: 20px; box-shadow: var(--shadow); }
+.room { width: min(340px, calc(var(--gw) - 20px)); height: auto; aspect-ratio: 300 / 390; touch-action: none; border-radius: 20px; box-shadow: var(--shadow); }
 .up.hs { align-items: flex-start; }
 .photo { width: 260px; border-radius: 18px; box-shadow: var(--shadow); user-select: auto; -webkit-user-select: auto; -webkit-touch-callout: default; }
 a.big { text-decoration: none; display: flex; align-items: center; justify-content: center; }
