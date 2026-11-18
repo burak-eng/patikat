@@ -1,6 +1,7 @@
 // Patikat 3B deneme surumu: kedi arkadan gorulur, uc seritli catilarda kosar.
 // Kontroller: kaydir (sol/sag = serit, yukari = zipla, asagi = kay) ya da ok tuslari.
 import * as THREE from './lib/three.module.js';
+import { makeCat, furMat, sphere } from './cat3d.js';
 
 const $ = (id) => document.getElementById(id);
 const params = new URLSearchParams(location.search);
@@ -99,71 +100,6 @@ function boxGeo(w, h, d, tu = 5, tv = 6) {
 }
 
 // ================= Kedi (tombul, yumusak tuylu) =================
-function furMat(color, sheen, map) {
-  return new THREE.MeshStandardMaterial({ color, map: map || null, roughness: 0.92, emissive: new THREE.Color(sheen), emissiveIntensity: 0.06 });
-}
-const tabbyTex = canvasTex(512, 256, (g, w, h) => { // kure kutuplari omurga ekseninde: halkalar = tekir cizgileri, u=0.75 sirt
-  for (let x = 0; x < w; x++) {
-    const u = x / w, back = Math.max(0, Math.cos((u - 0.75) * Math.PI * 2)); // sirtta 1, karinda 0
-    const c = new THREE.Color(0xf4dcc2).lerp(new THREE.Color(0xe39a52), Math.min(1, 0.35 + back * 0.9));
-    g.fillStyle = '#' + c.getHexString(); g.fillRect(x, 0, 1, h);
-  }
-  for (let i = 0; i < 9; i++) { // dalgali, sirtta koyu, yanlarda solan cizgiler
-    const y0 = 30 + i * 23 + rand(-3, 3), th = rand(5, 9);
-    for (let x = 0; x < w; x++) {
-      const u = x / w, back = Math.max(0, Math.cos((u - 0.75) * Math.PI * 2));
-      if (back < 0.25) continue;
-      g.fillStyle = `rgba(176,104,46,${(0.75 * (back - 0.25)).toFixed(3)})`;
-      g.fillRect(x, y0 + Math.sin(u * 30 + i) * 3, 1, th * back);
-    }
-  }
-});
-tabbyTex.wrapT = THREE.ClampToEdgeWrapping;
-
-const sphereCache = new Map();
-function sphere(r, mat, ws = 18, hs = 12) { const k = r.toFixed(3) + '|' + ws; if (!sphereCache.has(k)) sphereCache.set(k, new THREE.SphereGeometry(r, ws, hs)); return new THREE.Mesh(sphereCache.get(k), mat); }
-function makeCat() {
-  const C = { fur: furMat(0xffffff, 0xffe6c8, tabbyTex), plain: furMat(0xe8a25c, 0xffe2bf), cream: furMat(0xf6e4cf, 0xffffff), pink: new THREE.MeshStandardMaterial({ color: 0xe8a0aa, roughness: 0.6 }),
-    eye: new THREE.MeshStandardMaterial({ color: 0x2a3a24, roughness: 0.15, metalness: 0.1 }), white: new THREE.MeshBasicMaterial({ color: 0xffffff }), ring: furMat(0xc9813f, 0xffd9b0) };
-  const root = new THREE.Group(), body = new THREE.Group();
-  root.add(body);
-  // govde: kutuplari omurga boyunca, tombul
-  const torsoGeo = new THREE.SphereGeometry(0.5, 40, 28); torsoGeo.rotateX(Math.PI / 2);
-  const torso = new THREE.Mesh(torsoGeo, C.fur); torso.castShadow = true;
-  torso.scale.set(0.82, 0.74, 1.08); torso.position.set(0, 0.5, 0.02); body.add(torso);
-  const rump = sphere(0.36, C.plain); rump.scale.set(1.05, 0.95, 0.9); rump.position.set(0, 0.5, 0.3); body.add(rump); // tombul kalca
-  const chest = sphere(0.3, C.cream); chest.scale.set(1, 1, 0.8); chest.position.set(0, 0.47, -0.4); body.add(chest);
-  // bas
-  const head = new THREE.Group(); head.position.set(0, 0.92, -0.46); head.scale.setScalar(1.2); body.add(head); // buyuk yuvarlak bas (Kedim ekranindaki kedi gibi)
-  const skullGeo = new THREE.SphereGeometry(0.31, 36, 26); skullGeo.rotateX(Math.PI / 2);
-  const skull = new THREE.Mesh(skullGeo, C.fur); skull.castShadow = true; skull.scale.set(1.12, 0.96, 0.98); head.add(skull);
-  for (const s of [-1, 1]) {
-    const cheek = sphere(0.15, C.plain); cheek.position.set(s * 0.2, -0.09, -0.08); cheek.scale.set(1, 0.85, 1); head.add(cheek); // yanak tuyleri
-    const ear = new THREE.Mesh(new THREE.ConeGeometry(0.13, 0.26, 16), C.plain); ear.castShadow = true;
-    ear.position.set(s * 0.17, 0.27, 0.0); ear.rotation.z = -s * 0.32; head.add(ear);
-    const inner = new THREE.Mesh(new THREE.ConeGeometry(0.075, 0.16, 12), C.pink); inner.position.set(s * 0.165, 0.25, -0.045); inner.rotation.z = -s * 0.32; head.add(inner);
-    const eye = sphere(0.09, C.eye, 20, 14); eye.position.set(s * 0.13, 0.04, -0.25); eye.scale.set(1, 1.2, 0.6); head.add(eye); // iri gozler
-    const glint = sphere(0.022, C.white, 8, 6); glint.position.set(s * 0.13 + 0.02, 0.08, -0.305); head.add(glint);
-    const muzzle = sphere(0.085, C.cream); muzzle.position.set(s * 0.055, -0.1, -0.27); head.add(muzzle);
-  }
-  const nose = sphere(0.035, C.pink, 12, 8); nose.position.set(0, -0.04, -0.33); nose.scale.set(1.2, 0.8, 0.8); head.add(nose);
-  // bacaklar: omuz ve kalca eklemleri (tek govdeye bagli: on ve arka birlikte hareket eder)
-  const legs = [];
-  const mkLeg = (x, z, front) => {
-    const pivot = new THREE.Group(); pivot.position.set(x, front ? 0.36 : 0.4, z); body.add(pivot);
-    if (!front) { const thigh = sphere(0.17, C.plain); thigh.position.set(0, -0.02, 0.02); thigh.scale.set(0.8, 1.1, 1.05); pivot.add(thigh); }
-    const leg = new THREE.Mesh(new THREE.CapsuleGeometry(0.085, 0.2, 6, 14), C.plain); leg.castShadow = true; leg.position.y = -0.17; pivot.add(leg);
-    const paw = sphere(0.1, C.cream, 16, 12); paw.scale.set(1, 0.7, 1.25); paw.position.set(0, -0.34, -0.03); pivot.add(paw);
-    legs.push(pivot); return pivot;
-  };
-  mkLeg(-0.17, -0.3, true); mkLeg(0.17, -0.3, true); mkLeg(-0.19, 0.3, false); mkLeg(0.19, 0.3, false);
-  // kuyruk: kure zinciri, her karede egri boyunca dizilir
-  const tail = [];
-  for (let i = 0; i < 16; i++) { const k = i / 15, s = sphere(0.095 - k * 0.04, Math.floor(i / 2) % 3 === 1 ? C.ring : C.plain, 12, 8); body.add(s); tail.push(s); } // kabarik kuyruk
-  root.traverse((o) => { if (o.isMesh) o.receiveShadow = false; });
-  return { root, body, head, legs, tail, torso };
-}
-
 function makeDog() { // Karabas: kangal. Derin gogus, ince bel, eklemli bacaklar, siyah maske, sarkik kulak, kivrik kuyruk
   const fur = furMat(0xcfa06a, 0xf5ddb5), light = furMat(0xe9d2ad, 0xffffff), dark = new THREE.MeshStandardMaterial({ color: 0x2a2220, roughness: 0.85 });
   const red = new THREE.MeshStandardMaterial({ color: 0xc0392b, roughness: 0.5 }), eyeM = new THREE.MeshStandardMaterial({ color: 0x1a1210, roughness: 0.2 });
@@ -374,7 +310,8 @@ const far = new THREE.Group(); scene.add(far);
 const blobTex = canvasTex(64, 64, (g, w) => { const gr = g.createRadialGradient(w / 2, w / 2, 2, w / 2, w / 2, w / 2); gr.addColorStop(0, 'rgba(60,40,50,0.45)'); gr.addColorStop(1, 'rgba(60,40,50,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, w); }, false);
 const blobMat = new THREE.MeshBasicMaterial({ map: blobTex, transparent: true, depthWrite: false });
 function blob(sx, sz) { const m = new THREE.Mesh(new THREE.PlaneGeometry(sx, sz), blobMat); m.rotation.x = -Math.PI / 2; m.position.y = 0.02; return m; }
-const cat = makeCat(); scene.add(cat.root);
+let catDef = null; try { catDef = JSON.parse(localStorage.getItem('dz_catdef') || 'null'); } catch { /* varsayilan */ }
+const cat = makeCat(catDef); scene.add(cat.root); // Kedim ekraninda secilen kedi
 const catShadow = blob(1.1, 1.5); scene.add(catShadow);
 const dog = makeDog(); scene.add(dog.root); dog.root.visible = false; dog.root.scale.setScalar(0.8); // kediyi kapatmasin
 dog.root.add(blob(1.2, 2));

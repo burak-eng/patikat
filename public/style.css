@@ -422,3 +422,8 @@ a.big { text-decoration: none; display: flex; align-items: center; justify-conte
 
 /* 3B surume gecis: 2B kosu modlari (bolumler, gunun seferi, egitim, devam) kaldirildi */
 #resumeBtn, #dailyBtn, #levelsBtn, #tutorialBtn, [data-tab="map"], #menu .best { display: none !important; }
+
+/* 3B Kedi Evi: altta 3B sahne, ustte seffaf efekt tuvali */
+.roomwrap { position: relative; flex: none; width: min(340px, calc(var(--gw) - 20px)); height: calc(min(340px, calc(var(--gw) - 20px)) * 1.3); aspect-ratio: 300 / 390; border-radius: 20px; box-shadow: var(--shadow); overflow: hidden; background: #fbe8d8; }
+.roomwrap canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.roomwrap .room { box-shadow: none; border-radius: 0; }

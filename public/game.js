@@ -4951,7 +4951,7 @@
   function drawPet(g) {
     const p = save.pet, c = CAT_BY_ID[save.char];
     // golge
-    ell(g, hc.x, FLOOR + 2, 52 * (1 + hc.jy / 260), 6, 0, `rgba(0,0,0,${(0.16 * (1 + hc.jy / 200)).toFixed(3)})`);
+    if (!h3d()) ell(g, hc.x, FLOOR + 2, 52 * (1 + hc.jy / 260), 6, 0, `rgba(0,0,0,${(0.16 * (1 + hc.jy / 200)).toFixed(3)})`);
     // 360 derece cevrilebilen kedi: yururken yurudugu yone, otururken senin cevirdigin yone bakar
     const walking = hc.act === 'walk' || hc.act === 'chase' || hc.act === 'eat';
     const target = walking ? hc.dir * 1.45 : pet.spin;
@@ -4961,9 +4961,11 @@
     const mood = sleepy || p.sleep ? { eyes: 'closed' } : pet.rubT > 0 || pet.tool === 'rinse' ? { eyes: 'happy', mouth: 0.4 } : hc.mouth > 0.05 ? { mouth: hc.mouth } : null;
     const hop = walking && hc.jy === 0 ? Math.abs(Math.sin(hc.gait * Math.PI * 1.2)) * 0.25 : 0;
     const sq = hc.act === 'stretch' ? 0.9 : hc.act === 'lie' || hc.act === 'sleep' ? 0.82 : 1; // uzanirken biraz basik
-    g.save(); g.translate(hc.x, FLOOR + hc.jy - 20 * CS * sq); g.scale(CS * (2 - sq), CS * sq);
-    drawCat3D(g, c, hc.view, clock, save.wardrobe, hop, hc.act === 'lick' ? 0.6 + 0.4 * Math.sin(hc.t * 7) : 0, mood);
-    g.restore();
+    if (!h3d()) {
+      g.save(); g.translate(hc.x, FLOOR + hc.jy - 20 * CS * sq); g.scale(CS * (2 - sq), CS * sq);
+      drawCat3D(g, c, hc.view, clock, save.wardrobe, hop, hc.act === 'lick' ? 0.6 + 0.4 * Math.sin(hc.t * 7) : 0, mood);
+      g.restore();
+    }
     // kir lekeleri (temizlik dustukce artar)
     const n = Math.round((100 - p.clean) / 17);
     for (let i = 0; i < Math.min(n, DIRT.length); i++) {
@@ -5260,6 +5262,7 @@
       if (pose === 1 && (t % 3) < 2) { g.fillStyle = 'rgba(91,79,115,0.5)'; g.font = "700 9px " + ROOM_FONT; g.textAlign = 'center'; g.fillText('z', x + dir * 14, FLOOR - 30 - (t % 3) * 4); }
     });
   }
+  const h3d = () => !!(window.H3D && window.H3D.ready); // 3B ev calisiyorsa oda ve kediler 3B cizilir
   function drawHouse() {
     if (state !== 'menu') return;
     const cv = $('houseCv'), g = cv.getContext('2d');
@@ -5267,11 +5270,14 @@
     const k = cv.width / HW;
     g.setTransform(k, 0, 0, k, 0, 0);
     const night = save.pet.sleep;
-    if (pet.room === 'mutfak') drawMutfak(g);
-    else if (pet.room === 'banyo') drawBanyo(g);
-    else if (pet.room === 'yatak') drawYatak(g, night);
-    else drawSalon(g);
-    drawHouseStrays(g);
+    if (h3d()) g.clearRect(0, 0, HW, HH);
+    else {
+      if (pet.room === 'mutfak') drawMutfak(g);
+      else if (pet.room === 'banyo') drawBanyo(g);
+      else if (pet.room === 'yatak') drawYatak(g, night);
+      else drawSalon(g);
+      drawHouseStrays(g);
+    }
     drawPet(g);
     drawMini(g);
     // ust serit: oda adi ve oklar
@@ -5597,10 +5603,10 @@
   function pvAction() {
     if (state === 'chars') {
       const c = CAT_BY_ID[pv.cat];
-      if (save.owned.includes(c.id)) { save.char = c.id; persist('char'); sfx('meowShort'); }
+      if (save.owned.includes(c.id)) { save.char = c.id; persist('char'), (window.PH && localStorage.setItem('dz_catdef', JSON.stringify(window.PH.catDef()))); sfx('meowShort'); }
       else if (save.wallet >= c.price) {
         save.wallet -= c.price; save.owned.push(c.id); save.char = c.id;
-        persist('wallet'); persist('owned'); persist('char');
+        persist('wallet'); persist('owned'); persist('char'), (window.PH && localStorage.setItem('dz_catdef', JSON.stringify(window.PH.catDef())));
         sfx('buy'); sfx('meowHappy'); vibrate(30);
         showNote('Yeni kedi!', `${catName(c.id)} artık senin`);
       } else { sfx('nope'); return; }
@@ -5949,6 +5955,10 @@
   setPalette(0, true);
   resize();
   window.addEventListener('resize', resize);
+  // 3B ev ve kosu icin durum: secilen kedinin renkleri, evdeki kedinin konumu ve eylemi
+  const catDef = () => { const c = CAT_BY_ID[save.char] || CATS[0]; return { fur: c.fur, fur2: c.fur2, fur3: c.fur3, belly: c.belly, paws: c.paws, eyes: c.eyes, pattern: c.pattern }; };
+  try { localStorage.setItem('dz_catdef', JSON.stringify(catDef())); } catch { /* yoksay */ }
+  window.PH = { hc, pet, save, STRAYS, ROOMS, STRAY_SPOTS, HW, HH, FLOOR, BOWL_X, BED_X, catDef, getState: () => state };
   reset();
   showScreen('menu');
   if (!DEMO && MENU_STATES.includes(params.get('screen'))) showScreen(params.get('screen')); // dogrudan ekran (test icin)
