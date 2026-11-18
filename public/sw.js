@@ -1,8 +1,9 @@
 // Oyunu internetsiz calistirmak icin dosyalari onbellege alir.
 // Internet varsa yeni surumu getirir (en fazla 1.5 sn bekler), yoksa onbellekten acar.
-const CACHE = 'patikat-v30';
+const CACHE = 'patikat-v31';
 const FILES = [
   './', './index.html', './style.css', './game.js', './manifest.webmanifest',
+  './3d.html', './3d.js', './lib/three.module.js', './lib/three.core.js',
   './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png',
   ...['miyav1', 'miyav2', 'miyav3', 'mirlama', 'oyun1', 'oyun2', 'oyun3'].map((n) => `./sounds/${n}.mp3`),
 ];
