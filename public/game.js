@@ -4796,6 +4796,7 @@
     const x = ((e.clientX - r.left) * HW) / r.width, y = ((e.clientY - r.top) * HH) / r.height;
     const moved = Math.hypot(x - pet.px, y - pet.py);
     pet.px = x; pet.py = y;
+    if (mg) { miniPointer(kind, x, y); return; }
     const p = save.pet, toy = pet.toy;
     if (kind === 'down') {
       pet.down = true; pet.downX = x; pet.downY = y; if (save.sound || save.music) ac();
@@ -4863,8 +4864,9 @@
     if (a === 'stretch' && Math.random() < 0.5) sfx('meowShort');
   }
   function updatePet(dt) {
-    if (state !== 'menu') { if (purrSrc) purrSet(false); return; }
+    if (state !== 'menu') { if (purrSrc) purrSet(false); if (mg) endMini(true); return; }
     const p = save.pet;
+    updateMini(dt);
     pet.saveT += dt;
     if (pet.saveT > 2) { pet.saveT = 0; petTick(); petBars(); }
     pet.mouth = Math.max(0, pet.mouth - dt * 2.5);
@@ -4890,7 +4892,7 @@
     }
     if (hc.act === 'walk') {
       const d = hc.tx - hc.x; hc.dir = d >= 0 ? 1 : -1;
-      const step = Math.min(Math.abs(d), 46 * dt);
+      const step = Math.min(Math.abs(d), 46 * dt * (mg && mg.kind === 'laser' ? 4 : 1)); // lazerde kosar
       hc.x += hc.dir * step; hc.gait += step / 30;
       if (Math.abs(d) < 1.5) {
         const nx = hc.then || 'sit'; hc.then = null;
@@ -5080,6 +5082,144 @@
     g.fillStyle = '#8a7a6a'; g.fillRect(247, 230, 6, 66); rr(g, 232, 292, 36, 6, 3); g.fill();
     g.fillStyle = night ? '#ffe2a0' : '#f6d5b0'; g.beginPath(); g.moveTo(230, 230); g.lineTo(270, 230); g.lineTo(262, 200); g.lineTo(238, 200); g.closePath(); g.fill();
   }
+  // ================= Ev mini oyunlari: lazer, yumak, balik tutma (20 sn) =================
+  // Her oyun kedinin enerjisinden harcar, eglencesini doldurur; puana gore balik verir (en fazla 15).
+  const MINIS = {
+    laser: { name: 'Lazer',     room: 'salon',  icon: '🔴', how: 'Parmağını sürükle, kedin noktayı kovalasın!' },
+    yarn:  { name: 'Yumak',     room: 'yatak',  icon: '🧶', how: 'Yumağa dokun, yere düşürmeden havada tut!' },
+    fish:  { name: 'Balık Tut', room: 'mutfak', icon: '🐠', how: 'Kasedeki balıklara dokun, altın balık 3 puan!' },
+  };
+  const MINI_T = 20;
+  let mg = null;
+  function startMini(kind) {
+    const p = save.pet;
+    if (mg) return;
+    if (p.sleep) { petSay('Şşş... uyuyor. Önce lambayı aç.'); sfx('nope'); return; }
+    if (p.energy < 15) { petSay('Çok yorgunum... biraz uyuyayım mı?'); sfx('meowSad'); return; }
+    pet.tool = ''; renderToyChips();
+    setRoom(MINIS[kind].room);
+    mg = { kind, t: MINI_T, score: 0, start: 1.2, dot: { x: 200, y: FLOOR - 20, on: false, moved: 0 }, ball: null, fish: [], best: 0, streak: 0, fx: [] };
+    if (kind === 'yarn') mg.ball = { x: 150, y: 140, vx: 0, vy: 0, wait: 0 };
+    if (kind === 'fish') for (let i = 0; i < 4; i++) mg.fish.push(newMiniFish(i));
+    if (kind !== 'laser') setAct('sit', 99);
+    petSay(MINIS[kind].how, 2.4);
+    sfx('meowHappy');
+    document.querySelectorAll('[data-mini]').forEach((b) => b.classList.toggle('on', b.dataset.mini === kind));
+  }
+  function newMiniFish(i) {
+    const gold = Math.random() < 0.15;
+    return { a: Math.random() * TAU, r: 30 + Math.random() * 50, sp: (0.7 + Math.random() * 0.6) * (Math.random() < 0.5 ? 1 : -1), yk: 0.45 + Math.random() * 0.2, ph: i * 1.3, gold, caught: 0 };
+  }
+  const BOWL = { x: 150, y: 170, rx: 112, ry: 70 };
+  function miniFishPos(f) { return [BOWL.x + Math.cos(f.a) * f.r * 1.25, BOWL.y + 8 + Math.sin(f.a * 2 + f.ph) * BOWL.ry * f.yk * 0.6]; }
+  function endMini(quit) {
+    if (!mg) return;
+    const sc = mg.score, reward = quit ? 0 : Math.min(15, Math.round(sc * (mg.kind === 'yarn' ? 0.8 : 1)));
+    const p = save.pet;
+    if (!quit) {
+      p.fun = Math.min(100, p.fun + 25); p.energy = Math.max(0, p.energy - 10);
+      save.wallet += reward; persist('wallet'); persist('pet');
+      $('wallet').textContent = save.wallet;
+      petSay(`${MINIS[mg.kind].name} bitti! ${sc} puan${reward ? ` · +${reward} balık` : ''}`, 3);
+      sfx(sc >= 8 ? 'meowHappy' : 'meowShort'); hc.jv = -170;
+      petBars();
+    }
+    mg = null;
+    setAct('sit', 2);
+    document.querySelectorAll('[data-mini]').forEach((b) => b.classList.remove('on'));
+  }
+  function miniPointer(kind, x, y) {
+    if (!mg || mg.start > 0) return;
+    if (mg.kind === 'laser') {
+      if (kind === 'down') mg.dot.on = true;
+      if (kind === 'up') mg.dot.on = false;
+      if (mg.dot.on) { mg.dot.moved += Math.hypot(x - mg.dot.x, y - mg.dot.y); mg.dot.x = Math.max(20, Math.min(HW - 20, x)); mg.dot.y = Math.max(60, Math.min(FLOOR - 4, y)); }
+    } else if (mg.kind === 'yarn' && kind === 'down') {
+      const b = mg.ball;
+      if (b.wait <= 0 && Math.hypot(x - b.x, y - b.y) < 34) {
+        b.vy = -420 - Math.min(120, mg.streak * 6); b.vx = (b.x - x) * 7 + (Math.random() - 0.5) * 60;
+        mg.score++; mg.streak++; mg.best = Math.max(mg.best, mg.streak);
+        sfx('click'); mg.fx.push({ x: b.x, y: b.y, t: 0, txt: mg.streak > 1 ? 'x' + mg.streak : '+1' });
+      }
+    } else if (mg.kind === 'fish' && kind === 'down') {
+      for (const f of mg.fish) {
+        if (f.caught > 0) continue;
+        const [fx, fy] = miniFishPos(f);
+        if (Math.hypot(x - fx, y - fy) < 20) {
+          const pts = f.gold ? 3 : 1; mg.score += pts; f.caught = 0.5;
+          mg.fx.push({ x: fx, y: fy, t: 0, txt: '+' + pts }); sfx('coin'); hc.jv = -150; hc.mouth = 1;
+          return;
+        }
+      }
+      mg.fx.push({ x, y, t: 0, txt: '💧' }); sfx('splash');
+    }
+  }
+  function updateMini(dt) {
+    if (!mg) return;
+    for (const e of mg.fx) e.t += dt;
+    mg.fx = mg.fx.filter((e) => e.t < 0.9);
+    if (mg.start > 0) { mg.start -= dt; return; }
+    mg.t -= dt;
+    if (mg.t <= 0) { endMini(false); return; }
+    if (mg.kind === 'laser') { // kedi noktaya kosar; nokta duvardaysa ziplar; yakalayinca nokta yeniden kacmali
+      const d = mg.dot;
+      const want = Math.max(60, Math.min(240, d.x - 20 * (d.x >= hc.x ? 1 : -1)));
+      if (Math.abs(hc.tx - want) > 6 || hc.act !== 'walk' && Math.abs(hc.x - want) > 8) catGo(want, null);
+      const near = Math.abs(hc.x + 20 * hc.dir - d.x) < 26;
+      if (near && d.y < FLOOR - 50 && hc.jy === 0) { hc.jv = -260; }
+      const reach = d.y > FLOOR - 40 || (hc.jy < -30 && d.y > FLOOR - 160);
+      if (near && reach && d.moved > 70 && pet.catchCool <= 0) {
+        mg.score++; d.moved = 0; pet.catchCool = 0.5; hc.mouth = 1;
+        mg.fx.push({ x: d.x, y: d.y - 14, t: 0, txt: '+1' }); sfx('meowShort');
+      }
+    } else if (mg.kind === 'yarn') {
+      const b = mg.ball;
+      if (b.wait > 0) { b.wait -= dt; if (b.wait <= 0) { b.x = 80 + Math.random() * 140; b.y = 110; b.vx = 0; b.vy = 0; } return; }
+      b.vy += 520 * dt; b.x += b.vx * dt; b.y += b.vy * dt; b.vx *= 1 - dt * 0.4;
+      if (b.x < 22) { b.x = 22; b.vx = Math.abs(b.vx) * 0.8; } if (b.x > HW - 22) { b.x = HW - 22; b.vx = -Math.abs(b.vx) * 0.8; }
+      if (b.y < 56) { b.y = 56; b.vy = Math.abs(b.vy) * 0.5; }
+      if (Math.abs(b.x - hc.x) < 60 && b.y > FLOOR - 150 && hc.jy === 0 && b.vy > 0) hc.jv = -200; // kedi yumaga atilir
+      if (b.y > FLOOR - 12) { b.y = FLOOR - 12; b.wait = 0.9; mg.streak = 0; sfx('land'); }
+    } else if (mg.kind === 'fish') {
+      const sp = 1 + (MINI_T - mg.t) / MINI_T; // zamanla hizlanir
+      mg.fish.forEach((f, i) => {
+        if (f.caught > 0) { f.caught -= dt; if (f.caught <= 0) mg.fish[i] = newMiniFish(i); return; }
+        f.a += f.sp * sp * dt;
+      });
+    }
+  }
+  function drawMini(g) {
+    if (!mg) return;
+    if (mg.kind === 'fish') { // duvarda buyuk akvaryum kasesi
+      g.fillStyle = 'rgba(160,200,230,0.55)'; g.beginPath(); g.ellipse(BOWL.x, BOWL.y, BOWL.rx, BOWL.ry, 0, 0, TAU); g.fill();
+      g.strokeStyle = 'rgba(255,255,255,0.8)'; g.lineWidth = 3; g.stroke();
+      g.fillStyle = 'rgba(255,255,255,0.35)'; g.beginPath(); g.ellipse(BOWL.x - 50, BOWL.y - 30, 26, 8, -0.4, 0, TAU); g.fill();
+      for (const f of mg.fish) {
+        const [fx, fy] = miniFishPos(f), dir = Math.sign(-Math.sin(f.a) * f.sp) || 1;
+        g.save(); g.translate(fx, fy); g.scale(dir * 2, 2); g.globalAlpha = f.caught > 0 ? f.caught * 2 : 1;
+        if (f.gold) dot(g, 0, 0, 7, 'rgba(246,195,91,0.35)');
+        drawFish(g, 0, 0, 1, false); g.restore();
+      }
+    } else if (mg.kind === 'yarn' && mg.ball) {
+      const b = mg.ball;
+      if (b.wait <= 0 || Math.floor(b.wait * 8) % 2) {
+        ell(g, b.x, FLOOR + 2, 14 * (0.5 + b.y / FLOOR / 2), 3, 0, 'rgba(0,0,0,0.12)');
+        dot(g, b.x, b.y, 15, '#d9708a'); g.strokeStyle = '#b8506a'; g.lineWidth = 1.4;
+        for (let i = 0; i < 4; i++) { g.beginPath(); g.arc(b.x, b.y, 13 - i * 3, b.y * 0.05 + i, b.y * 0.05 + i + 2.2); g.stroke(); }
+        g.beginPath(); g.moveTo(b.x + 10, b.y + 9); g.quadraticCurveTo(b.x + 24, b.y + 22, b.x + 18, b.y + 34); g.stroke();
+      }
+    } else if (mg.kind === 'laser' && mg.start <= 0) {
+      const d = mg.dot;
+      const lg = g.createRadialGradient(d.x, d.y, 0, d.x, d.y, 12); lg.addColorStop(0, 'rgba(255,60,60,0.9)'); lg.addColorStop(1, 'rgba(255,60,60,0)');
+      g.fillStyle = lg; g.beginPath(); g.arc(d.x, d.y, 12, 0, TAU); g.fill(); dot(g, d.x, d.y, 3, '#ff4a4a');
+    }
+    for (const e of mg.fx) { g.globalAlpha = 1 - e.t / 0.9; g.fillStyle = '#5b4f73'; g.font = `800 14px ${ROOM_FONT}`; g.textAlign = 'center'; g.fillText(e.txt, e.x, e.y - e.t * 30); g.globalAlpha = 1; }
+    // ust bilgi: oyun adi, sure, puan
+    g.fillStyle = 'rgba(255,255,255,0.85)'; rr(g, 60, 44, HW - 120, 26, 13); g.fill();
+    g.fillStyle = '#5b4f73'; g.font = `800 13px ${ROOM_FONT}`; g.textAlign = 'center';
+    g.fillText(mg.start > 0 ? `${MINIS[mg.kind].icon} ${MINIS[mg.kind].name} · Hazır ol...` : `${MINIS[mg.kind].icon} ${Math.ceil(mg.t)} sn · Puan ${mg.score}${mg.kind === 'yarn' ? ` · Seri ${mg.best}` : ''}`, HW / 2, 62);
+  }
+
   // kurtarilan yavrular odalara dagilir: oturur, uzanir ya da uyur (her odada en fazla 4)
   const STRAY_SPOTS = [[42, 0], [262, 1], [96, 2], [214, 0]];
   function drawHouseStrays(g) {
@@ -5107,6 +5247,7 @@
     else drawSalon(g);
     drawHouseStrays(g);
     drawPet(g);
+    drawMini(g);
     // ust serit: oda adi ve oklar
     g.fillStyle = 'rgba(255,255,255,0.72)'; rr(g, 8, 8, HW - 16, 30, 15); g.fill();
     const i = ROOMS.findIndex((q) => q.id === pet.room);
@@ -5674,7 +5815,8 @@
     else if (a === 'sharePhoto') sharePhoto();
     else if (a === 'ach' || a === 'house') showScreen(a);
     else if (b.dataset.house) houseClick(b.dataset.house);
-    else if (b.dataset.pet) petTool(b.dataset.pet);
+    else if (b.dataset.pet) { if (mg) endMini(true); petTool(b.dataset.pet); }
+    else if (b.dataset.mini) { if (mg && mg.kind === b.dataset.mini) endMini(true); else startMini(b.dataset.mini); }
     else if (b.id === 'soundBtn') { save.sound = !save.sound; persist('sound'); renderMenu(); sfx('coin'); }
     else if (b.id === 'notifyBtn') { if (save.notify) { save.notify = false; persist('notify'); renderMenu(); } else askNotify(); }
     else if (b.id === 'musicBtn') { save.music = !save.music; persist('music'); if (save.music) ac(); renderMenu(); }
