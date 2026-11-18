@@ -69,6 +69,15 @@
     { id: 'carsi',    name: 'Çarşı',       to: 'Çarşıya',      icon: '🕌', sub: 'Semaverler, halılar ve yuvarlanan narlar', deco: ['kubbe', 'baca', 'kubbe'] },
     { id: 'santiye',  name: 'Şantiye',     to: 'Şantiyeye',    icon: '🏗️', sub: 'Çimento torbaları, kirişler ve el arabaları', deco: ['demir', 'kum', 'demir'] },
   ];
+  // Patronlar: her 10. bolum. Arkadan kovalar, ekranin onunden saldirir (drop: catiya duser -> zipla, low: bas hizasi -> kay).
+  // Her atlatilan saldiri patronu yorar; cani bitince pes eder. Karabas saldirmaz, temiz gecilen her engel onu yorar.
+  const BOSSES = {
+    supurge: { name: 'Dev Süpürge', hp: 7, attacks: ['drop', 'low', 'drop'], intro: 'Hortumu alçaktan gelirse kay, toz torbası düşerse zıpla.', caught: 'Dev Süpürge seni çekti!', beat: 'Dev Süpürgenin fişi çekildi!' },
+    marti:   { name: 'Martı Reis',  hp: 7, attacks: ['low', 'drop', 'low'], intro: 'Alçaktan dalarsa kay, kasa atarsa zıpla.', caught: 'Martı Reis kaptı!', beat: 'Martı Reis denize uçup gitti!' },
+    kepce:   { name: 'Kepçe',       hp: 8, attacks: ['drop', 'low', 'drop'], intro: 'Moloz dökerse zıpla, kova alçaktan gelirse kay.', caught: 'Kepçe seni kaptı!', beat: 'Kepçenin mazotu bitti!' },
+    karabas: { name: 'Karabaş',     hp: 12, attacks: [], intro: 'Her engeli temiz geç, yorulsun.', caught: 'Karabaş yakaladı!', beat: 'Karabaş yoruldu, pes etti!' },
+  };
+  const ZONE_BOSS = ['supurge', 'marti', 'karabas', 'kepce'];
   const zoneAtStage = (st) => Math.floor(st / 2) % ZONES.length; // sonsuz kosuda her 2 sokakta (400 m) bir yeni mekan
   const stageAt = (i) => (i < STAGES.length ? STAGES[i] : STAGES[2 + ((i - STAGES.length) % (STAGES.length - 2))]);
 
@@ -279,7 +288,7 @@
     { name: 'Bal Duvarı',      goal: 400, speed: 300, sticky: 0.4, jets: 0.15, power: true, pal: 6, crows: true, dogs: true },
     { name: 'Boru Labirenti',  zone: 3, goal: 450, speed: 310, len: [140, 240, 340], sameMax: 3, bars: 0.2, power: true, pal: 3, crows: true, dogs: true },
     { name: 'Yağmurlu Akşam',  goal: 450, speed: 310, weather: 'rain', bars: 0.35, jets: 0.15, power: true, pal: 4, crows: true, dogs: true },
-    { name: 'Karanlık Sokak',  goal: 450, speed: 300, dark: true, react: [0.48, 0.32], sticky: 0.2, power: true, pal: 5, crows: true, dogs: true },
+    { name: 'Patron: Dev Süpürge', boss: 'supurge', dogsAll: 1, karabas: true, goal: 450, speed: 300, dark: true, react: [0.48, 0.32], sticky: 0.2, power: true, pal: 5, crows: true, dogs: true },
     { name: 'Sisli Sabah',     goal: 500, speed: 315, weather: 'fog', jets: 0.3, bars: 0.2, power: true, pal: 6, crows: true, dogs: true },
     { name: 'İp Cambazı',      zone: 2, goal: 500, speed: 330, bars: 0.65, react: [0.42, 0.28], power: true, pal: 3, crows: true, dogs: true },
     { name: 'Klima Kulesi',    goal: 550, speed: 330, ac: 0.5, sticky: 0.3, jets: 0.3, power: true, pal: 2, crows: true, dogs: true },
@@ -301,7 +310,7 @@
         power: true, pal: i % 7, crows: true, dogs: true, dark: i % 7 === 5, weather: ['clear', 'rain', 'clear', 'fog'][i % 4] };
       lv.zone = [1, 2, 3, 0][Math.floor((i - 18) / 4) % 4];
       if (lv.zone) lv.name = N1[i % N1.length] + ' ' + ['', 'Sahili', 'Çarşısı', 'Şantiyesi'][lv.zone];
-      if (i % 10 === 9) Object.assign(lv, { name: 'Karabaş: ' + lv.name, dogsAll: 1 + d * 0.3, karabas: true });
+      if (i % 10 === 9) { const bk = ZONE_BOSS[lv.zone]; Object.assign(lv, { name: 'Patron: ' + BOSSES[bk].name + ' · ' + N1[i % N1.length], boss: bk, dogsAll: 1 + d * 0.3, karabas: true }); }
       LEVELS.push(lv);
     }
   }
@@ -1002,6 +1011,7 @@
   let lives = 3, maxLives = 3, tokluk = 100, energy = 3, energyMax = 3, energyT = 0, stickTaps = 0;
   let combo = 0, comboT = 0, runT = 0, jetClock = 0, missionT = 0;
   let chase = null, crowT = 8, hintSlow = 0;
+  let boss = null; // patron bolumunde: { kind, hp, max, atkT, i, beaten }
   let pattern = null, points = 0;
   let stats = null;
   let bgOff = 0, clock = 0, overAt = 0, countT = 0;
@@ -1078,7 +1088,7 @@
     genX = 900; genY = 0; spawnDone = false;
     shieldHP = 0; magnetT = 0; slowT = 0; invulnT = 0; shieldHits = 0;
     combo = 0; comboT = 0; runT = 0; jetClock = 0; missionT = 0; stickTaps = 0;
-    chase = null; crowT = rand(7, 11); hintSlow = 0;
+    chase = null; crowT = rand(7, 11); hintSlow = 0; boss = null;
     pattern = null; points = 0;
     stats = { fish: 0, near: 0, lines: 0, jets: 0, dashes: 0, powers: 0, livesLost: 0, cleanM: -1, dogs: 0, crows: 0, slides: 0, boxes: 0, ledges: 0, shafts: 0 };
     stage = 0; weather = 'clear';
@@ -1281,9 +1291,46 @@
     if (chase.phase === 'away' && chase.gap >= DOG_AWAY - 1) { chase = null; return; }
     if (chase.gap < 260) {
       chase.barkT -= dt;
-      if (chase.barkT <= 0) { chase.barkT = rand(3, 4.5); chase.hav = 0.6; sfx('bark'); }
+      if (chase.barkT <= 0) { chase.barkT = rand(3, 4.5); if (!boss || boss.kind === 'karabas') { chase.hav = 0.6; sfx('bark'); } }
     }
   }
+  // ---------- Patron ----------
+  function updateBoss(dt) {
+    if (!boss || boss.beaten || state !== 'play') return;
+    boss.swoop = Math.max(0, boss.swoop - dt);
+    const B = BOSSES[boss.kind];
+    if (!B.attacks.length || player.shaft || balloonT > 0) return;
+    boss.atkT -= dt;
+    if (boss.atkT > 0) return;
+    // saldiri: ekranin sag kenarinda, kedinin onundeki catiya. Engellerden ve duvar ucundan uzak olmali.
+    const x = camX + VW - 26, q = platAt(x), flight = speed * airTime(0);
+    const clear = q && !player.ledge && q.x1 - x > flight + 50 && x - q.x0 > 40 &&
+      !obstacles.some((o) => o.type !== 'mark' && o.x < x + flight + 40 && o.x + o.w > x - flight - 40) &&
+      !ledges.some((l) => l.x1 > x - 140 && l.x0 < x + 60) && !shafts.some((sh) => sh.x0 < x + flight + 60 && sh.x1 > x - 60);
+    if (!clear) { boss.atkT = 0.3; return; } // uygun yer yok: biraz sonra dene
+    const kind = B.attacks[boss.i++ % B.attacks.length];
+    const o = kind === 'drop' ? { type: 'spike', skin: 'boss', x, y: q.y, w: 26, h: 26 } : { type: 'sign', x, y: q.y, w: 34, h: 150 };
+    o.boss = boss.kind; o.atk = kind; o.t0 = clock; o.z = q.z || 0;
+    obstacles.push(o);
+    boss.swoop = 0.9;
+    sfx(kind === 'drop' ? 'land' : 'ui');
+    const df = diffOf();
+    boss.atkT = rand(2.4, 3.6) * (df.react > 1 ? 1.25 : df.react < 1 ? 0.88 : 1);
+  }
+  function bossHurt() {
+    if (!boss || boss.beaten) return;
+    boss.hp--;
+    const B = BOSSES[boss.kind];
+    if (boss.hp > 0) { floater(`${B.name} yoruluyor! ${boss.hp}/${boss.max}`, '#f2c98a'); return; }
+    boss.beaten = true;
+    if (chase) chase.phase = 'away';
+    coinCount += 30; bonus += 250; stats.bosses = (stats.bosses || 0) + 1;
+    toast(B.beat, 'Patronu yendin! +30 balık · +250 puan', 3);
+    burst(player.x, player.y - 30, COIN, 14, 180);
+    sfx('escape'); sfx('meowShort'); vibrate(60);
+    obstacles = obstacles.filter((o) => !o.boss || o.x < player.x); // bekleyen saldirilar kalkar
+  }
+
   // kopegin dunyadaki yeri: kedinin izinden, chase.gap kadar geride
   function trailAt(x) {
     if (!trail.length) return { y: player.y, air: false };
@@ -1694,7 +1741,7 @@
     if (lives <= 0) { die(kind); return; }
     invulnT = 1.6;
     combo = 0;
-    toast(HIT_REASON[kind] || 'Ah!', `${lives} can kaldı`, 1.4);
+    toast((kind === 'dog' && boss ? BOSSES[boss.kind].caught : HIT_REASON[kind]) || 'Ah!', `${lives} can kaldı`, 1.4);
     burst(player.x, player.y - 14, '#e07a7a', 8, 140);
     vibrate(60);
     sfx('hit');
@@ -1794,6 +1841,7 @@
     run.recordM = mode === 'endless' ? save.bestDist[run.diff] || 0 : mode === 'daily' ? dailyState().bestM || 0 : 0;
     run.passedRecord = false;
     reset();
+    if (mode === 'level' && cfg.boss) boss = { kind: cfg.boss, hp: BOSSES[cfg.boss].hp, max: BOSSES[cfg.boss].hp, atkT: 4.5, i: 0, beaten: false, swoop: 0 };
     rngState = mode === 'daily' ? dailySeed() : (Math.random() * 4294967296) >>> 0;
     maxLives = DIFFS[run.diff].lives + upg('can') + (catIs('siyam') ? 1 : 0);
     lives = maxLives;
@@ -1839,7 +1887,7 @@
       speed, dist, bonus, coinCount, coinsSpawned, genX, genY, spawnDone, camX, camY,
       shieldHP, magnetT, slowT, invulnT, shieldHits, stage, rngState, weather,
       lives, maxLives, tokluk, energy, energyMax, energyT, runT, jetClock, stats, chase, ledges, shafts, balloonT, yayT,
-      points, pattern, revived: !!run.revived, bankedCount: run.bankedCount || 0, zone, bgZone,
+      points, pattern, revived: !!run.revived, bankedCount: run.bankedCount || 0, zone, bgZone, boss,
     };
   }
   function saveResume() {
@@ -1867,7 +1915,7 @@
       shieldHP, magnetT, slowT, invulnT, shieldHits, stage, rngState, weather,
       lives, maxLives, tokluk, energy, energyMax, energyT, runT, jetClock, stats, chase } = d);
     ledges = d.ledges || []; shafts = d.shafts || []; balloonT = d.balloonT || 0; yayT = d.yayT || 0; player.ledge = null;
-    zone = d.zone || 0; bgZone = bgFrom = d.bgZone || 0; bgT = 1;
+    zone = d.zone || 0; bgZone = bgFrom = d.bgZone || 0; bgT = 1; boss = d.boss || boss;
     if (player.shaft) player.shaft = shafts.find((q) => q.x0 === player.shaft.x0) || null;
     if (!player.shaft) player.wall = null;
     points = d.points || dist / METER;
@@ -2136,12 +2184,14 @@
           coinCount += reward;
           floater(`Sokak ödülü: +${reward} balık`, COIN);
         }
-      } else if (run.mode === 'level' && cfg.dogsAll && !chase) {
-        startChase('Bölüm bitene kadar Karabaş peşinde! Hiçbir yere takılma.', CAT_SX + 140);
+      } else if (run.mode === 'level' && cfg.dogsAll && !chase && !(boss && boss.beaten)) {
+        if (boss) { startChase(null, CAT_SX + 140); toast(BOSSES[boss.kind].name + ' peşinde!', BOSSES[boss.kind].intro, 2.6); }
+        else startChase('Bölüm bitene kadar Karabaş peşinde! Hiçbir yere takılma.', CAT_SX + 140);
       }
 
       if (DEMO) bot();
       updateChase(dt, wdt);
+      updateBoss(dt);
       if (state !== 'play') return;
       updateCrows(dt);
 
@@ -2204,6 +2254,7 @@
           if ((o.type === 'spike' || o.type === 'roomba') && o.clr !== undefined && o.clr < 16 && !o.hitIt) nearMiss();
           if (o.type === 'sign' && o.under && !o.hitIt) nearMiss('Kaydın!');
           if (o.type === 'bar' && o.under && !o.hitIt) { stats.lines++; nearMiss('Altından geçtin!'); }
+          if (boss && !o.hitIt && (o.boss || (boss.kind === 'karabas' && o.type !== 'mark' && o.type !== 'sticky'))) bossHurt();
           if (o.type === 'jet' && o.sat && !o.wet) { stats.jets++; bonus += 15; floater('Islanmadan geçtin! +15', '#c9d8ea'); }
         }
       }
@@ -4106,12 +4157,105 @@
     }
   }
 
+  // ---------- Patron cizimleri ----------
+  function drawBossChaser(x, gy) { // kedinin arkasinda kovalayan patron (x: dunya, gy: cati yuksekligi)
+    const k = boss.kind, sw = boss.swoop, b = Math.sin(clock * 6) * 1.5;
+    if (k === 'supurge') { // dev dik supurge robot: tekerlekli govde, kizgin led gozler, one uzanan hortum
+      ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.beginPath(); ctx.ellipse(x, gy + 1, 30, 4, 0, 0, TAU); ctx.fill();
+      dot(ctx, x - 16, gy - 7, 7, '#2b2f37'); dot(ctx, x + 16, gy - 7, 7, '#2b2f37'); dot(ctx, x - 16, gy - 7, 2.5, '#7d8492'); dot(ctx, x + 16, gy - 7, 2.5, '#7d8492');
+      const g = ctx.createLinearGradient(x - 24, 0, x + 24, 0); g.addColorStop(0, '#a84a52'); g.addColorStop(0.45, '#e07a7a'); g.addColorStop(1, '#963f48');
+      ctx.fillStyle = g; rr(ctx, x - 24, gy - 74 + b, 48, 62, 14); ctx.fill();
+      ctx.fillStyle = '#3b3f4a'; rr(ctx, x - 17, gy - 64 + b, 34, 16, 6); ctx.fill(); // ekran
+      const blink = (clock % 3.1) < 0.12;
+      for (const ex of [-8, 8]) { ctx.fillStyle = '#ffb36b'; if (blink) ctx.fillRect(x + ex - 4, gy - 56 + b, 8, 1.5); else { ctx.beginPath(); ctx.moveTo(x + ex - 5, gy - 59 + b + (ex < 0 ? 0 : 2)); ctx.lineTo(x + ex + 5, gy - 59 + b + (ex < 0 ? 2 : 0)); ctx.lineTo(x + ex + 4, gy - 53 + b); ctx.lineTo(x + ex - 4, gy - 53 + b); ctx.closePath(); ctx.fill(); } }
+      ctx.fillStyle = 'rgba(255,255,255,0.18)'; rr(ctx, x - 20, gy - 70 + b, 5, 40, 2.5); ctx.fill();
+      ctx.strokeStyle = '#5f6675'; ctx.lineWidth = 7; ctx.lineCap = 'round'; // hortum
+      const nx = x + 30 + sw * 12, ny = gy - 10;
+      ctx.beginPath(); ctx.moveTo(x + 18, gy - 40 + b); ctx.bezierCurveTo(x + 50, gy - 70, nx - 10, gy - 50, nx, ny); ctx.stroke();
+      ctx.fillStyle = '#3b3f4a'; rr(ctx, nx - 4, ny - 4, 16, 8, 3); ctx.fill();
+      for (let i = 0; i < 4; i++) { const ph = (clock * 2.2 + i / 4) % 1; dot(ctx, nx + 14 + (1 - ph) * 34, ny - 2 + Math.sin(i * 2.3) * 8 * (1 - ph), 1.6, `rgba(170,160,150,${(0.6 * ph).toFixed(2)})`); } // emilen toz
+    } else if (k === 'marti') { // iri marti: kanat cirpar, saldirirken kanatlari geriye
+      const y = gy - 86 + Math.sin(clock * 2.4) * 8, fl = sw > 0 ? -0.9 : Math.sin(clock * 9) * 0.9;
+      ctx.fillStyle = 'rgba(0,0,0,0.1)'; ctx.beginPath(); ctx.ellipse(x, gy + 1, 22, 3, 0, 0, TAU); ctx.fill();
+      for (const s2 of [-1, 1]) { // kanatlar
+        ctx.fillStyle = s2 < 0 ? '#9aa3b2' : '#b8c0cc';
+        ctx.beginPath(); ctx.moveTo(x - 6, y - 2); ctx.quadraticCurveTo(x - 16 + s2 * 4, y - 26 * fl * s2 - 10, x - 44, y - 30 * fl * s2 - 4); ctx.quadraticCurveTo(x - 24, y - 6, x + 8, y + 2); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#4a4f5c'; ctx.beginPath(); ctx.moveTo(x - 38, y - 28 * fl * s2 - 5); ctx.lineTo(x - 44, y - 30 * fl * s2 - 4); ctx.lineTo(x - 34, y - 20 * fl * s2); ctx.closePath(); ctx.fill();
+      }
+      ell(ctx, x, y + 2, 22, 10, 0, '#f4f1ea'); ell(ctx, x - 20, y + 1, 9, 4, 0.2, '#e3ded4'); // govde, kuyruk
+      dot(ctx, x + 18, y - 4, 9, '#f8f6f1'); // bas
+      ctx.fillStyle = '#f2c14e'; ctx.beginPath(); ctx.moveTo(x + 25, y - 5); ctx.lineTo(x + 38, y - 2); ctx.lineTo(x + 25, y + 1); ctx.closePath(); ctx.fill(); dot(ctx, x + 33, y - 1, 1.3, '#d9534f');
+      dot(ctx, x + 20, y - 7, 2, '#1c1418'); ctx.strokeStyle = '#4a4f5c'; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(x + 16, y - 11); ctx.lineTo(x + 24, y - 9); ctx.stroke(); // kizgin kas
+      ctx.strokeStyle = '#e8a06a'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x - 2, y + 11); ctx.lineTo(x - 6, y + 17); ctx.moveTo(x + 4, y + 11); ctx.lineTo(x + 2, y + 17); ctx.stroke();
+    } else if (k === 'kepce') { // paletli kepce: sari kabin, iki parcali kol, ucunda kova
+      ctx.save(); ctx.translate(x, gy); ctx.scale(0.85, 0.85); ctx.translate(-x, -gy);
+      ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.beginPath(); ctx.ellipse(x - 6, gy + 1, 38, 4, 0, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#3b3a40'; rr(ctx, x - 40, gy - 14, 66, 14, 7); ctx.fill();
+      ctx.fillStyle = '#5f6675'; for (let i = 0; i < 6; i++) dot(ctx, x - 33 + i * 10.4, gy - 7, 3.4, '#5f6675');
+      ctx.fillStyle = '#e8b04a'; rr(ctx, x - 34, gy - 44, 46, 30, 4); ctx.fill();
+      ctx.fillStyle = '#d99a3a'; ctx.fillRect(x - 34, gy - 20, 46, 6);
+      ctx.fillStyle = 'rgba(200,225,240,0.85)'; rr(ctx, x - 8, gy - 42, 16, 16, 2); ctx.fill(); // cam
+      ctx.fillStyle = '#3b3a40'; ctx.fillRect(x - 30, gy - 52, 4, 10); // egzoz
+      if (P.stars < 0.5) dot(ctx, x - 28 + Math.sin(clock * 3) * 2, gy - 58 - (clock * 14) % 12, 3, 'rgba(90,90,96,0.35)');
+      const a1 = -0.9 + Math.sin(clock * 1.5) * 0.08 - sw * 0.3, a2 = 0.9 + sw * 0.6;
+      const jx = x + 12 + Math.cos(a1) * 44, jy = gy - 36 + Math.sin(a1) * 44, bx = jx + Math.cos(a2) * 34, by = jy + Math.sin(a2) * 34;
+      ctx.strokeStyle = '#e8b04a'; ctx.lineWidth = 7; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(x + 12, gy - 36); ctx.lineTo(jx, jy); ctx.lineTo(bx, by); ctx.stroke();
+      ctx.fillStyle = '#6c7280'; ctx.beginPath(); ctx.moveTo(bx - 4, by - 4); ctx.lineTo(bx + 14, by - 2); ctx.lineTo(bx + 10, by + 12); ctx.lineTo(bx - 2, by + 10); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#3b3a40'; for (let i = 0; i < 3; i++) ctx.fillRect(bx + 1 + i * 4, by + 10, 2, 3); // dis
+      ctx.restore();
+    }
+  }
+  function drawBossAttack(o) { // patron saldirisi: yukaridan duser (drop) ya da bas hizasina iner (low)
+    const k = o.boss, t = clock - o.t0, a = Math.min(1, t / 0.45), off = -(1 - a * a) * 170, x = o.x, y = o.y, cx = x + o.w / 2;
+    if (a < 1) { ctx.fillStyle = `rgba(0,0,0,${(0.08 + a * 0.12).toFixed(2)})`; ctx.beginPath(); ctx.ellipse(cx, y + 1, o.w / 2 + 4, 2.5, 0, 0, TAU); ctx.fill(); } // yaklasan golge
+    if (o.atk === 'drop') {
+      ctx.save(); ctx.translate(0, off);
+      if (k === 'supurge') { // toz torbasi
+        ctx.fillStyle = '#b8b0a4'; ctx.beginPath(); ctx.moveTo(x + 2, y); ctx.quadraticCurveTo(x - 3, y - 20, x + 6, y - o.h); ctx.lineTo(x + o.w - 6, y - o.h); ctx.quadraticCurveTo(x + o.w + 3, y - 20, x + o.w - 2, y); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#8a8378'; ctx.fillRect(x + 6, y - o.h - 3, o.w - 12, 5); ctx.fillStyle = '#e07a7a'; ctx.fillRect(x + 8, y - 15, o.w - 16, 5);
+      } else if (k === 'marti') { // firlatilan balik kasasi
+        ctx.fillStyle = woodGrad(x, x + o.w, '196,160,112'); rr(ctx, x - 2, y - 17, o.w + 4, 17, 2); ctx.fill();
+        ctx.fillStyle = 'rgba(90,60,40,0.35)'; ctx.fillRect(x - 2, y - 11, o.w + 4, 1.2); ctx.fillRect(x - 2, y - 6, o.w + 4, 1.2);
+        ctx.save(); ctx.translate(cx - 4, y - 21); ctx.rotate(-0.4); drawFish(ctx, 0, 0, 0.9, false); ctx.restore(); ctx.save(); ctx.translate(cx + 5, y - 22); ctx.rotate(0.5); drawFish(ctx, 0, 0, 0.8, false); ctx.restore();
+      } else { // moloz yigini
+        for (const [dx, dy, r, c] of [[4, -6, 7, '#9a948a'], [16, -7, 8, '#b5ab9c'], [10, -16, 7, '#8a847a'], [21, -17, 5, '#c4664e'], [3, -18, 4, '#a8a094'], [12, -24, 4, '#9a948a']]) dot(ctx, x + dx, y + dy, r, c);
+      }
+      ctx.restore();
+      if (a >= 1 && t < 0.8) for (let i = 0; i < 4; i++) { const p = (t - 0.45) / 0.35; dot(ctx, cx + (i - 1.5) * 12 * (0.5 + p), y - 4 - p * 8, 3 + p * 4, `rgba(200,190,175,${(0.5 * (1 - p)).toFixed(2)})`); } // toz bulutu
+      return;
+    }
+    const ly = y - SIGN_LOW + off * 0.7; // asagi inen ucun alt kenari
+    if (k === 'supurge') { // yukaridan sarkan hortum ve emici agiz
+      ctx.strokeStyle = '#5f6675'; ctx.lineWidth = 7; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(cx - 60, y - 260); ctx.quadraticCurveTo(cx - 10, y - 150, cx, ly - 22); ctx.stroke();
+      ctx.fillStyle = '#3b3f4a'; rr(ctx, x - 4, ly - 24, o.w + 8, 22, 5); ctx.fill();
+      ctx.fillStyle = '#2b2f37'; ctx.fillRect(x - 2, ly - 6, o.w + 4, 4);
+      for (let i = 0; i < 4; i++) { const ph = (clock * 2.4 + i / 4) % 1; dot(ctx, x - 30 + ph * 28, ly - 8 + Math.sin(i * 1.7) * 6 * (1 - ph), 1.5, `rgba(170,160,150,${(0.6 * ph).toFixed(2)})`); }
+    } else if (k === 'marti') { // alcaktan dalan marti
+      const by = ly - 16, fl = Math.sin(clock * 12) * 0.5;
+      for (const s2 of [-1, 1]) { ctx.fillStyle = s2 < 0 ? '#9aa3b2' : '#b8c0cc'; ctx.beginPath(); ctx.moveTo(cx - 6, by); ctx.quadraticCurveTo(cx + s2 * 6, by - 20 - fl * 10 * s2, cx + 30 * s2 + 4, by - 26 - fl * 12 * s2); ctx.quadraticCurveTo(cx + 10 * s2, by - 4, cx + 8, by + 2); ctx.closePath(); ctx.fill(); }
+      ell(ctx, cx, by, 18, 8, 0, '#f4f1ea'); dot(ctx, cx - 14, by - 2, 7, '#f8f6f1'); // sola (kediye) bakar
+      ctx.fillStyle = '#f2c14e'; ctx.beginPath(); ctx.moveTo(cx - 20, by - 3); ctx.lineTo(cx - 31, by); ctx.lineTo(cx - 20, by + 2); ctx.closePath(); ctx.fill();
+      dot(ctx, cx - 16, by - 4, 1.6, '#1c1418');
+      ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 1; ctx.beginPath(); for (let i = 0; i < 3; i++) { ctx.moveTo(cx + 22, by - 8 + i * 6); ctx.lineTo(cx + 40, by - 14 + i * 6); } ctx.stroke(); // hiz cizgileri
+    } else { // kepce kovasi: halatla iner
+      ctx.strokeStyle = '#5f6675'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cx, y - 260); ctx.lineTo(cx, ly - 30); ctx.stroke();
+      ctx.fillStyle = '#6c7280'; ctx.beginPath(); ctx.moveTo(x - 6, ly - 32); ctx.lineTo(x + o.w + 6, ly - 32); ctx.lineTo(x + o.w, ly - 2); ctx.lineTo(x, ly - 2); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#3b3a40'; for (let i = 0; i < 5; i++) ctx.fillRect(x + 1 + i * 7, ly - 2, 3, 4);
+      ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.fillRect(x - 3, ly - 30, o.w + 6, 3);
+    }
+  }
+
   function drawDog() {
     if (!chase || !player) return;
     const x = player.x - chase.gap;
     if (x < camX - 60) return;
     const tr = trailAt(x);
     const q = platAt(x);
+    if (boss && boss.kind !== 'karabas') { // ekranda gorunsun: kedinin hemen arkasinda cizilir (yetisirken/geride kalirken uzaklasir)
+      const bx = player.x - { supurge: 62, marti: 54, kepce: 72 }[boss.kind] - Math.max(0, chase.gap - DOG_NEAR - 26), bq = platAt(bx);
+      drawBossChaser(bx, bq ? bq.y : q ? q.y : tr.y); return;
+    }
     const ground = !tr.air;
     if (q && ground) { ctx.fillStyle = 'rgba(0,0,0,0.16)'; ctx.beginPath(); ctx.ellipse(x, q.y + 1, 22, 3, 0, 0, TAU); ctx.fill(); }
     ctx.save();
@@ -4213,7 +4357,14 @@
       ctx.fillStyle = COIN; rr(ctx, bx, top + 62, Math.max(5, bw * into), 5, 2.5); ctx.fill();
       hudText(`${stage + 1}. Sokak · puan x${Math.round(stageMult() * permMult() * 10) / 10}`, W / 2, top + 82, '700 12px system-ui, sans-serif', '#e3dccf');
     }
-    if (comboMult() > 1) hudText(`Kıl payı x${comboMult()}`, W / 2, top + 100, '700 14px system-ui, sans-serif', '#f6dcae');
+    if (boss && !boss.beaten) { // patronun can bari
+      const bw = 150, bx = (W - bw) / 2, by = top + 74;
+      hudText(BOSSES[boss.kind].name, W / 2, by + 2, '800 13px system-ui, sans-serif', '#f6dcae');
+      ctx.fillStyle = 'rgba(30,20,30,0.35)'; rr(ctx, bx, by + 8, bw, 8, 4); ctx.fill();
+      ctx.fillStyle = '#e07a7a'; rr(ctx, bx, by + 8, Math.max(8, bw * boss.hp / boss.max), 8, 4); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.35)'; for (let i = 1; i < boss.max; i++) ctx.fillRect(bx + (bw * i) / boss.max - 0.5, by + 8, 1, 8);
+    }
+    if (comboMult() > 1) hudText(`Kıl payı x${comboMult()}`, W / 2, top + (boss && !boss.beaten ? 112 : 100), '700 14px system-ui, sans-serif', '#f6dcae');
 
     const lx = WALL + 10;
     // gostergelerin arkasina yumusak zemin (okunaklilik icin)
@@ -4294,7 +4445,8 @@
     for (const o of obstacles) {
       if (o.x > camX + VW + 60 || o.x + o.w < camX - 60 || o.type === 'sticky' || o.type === 'mark') continue;
       const z = o.z || 0;
-      if (o.type === 'bar') (z ? drawBarZ : drawClothesline)(o);
+      if (o.boss) drawBossAttack(o);
+      else if (o.type === 'bar') (z ? drawBarZ : drawClothesline)(o);
       else if (o.type === 'sign') (z ? drawSignZ : drawSign)(o);
       else if (o.type === 'roomba') (z ? drawRoller : drawRoomba)(o);
       else if (o.type === 'jet') drawJet(o);
@@ -5528,7 +5680,7 @@
       document.title = `state:${state} score:${score()} m:${meters()} t:${clock.toFixed(1)} speed:${Math.round(speed)}` +
         ` shieldHits:${shieldHits} lost:${stats.livesLost} coins:${coinCount}/${coinsSpawned} near:${stats.near}` +
         ` lines:${stats.lines} jets:${stats.jets} stage:${stage} weather:${weather} lives:${lives}` +
-        ` tally:${JSON.stringify(spawnTally)} sl:${stats.slides} bx:${stats.boxes} ld:${stats.ledges} pw:${stats.powers} spd:${Math.round(speed)} dogs:${stats.dogs} crows:${stats.crows} chase:${chase ? chase.phase + Math.round(chase.gap) : '-'} x:${Math.round(player.x)} y:${Math.round(player.y)} g:${player.ground ? 1 : 0} hits:${hitLog}`;
+        ` tally:${JSON.stringify(spawnTally)} sl:${stats.slides} bx:${stats.boxes} ld:${stats.ledges} pw:${stats.powers} spd:${Math.round(speed)} dogs:${stats.dogs} crows:${stats.crows} chase:${chase ? chase.phase + Math.round(chase.gap) : '-'} boss:${boss ? boss.kind + boss.hp + (boss.beaten ? 'YENDI' : '') : '-'} x:${Math.round(player.x)} y:${Math.round(player.y)} g:${player.ground ? 1 : 0} hits:${hitLog}`;
     }
     requestAnimationFrame(frame);
   }
