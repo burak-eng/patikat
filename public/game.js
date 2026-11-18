@@ -1531,7 +1531,7 @@
     const p = player, sh = p.shaft;
     p.shaft = null; p.wall = null;
     p.x = sh.x1 + 8; p.y = p.lastGy = sh.yt; p.vy = 0; p.ground = true; p.squash = 1; p.pati = false;
-    p.camEase = 0.8;
+    p.camEase = 2.5;
     stats.shafts++;
     bonus += 25;
     floater('Tırmandın! +25', '#c9d8ea');
@@ -2053,16 +2053,33 @@
       coins = coins.filter((c) => !c.taken && c.x > camX - 40);
       powerups = powerups.filter((p) => !p.taken && p.x > camX - 40);
 
-      // kamera: yatayda kediyle sabit, dikeyde yalnizca duvar yuksekligi degisince yavasca kayar
-      if (player.shaft) { // bina arasinda kamera araligi ortalar ve kediyle yukari cikar
+      // kamera: sahne bosuna kaymasin (goz yorar). Yatayda kediyle sabit; dikeyde ancak kedi ekranin
+      // ust/alt kenarina yaklasinca yumusakca kayar. Bina arasinda kamera bir kez yerlesir ve durur.
+      const VH = H / ZOOM;
+      const camYBy = (d, rate, maxPx) => { // dikey kayma yumusak ve hiz sinirli (ekranda en fazla maxPx px/sn)
+        const cap = (maxPx / ZOOM) * dt;
+        camY += Math.max(-cap, Math.min(cap, d * Math.min(1, dt * rate)));
+      };
+      if (player.shaft) {
         const sh = player.shaft;
-        camX += ((sh.x0 + sh.x1) / 2 - VW * 0.5 - camX) * Math.min(1, dt * 3);
-        camY += (player.y - (H * 0.58) / ZOOM - camY) * Math.min(1, dt * 2.4);
+        camX += (sh.x0 + 13 - CAT_SX / ZOOM - camX) * Math.min(1, dt * 4); // aralik ekrana sigar
+        let ty = (sh.yb + sh.yt) / 2 - VH * 0.52; // aralik ortalanir; uzun araliklarda kedi takip edilir
+        ty = Math.max(ty, sh.yb - VH * 0.9);
+        if (player.y - ty < VH * 0.3) ty = player.y - VH * 0.3;
+        camYBy(ty - camY, 1.6, player.y - camY < VH * 0.25 ? 420 : 160);
       } else {
         const tx = player.x - CAT_SX / ZOOM;
-        if (player.camEase > 0) { player.camEase -= dt; camX += (tx - camX) * Math.min(1, dt * 5); } else camX = tx;
-        const ty = player.lastGy - (H * CAM_Y) / ZOOM;
-        camY += (ty - camY) * Math.min(1, dt * 1.6);
+        if (player.camEase > 0) { // bina arasindan cikis: kamera tek, yumusak bir hareketle yerine doner
+          player.camEase -= dt;
+          const lim = speed * 1.6 * dt; // dunya en fazla %60 hizli akar
+          camX += Math.max(-lim, Math.min(lim, (tx - camX) * Math.min(1, dt * 3.2)));
+          if (Math.abs(tx - camX) < 1) { player.camEase = 0; camX = tx; }
+          else if (player.camEase <= 0) player.camEase = 0.1; // yetisene kadar yumusak devam
+        } else camX = tx;
+        const d = player.lastGy - (H * CAM_Y) / ZOOM - camY, band = VH * 0.13;
+        const need = d > band ? d - band : d < -band ? d + band : 0; // olu bolge: kucuk yukseklik farklarinda sabit
+        const catY = (player.y - camY) / VH; // kedi kenara cok yaklasirsa hizli takip
+        camYBy(need, 2.2, catY < 0.15 || catY > 0.9 ? 420 : 160);
       }
 
       if (run.mode === 'endless' || run.mode === 'daily') {
