@@ -21,7 +21,7 @@ renderer.shadowMap.enabled = false; // golgeler: kedinin altinda yumusak leke (t
 
 const scene = new THREE.Scene();
 const FOG = 0xf2d8cc;
-scene.fog = new THREE.Fog(FOG, 30, 125);
+scene.fog = new THREE.Fog(FOG, 48, 165); // engeller uzaktan net gorunsun
 
 function canvasTex(w, h, draw, repeat = true) {
   const c = document.createElement('canvas'); c.width = w; c.height = h;
@@ -84,6 +84,7 @@ const roofTex = canvasTex(512, 512, (g, w, h) => {
 const ROOF = new THREE.MeshLambertMaterial({ map: roofTex });
 const EDGE = new THREE.MeshStandardMaterial({ color: 0xc98d72, roughness: 0.9 });
 const DARK = new THREE.MeshStandardMaterial({ color: 0x9d8f9c, roughness: 1 });
+const LANE_MAT = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.45 });
 
 // kutu: yuzlerin dokusu dunya olcusunde tekrarlanir (tu x tv birimde bir)
 const geoCache = new Map();
@@ -163,69 +164,159 @@ function makeCat() {
   return { root, body, head, legs, tail, torso };
 }
 
-function makeDog() { // Karabas: kangal, acik kahve govde, siyah maske
-  const fur = furMat(0xcfa36d, 0xf2d8b0), mask = new THREE.MeshStandardMaterial({ color: 0x2b2422, roughness: 0.8 });
+function makeDog() { // Karabas: kangal. Derin gogus, ince bel, eklemli bacaklar, siyah maske, sarkik kulak, kivrik kuyruk
+  const fur = furMat(0xcfa06a, 0xf5ddb5), light = furMat(0xe9d2ad, 0xffffff), dark = new THREE.MeshStandardMaterial({ color: 0x2a2220, roughness: 0.85 });
+  const red = new THREE.MeshStandardMaterial({ color: 0xc0392b, roughness: 0.5 }), eyeM = new THREE.MeshStandardMaterial({ color: 0x1a1210, roughness: 0.2 });
   const root = new THREE.Group(), body = new THREE.Group(); root.add(body);
-  const torsoGeo = new THREE.CapsuleGeometry(0.33, 0.75, 8, 20); torsoGeo.rotateX(Math.PI / 2);
-  const torso = new THREE.Mesh(torsoGeo, fur); torso.castShadow = true; torso.position.y = 0.8; body.add(torso);
-  const head = new THREE.Group(); head.position.set(0, 1.18, -0.68); body.add(head);
-  const sk = sphere(0.26, fur); head.add(sk);
-  const snout = new THREE.Mesh(new THREE.CapsuleGeometry(0.13, 0.22, 6, 12), mask); snout.rotation.x = Math.PI / 2; snout.position.set(0, -0.07, -0.27); head.add(snout);
-  for (const s of [-1, 1]) { const ear = sphere(0.12, mask); ear.scale.set(0.5, 1.3, 0.9); ear.position.set(s * 0.22, -0.02, 0.02); head.add(ear); }
-  const legs = [];
-  for (const [x, z] of [[-0.18, -0.45], [0.18, -0.45], [-0.18, 0.45], [0.18, 0.45]]) {
-    const p = new THREE.Group(); p.position.set(x, 0.68, z); body.add(p);
-    const l = new THREE.Mesh(new THREE.CapsuleGeometry(0.09, 0.42, 6, 12), fur); l.castShadow = true; l.position.y = -0.3; p.add(l); legs.push(p);
+  const front = new THREE.Group(); front.position.set(0, 0.98, -0.32); body.add(front); // omuzlar (omurga burada esner)
+  const back = new THREE.Group(); back.position.set(0, 0.95, 0.42); body.add(back);    // kalca
+  const S = (r, m, x, y, z, sx = 1, sy = 1, sz = 1, parent = body) => { const k = sphere(r, m, 20, 14); k.position.set(x, y, z); k.scale.set(sx, sy, sz); parent.add(k); return k; };
+  S(0.36, fur, 0, 0, 0, 0.95, 1.08, 1.1, front);          // gogus kafesi
+  S(0.25, light, 0, -0.2, -0.22, 1, 1, 1, front);         // on gogus (acik renk)
+  S(0.3, fur, 0, 0.02, 0, 0.95, 0.95, 1.1, back);          // kalca
+  const waist = new THREE.Mesh(new THREE.CapsuleGeometry(0.24, 0.45, 6, 14), fur); waist.rotation.x = Math.PI / 2; waist.position.set(0, 0.93, 0.05); waist.scale.set(1, 1, 0.85); body.add(waist); // ince bel
+  const neck = new THREE.Mesh(new THREE.CapsuleGeometry(0.17, 0.28, 6, 12), fur); neck.position.set(0, 0.24, -0.3); neck.rotation.x = -0.85; front.add(neck);
+  const collar = new THREE.Mesh(new THREE.TorusGeometry(0.17, 0.035, 8, 20), red); collar.position.set(0, 0.2, -0.27); collar.rotation.x = Math.PI / 2 - 0.85; front.add(collar);
+  // bas
+  const head = new THREE.Group(); head.position.set(0, 0.45, -0.52); front.add(head);
+  S(0.22, fur, 0, 0, 0, 0.95, 0.9, 1.1, head);
+  const muzzle = new THREE.Mesh(new THREE.CapsuleGeometry(0.1, 0.18, 6, 12), dark); muzzle.rotation.x = Math.PI / 2; muzzle.position.set(0, -0.05, -0.24); head.add(muzzle);
+  S(0.14, dark, 0, -0.01, -0.12, 1.1, 0.85, 0.9, head);    // siyah maske
+  S(0.05, dark, 0, -0.01, -0.39, 1.1, 0.8, 0.9, head);     // burun
+  for (const s of [-1, 1]) {
+    S(0.03, eyeM, s * 0.1, 0.06, -0.15, 1, 1, 0.6, head);
+    const ear = S(0.11, dark, s * 0.18, -0.02, 0.02, 0.4, 1.25, 0.85, head); ear.rotation.z = s * 0.25; ear.userData.s = s;
   }
-  const tail = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.06, 8, 16, Math.PI * 1.4), fur); tail.position.set(0, 1.08, 0.62); tail.rotation.y = Math.PI / 2; body.add(tail);
-  return { root, body, legs, head };
+  const jaw = new THREE.Group(); jaw.position.set(0, -0.1, -0.12); head.add(jaw); // havlarken acilir
+  const jm = new THREE.Mesh(new THREE.CapsuleGeometry(0.07, 0.16, 6, 10), dark); jm.rotation.x = Math.PI / 2; jm.position.set(0, -0.02, -0.13); jaw.add(jm);
+  const tongue = S(0.05, red, 0, 0.01, -0.18, 0.8, 0.3, 1.4, jaw);
+  // bacaklar: ust ve alt parca (diz/dirsek ve topuk eklemi)
+  const legs = [];
+  const mkLeg = (parent, x, y, z, hind) => {
+    const up = new THREE.Group(); up.position.set(x, y, z); parent.add(up);
+    if (hind) S(0.16, fur, 0, -0.05, 0.02, 0.7, 1.25, 1, up);
+    const a = new THREE.Mesh(new THREE.CapsuleGeometry(hind ? 0.085 : 0.075, 0.3, 6, 10), fur); a.position.y = -0.22; up.add(a);
+    const low = new THREE.Group(); low.position.y = -0.42; up.add(low);
+    const b = new THREE.Mesh(new THREE.CapsuleGeometry(0.06, 0.28, 6, 10), hind ? fur : light); b.position.y = -0.18; low.add(b);
+    S(0.075, light, 0, -0.36, -0.04, 1, 0.7, 1.3, low);
+    legs.push({ up, low, hind });
+  };
+  mkLeg(front, -0.17, -0.12, 0, false); mkLeg(front, 0.17, -0.12, 0, false);
+  mkLeg(back, -0.17, -0.08, 0.04, true); mkLeg(back, 0.17, -0.08, 0.04, true);
+  const tail = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.055, 8, 18, Math.PI * 1.35), fur); tail.position.set(0, 0.28, 0.3); tail.rotation.set(0, Math.PI / 2, -0.3); back.add(tail); // sirta kivrik
+  return { root, body, front, back, legs, head, jaw, tongue, tail };
 }
 
 // ================= Engeller ve balik =================
+// Her engel turu ne yaptirir: zipla (jump), kay (slide), serit degistir (block), ustune cik (plat)
+// Canli renkler ve hafif oz isik: pastel catilarda uzaktan secilsin
+const mat = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.6, emissive: color, emissiveIntensity: 0.12, ...o });
 const M = {
-  wicker: new THREE.MeshStandardMaterial({ color: 0xc9a06a, roughness: 0.9 }), cloth: [0x8fb8de, 0xe8a0a8, 0xe9c46a, 0xc9b3e0, 0xffffff].map((c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.85, side: THREE.DoubleSide })),
-  ac: new THREE.MeshStandardMaterial({ color: 0xdfe2e7, roughness: 0.6 }), grill: new THREE.MeshStandardMaterial({ color: 0x7d838f, roughness: 0.5, metalness: 0.4 }),
-  pole: new THREE.MeshStandardMaterial({ color: 0x7d8492, roughness: 0.5, metalness: 0.5 }), rope: new THREE.MeshStandardMaterial({ color: 0xa89a88, roughness: 1 }),
-  sign: [0xc98f5a, 0x7f9fc4, 0xc97a7a].map((c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.7 })),
-  fish: new THREE.MeshStandardMaterial({ color: 0xf0b45e, roughness: 0.35, metalness: 0.15, emissive: 0x5a3000, emissiveIntensity: 0.25 }),
-  chimney: new THREE.MeshStandardMaterial({ color: 0xb98a78, roughness: 1 }), tank: new THREE.MeshStandardMaterial({ color: 0xc9ccd3, roughness: 0.5, metalness: 0.3 }),
+  basket: mat(0xe0663f), cloth: [0x4f86c6, 0xe8607a, 0xf2b630, 0x8a6bd1, 0xffffff].map((c) => mat(c, { side: THREE.DoubleSide, emissiveIntensity: 0.08 })),
+  ac: mat(0xd5dbe3, { emissiveIntensity: 0.05 }), grill: new THREE.MeshStandardMaterial({ color: 0x3d434f, roughness: 0.5, metalness: 0.5 }),
+  pole: new THREE.MeshStandardMaterial({ color: 0x5f6675, roughness: 0.45, metalness: 0.6 }), rope: new THREE.MeshStandardMaterial({ color: 0x8a7a68, roughness: 1 }),
+  sign: [0xd8473f, 0x2f6fc0, 0xe08a1e].map((c) => mat(c)), white: mat(0xffffff, { emissiveIntensity: 0.25 }),
+  fish: new THREE.MeshStandardMaterial({ color: 0xf3b04f, roughness: 0.3, metalness: 0.2, emissive: 0x7a4200, emissiveIntensity: 0.35 }),
+  chimney: new THREE.MeshStandardMaterial({ color: 0xb98a78, roughness: 1 }), tank: mat(0x7f97b0, { metalness: 0.4, emissiveIntensity: 0.06 }),
+  roomba: mat(0x3a3f4b, { emissiveIntensity: 0.03 }), roombaTop: mat(0xe05a5a), led: new THREE.MeshBasicMaterial({ color: 0x7dff9a }),
+  pipe: mat(0xc0563a, { metalness: 0.3 }), hazard: mat(0xf2c230, { emissiveIntensity: 0.2 }), dark: mat(0x2b2b30, { emissiveIntensity: 0 }),
+  beam: mat(0xb9773d), dish: mat(0xf0f2f5, { emissiveIntensity: 0.12 }),
+  water: new THREE.MeshStandardMaterial({ color: 0x8ec9ff, transparent: true, opacity: 0.75, roughness: 0.1, emissive: 0x3a7ac0, emissiveIntensity: 0.35 }),
+  room: mat(0xf0dcc4, { emissiveIntensity: 0.05 }), roomRoof: mat(0xc0563a), ramp: mat(0x9a7b5c, { emissiveIntensity: 0.05 }), door: mat(0x6b4a3a, { emissiveIntensity: 0.03 }), win: mat(0x9fd0f0, { emissiveIntensity: 0.35 }),
 };
 const G = {
-  basket: new THREE.CylinderGeometry(0.34, 0.28, 0.55, 20), clothesPile: new THREE.SphereGeometry(0.3, 16, 10),
-  acBox: new THREE.BoxGeometry(0.95, 0.68, 0.6), fan: new THREE.CylinderGeometry(0.22, 0.22, 0.04, 20),
-  post: new THREE.CylinderGeometry(0.035, 0.035, 2.0, 8), beam: new THREE.CylinderGeometry(0.03, 0.03, 1.3, 8), board: new THREE.BoxGeometry(1.0, 0.72, 0.06),
+  basket: new THREE.CylinderGeometry(0.36, 0.3, 0.58, 20), clothesPile: new THREE.SphereGeometry(0.32, 16, 10),
+  acBox: new THREE.BoxGeometry(0.98, 0.7, 0.62), fan: new THREE.CylinderGeometry(0.23, 0.23, 0.04, 20),
+  post: new THREE.CylinderGeometry(0.04, 0.04, 2.0, 8), beamBar: new THREE.CylinderGeometry(0.035, 0.035, 1.3, 8), board: new THREE.BoxGeometry(1.05, 0.74, 0.07), boardEdge: new THREE.BoxGeometry(1.15, 0.84, 0.05),
   shirt: new THREE.PlaneGeometry(0.42, 0.62), sock: new THREE.PlaneGeometry(0.16, 0.5),
   fishBody: new THREE.SphereGeometry(0.17, 12, 8), rope: new THREE.CylinderGeometry(0.012, 0.012, 4.5, 6), tank: new THREE.CylinderGeometry(0.3, 0.3, 0.7, 14), fishTail: new THREE.ConeGeometry(0.12, 0.18, 4),
+  roomba: new THREE.CylinderGeometry(0.42, 0.44, 0.24, 24), roombaTop: new THREE.CylinderGeometry(0.3, 0.3, 0.04, 20), led: new THREE.SphereGeometry(0.04, 8, 6),
+  pipeLong: new THREE.CylinderGeometry(0.13, 0.13, 4.4, 14), pipeFoot: new THREE.BoxGeometry(0.18, 0.42, 0.18),
+  beamLong: new THREE.BoxGeometry(4.4, 0.3, 0.32), stripe: new THREE.BoxGeometry(0.22, 0.31, 0.33),
+  dish: new THREE.SphereGeometry(0.62, 22, 10, 0, Math.PI * 2, 0, Math.PI / 2.6), dishArm: new THREE.CylinderGeometry(0.03, 0.03, 0.5, 6),
+  bigTank: new THREE.CylinderGeometry(0.52, 0.52, 1.6, 22), tankCap: new THREE.ConeGeometry(0.55, 0.3, 22), tankLeg: new THREE.CylinderGeometry(0.04, 0.04, 0.5, 6),
+  nozzle: new THREE.CylinderGeometry(0.07, 0.1, 0.18, 10), arc: new THREE.TorusGeometry(0.62, 0.07, 8, 22, Math.PI), drip: new THREE.SphereGeometry(0.05, 8, 6),
 };
 G.fishBody.scale(1.6, 0.85, 0.5);
 const LANES = [-1.3, 0, 1.3];
-const ROOF_W = 4.8;
+const ROOF_W = 4.8, RAMP = 3.2;
+const OBS = {
+  basket: { kind: 'jump', h: 0.64, name: 'Sepete takıldın!' },
+  roomba: { kind: 'jump', h: 0.38, name: 'Robot süpürgeye çarptın!' },
+  pipe:   { kind: 'jump', h: 0.55, full: true, name: 'Boruya takıldın!' },
+  jet:    { kind: 'jump', h: 0.95, name: 'Fıskiyede ıslandın!' },
+  sign:   { kind: 'slide', low: 0.55, name: 'Tabelaya çarptın!' },
+  line:   { kind: 'slide', low: 0.55, full: true, name: 'Çamaşır ipine takıldın!' },
+  beam:   { kind: 'slide', low: 0.62, full: true, name: 'Kirişe çarptın!' },
+  ac:     { kind: 'block', name: 'Klimaya çarptın!' },
+  dish:   { kind: 'block', name: 'Çanak antene çarptın!' },
+  tank:   { kind: 'block', name: 'Su deposuna çarptın!' },
+  room:   { kind: 'plat', top: 1.15, name: 'Çatı odasına çarptın!' },
+};
+const JET_T = 2.6; // fiskiye: 1.3 sn acik, 1.3 sn kapali
+const jetOn = (o) => ((clockS + o.phase) % JET_T) < JET_T / 2;
+let clockS = 0;
 
-function makeObstacle(type, lane) {
+function makeObstacle(type, lane, ex = {}) {
   const g = new THREE.Group();
-  const x = lane >= 0 ? LANES[lane] : 0;
-  g.position.x = x;
-  if (type === 'basket') { // camasir sepeti: zipla
-    const b = new THREE.Mesh(G.basket, M.wicker); b.position.y = 0.275; b.castShadow = true; g.add(b);
-    const c = new THREE.Mesh(G.clothesPile, pick(M.cloth)); c.position.y = 0.55; c.scale.set(1, 0.45, 1); g.add(c);
-  } else if (type === 'ac') { // ust uste iki klima: zipla(ma)z, serit degistir
+  g.position.x = lane >= 0 ? LANES[lane] : 0;
+  const add = (geo, m, x, y, z, rx = 0, ry = 0, rz = 0) => { const k = new THREE.Mesh(geo, m); k.position.set(x, y, z); k.rotation.set(rx, ry, rz); g.add(k); return k; };
+  if (type === 'basket') { // plastik camasir sepeti
+    add(G.basket, M.basket, 0, 0.29, 0);
+    add(G.clothesPile, pick(M.cloth), 0, 0.58, 0).scale.set(1, 0.45, 1);
+  } else if (type === 'roomba') { // dev robot supurge: kediye dogru gelir
+    add(G.roomba, M.roomba, 0, 0.13, 0);
+    add(G.roombaTop, M.roombaTop, 0, 0.26, 0);
+    g.userData.led = add(G.led, M.led, 0, 0.28, -0.32);
+  } else if (type === 'pipe') { // catı boyunca boru: zipla
+    add(G.pipeLong, M.pipe, 0, 0.42, 0, 0, 0, Math.PI / 2);
+    for (const s of [-1.7, 0, 1.7]) add(G.pipeFoot, M.dark, s, 0.21, 0);
+  } else if (type === 'jet') { // fiskiye: acilinca su kemeri
+    add(G.nozzle, M.pole, 0, 0.09, 0.3);
+    const w = add(G.arc, M.water, 0, 0, 0, 0, Math.PI / 2, 0); w.scale.set(1, 1.35, 1); g.userData.water = w;
+    g.userData.drips = [0, 1, 2].map((i) => add(G.drip, M.water, 0, 0.2 + i * 0.12, 0.3));
+  } else if (type === 'ac') { // ust uste iki klima
     for (let i = 0; i < 2; i++) {
-      const b = new THREE.Mesh(G.acBox, M.ac); b.position.y = 0.36 + i * 0.7; b.castShadow = true; g.add(b);
-      const f = new THREE.Mesh(G.fan, M.grill); f.rotation.x = Math.PI / 2; f.position.set(-0.15, 0.36 + i * 0.7, 0.305); g.add(f); g.userData.fans = (g.userData.fans || []).concat(f);
+      add(G.acBox, M.ac, 0, 0.36 + i * 0.71, 0);
+      const f = add(G.fan, M.grill, -0.16, 0.36 + i * 0.71, 0.315, Math.PI / 2); g.userData.fans = (g.userData.fans || []).concat(f);
     }
-  } else if (type === 'sign') { // iki direk arasinda sarkan tabela: kay
-    for (const s of [-0.62, 0.62]) { const p = new THREE.Mesh(G.post, M.pole); p.position.set(s, 1.0, 0); g.add(p); }
-    const bm = new THREE.Mesh(G.beam, M.pole); bm.rotation.z = Math.PI / 2; bm.position.y = 1.98; g.add(bm);
-    const bd = new THREE.Mesh(G.board, pick(M.sign)); bd.position.y = 0.55 + 0.36 + 0.02; bd.castShadow = true; g.add(bd);
-    const f = makeFish(); f.position.set(0, bd.position.y, -0.05); f.scale.setScalar(1.3); g.add(f);
-  } else if (type === 'line') { // tum seritlere gerili camasir ipi: kay
-    for (const s of [-2.25, 2.25]) { const p = new THREE.Mesh(G.post, M.pole); p.position.set(s, 1.0, 0); g.add(p); }
-    const rope = new THREE.Mesh(G.rope, M.rope); rope.rotation.z = Math.PI / 2; rope.position.y = 1.32; g.add(rope);
-    for (let x2 = -1.9; x2 < 1.95; x2 += 0.5) {
-      const sh = new THREE.Mesh(Math.random() < 0.7 ? G.shirt : G.sock, pick(M.cloth)); sh.position.set(x2, 1.32 - 0.31, 0); sh.castShadow = true; g.add(sh);
+  } else if (type === 'dish') { // uydu canagi: ayakli, yuzu kediye donuk
+    add(G.post, M.pole, 0, 0.6, 0).scale.set(1.6, 0.6, 1.6);
+    add(G.dish, M.dish, 0, 1.25, 0.05, -Math.PI / 2 + 0.35, 0, 0);
+    add(G.dishArm, M.pole, 0, 1.25, 0.32, Math.PI / 2 - 0.3);
+  } else if (type === 'tank') { // su deposu
+    for (const [x, z] of [[-0.3, -0.3], [0.3, -0.3], [-0.3, 0.3], [0.3, 0.3]]) add(G.tankLeg, M.pole, x, 0.25, z);
+    add(G.bigTank, M.tank, 0, 1.3, 0);
+    add(G.tankCap, M.tank, 0, 2.25, 0);
+  } else if (type === 'sign') { // iki direk arasinda tabela: kay
+    for (const s of [-0.62, 0.62]) add(G.post, M.pole, s, 1.0, 0);
+    add(G.beamBar, M.pole, 0, 1.98, 0, 0, 0, Math.PI / 2);
+    const y = 0.55 + 0.37 + 0.02;
+    add(G.boardEdge, M.white, 0, y, -0.01);
+    add(G.board, pick(M.sign), 0, y, 0.02);
+    const f = makeFish(); f.position.set(0, y, 0.08); f.scale.setScalar(1.4); g.add(f);
+  } else if (type === 'line') { // camasir ipi
+    for (const s of [-2.25, 2.25]) add(G.post, M.pole, s, 1.0, 0);
+    add(G.rope, M.rope, 0, 1.32, 0, 0, 0, Math.PI / 2);
+    for (let x2 = -1.9; x2 < 1.95; x2 += 0.48) add(Math.random() < 0.7 ? G.shirt : G.sock, pick(M.cloth), x2, 1.32 - 0.31, 0);
+  } else if (type === 'beam') { // ikaz seritli kiris: kay
+    for (const s of [-2.25, 2.25]) add(G.post, M.pole, s, 1.0, 0);
+    add(G.beamLong, M.hazard, 0, 0.62 + 0.15, 0);
+    for (let x2 = -2.0; x2 < 2.1; x2 += 0.5) add(G.stripe, M.dark, x2, 0.77, 0, 0, 0, 0.6);
+  } else if (type === 'room') { // cati odasi: ustunde kosulur; rampa varsa onden cikilir
+    const len = ex.len, top = OBS.room.top;
+    add(new THREE.BoxGeometry(1.15, top, len), M.room, 0, top / 2, -len / 2);
+    add(new THREE.BoxGeometry(1.3, 0.1, len + 0.15), M.roomRoof, 0, top + 0.03, -len / 2);
+    add(new THREE.BoxGeometry(0.4, 0.62, 0.04), M.door, 0.22, 0.31, 0.01);
+    add(new THREE.BoxGeometry(0.3, 0.26, 0.04), M.win, -0.28, 0.62, 0.01);
+    for (let z = -1.2; z > -len + 0.6; z -= 1.6) for (const s of [-1, 1]) add(new THREE.BoxGeometry(0.04, 0.3, 0.5), M.win, s * 0.58, 0.62, z);
+    if (ex.ramp) {
+      const ang = Math.atan2(top, RAMP), L = Math.hypot(top, RAMP);
+      add(new THREE.BoxGeometry(1.0, 0.1, L), M.ramp, 0, top / 2 - 0.03, RAMP / 2, ang);
+      for (let i = 1; i < 6; i++) add(new THREE.BoxGeometry(1.0, 0.03, 0.06), M.dark, 0, (top * (1 - i / 6)) + 0.02, (RAMP * i) / 6, ang);
     }
   }
-  g.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+  if (lane >= 0 && type !== 'room') { const b = blob(1.1, 1.0); b.position.y = 0.015; g.add(b); } // yere oturan golge
   return g;
 }
 function makeFish() {
@@ -247,6 +338,7 @@ function addRoof(z0, len) {
   for (const s of [-1, 1]) { // korkuluk duvari
     const p = new THREE.Mesh(boxGeo(0.22, 0.4, len, 1, 1), EDGE); p.position.set(s * (ROOF_W / 2 - 0.11), 0.2, cz); p.receiveShadow = true; world.add(p); grp.push(p);
   }
+  for (const lx of [-0.65, 0.65]) { const l = new THREE.Mesh(boxGeo(0.05, 0.01, len, 1, 1), LANE_MAT); l.position.set(lx, 0.006, cz); world.add(l); grp.push(l); } // serit cizgileri
   for (let z = z0 - rand(3, 8); z > z1 + 3; z -= rand(7, 16)) { // catı susleri (seritlerin disinda)
     const s = Math.random() < 0.5 ? -1 : 1, x = s * 2.05;
     let d;
@@ -284,7 +376,7 @@ const blobMat = new THREE.MeshBasicMaterial({ map: blobTex, transparent: true, d
 function blob(sx, sz) { const m = new THREE.Mesh(new THREE.PlaneGeometry(sx, sz), blobMat); m.rotation.x = -Math.PI / 2; m.position.y = 0.02; return m; }
 const cat = makeCat(); scene.add(cat.root);
 const catShadow = blob(1.1, 1.5); scene.add(catShadow);
-const dog = makeDog(); scene.add(dog.root); dog.root.visible = false;
+const dog = makeDog(); scene.add(dog.root); dog.root.visible = false; dog.root.scale.setScalar(0.8); // kediyi kapatmasin
 dog.root.add(blob(1.2, 2));
 let state = 'start', genZ = 0, sideZ = [0, 0], lastRowFree = 1;
 const P = { lane: 1, x: 0, y: 0, vy: 0, z: 0, ground: true, slide: 0, invul: 0, gait: 0, laneFrom: 1, fallT: 0, drop: false };
@@ -315,33 +407,49 @@ function addFishArc(lane, z0, len) { // bosluk ya da engel ustunden atlama yayi
   const n = 5;
   for (let i = 0; i < n; i++) { const k = i / (n - 1), y = 0.5 + Math.sin(k * Math.PI) * 1.1; const m = makeFish(); const z = z0 - k * len; m.position.set(LANES[lane], y, z); world.add(m); fishes.push({ lane, z, y, mesh: m }); }
 }
-function addObstacle(type, lane, z) {
-  const mesh = makeObstacle(type, lane); mesh.position.z = z; world.add(mesh);
-  obstacles.push({ type, lane, z, mesh });
+function addObstacle(type, lane, z, ex = {}) {
+  const mesh = makeObstacle(type, lane, ex); mesh.position.z = z; world.add(mesh);
+  const o = { type, lane, z, mesh, ...ex };
+  if (type === 'room') o.top = OBS.room.top;
+  if (type === 'jet') o.phase = Math.random() * JET_T;
+  obstacles.push(o);
+  return o;
 }
-// bir sira engel: her sirada en az bir serit gecilebilir; bir onceki siranin bos seridinden ulasilabilir
-function makeRow(z) {
+// bir sira engel; donen deger: sira icin kullanilan ek uzunluk (cati odasi uzun)
+function makeRow(z, zMin) {
   const r = Math.random(), lanes = [0, 1, 2];
-  if (r < 0.14) { addObstacle('line', -1, z); addFishLine(1, z + 1.6, 3, 0.3); return; }
-  if (r < 0.26) { lanes.forEach((l) => addObstacle('basket', l, z)); addFishArc(lastRowFree, z + 2.5, 5); return; }
-  // serbest serit: onceki bos seride komsu ya da ayni
-  const free = clamp(lastRowFree + pick([-1, 0, 0, 1]), 0, 2);
-  const others = lanes.filter((l) => l !== free);
-  if (r < 0.55) { others.forEach((l) => addObstacle('ac', l, z)); }
-  else if (r < 0.75) { addObstacle(pick(['basket', 'sign']), pick(others), z); addObstacle('ac', others.find((l) => !obstacles.some((o) => o.z === z && o.lane === l)), z); }
-  else { addObstacle(pick(['basket', 'sign']), pick(lanes), z); }
+  const free = clamp(lastRowFree + pick([-1, 0, 0, 1]), 0, 2), others = lanes.filter((l) => l !== free);
+  const blocker = () => pick(['ac', 'ac', 'dish', 'tank']);
+  const jumper = () => pick(['basket', 'basket', 'roomba', 'jet']);
+  if (r < 0.1) { addObstacle(pick(['line', 'beam']), -1, z); addFishLine(lastRowFree, z + 1.6, 3, 0.3); return 0; }
+  if (r < 0.18) { addObstacle('pipe', -1, z); addFishArc(lastRowFree, z + 2.5, 5); return 0; }
+  if (r < 0.25) { lanes.forEach((l) => addObstacle(pick(['basket', 'basket', 'roomba']), l, z)); addFishArc(lastRowFree, z + 2.5, 5); return 0; }
+  if (r < 0.42) { // cati odasi: rampadan cik, ustunde balik; diger seritlerde engel
+    const len = rand(7, 11), ramp = Math.random() < 0.7, front = z - (ramp ? RAMP : 0);
+    if (front - len > zMin) {
+      addObstacle('room', free, front, { len, ramp });
+      addFishLine(free, front - 0.8, Math.floor(len / 1.6), OBS.room.top + 0.45);
+      if (Math.random() < 0.6) addObstacle(blocker(), pick(others), z - 1);
+      lastRowFree = free;
+      return len + (ramp ? RAMP : 0);
+    }
+  }
+  if (r < 0.62) others.forEach((l) => addObstacle(blocker(), l, z));
+  else if (r < 0.82) { addObstacle(Math.random() < 0.55 ? jumper() : 'sign', others[0], z); addObstacle(blocker(), others[1], z); }
+  else addObstacle(pick([jumper(), 'sign', blocker()]), pick(lanes), z);
   if (Math.random() < 0.7) addFishLine(free, z + 3, 4);
   lastRowFree = free;
+  return 0;
 }
 function ensureAhead() {
   while (genZ > P.z - 150) {
     const gap = runT < 2 ? 0 : rand(2.4, 3.4) * clamp(speed / 10, 1, 1.35);
-    const len = rand(26, 46);
+    const len = rand(30, 52);
     const z0 = genZ - gap;
     if (gap > 0) addFishArc(lastRowFree, genZ + 1, gap + 2);
     addRoof(z0, len);
     const spacing = Math.max(10, speed * 1.05);
-    for (let z = z0 - 9; z > z0 - len + 7; z -= spacing * rand(1, 1.3)) makeRow(z);
+    for (let z = z0 - 9; z > z0 - len + 7;) { const used = makeRow(z, z0 - len + 2); z -= used + spacing * rand(1, 1.3); }
     genZ = z0 - len;
     if (roofs.length > 1) runT = Math.max(runT, 2);
   }
@@ -355,6 +463,15 @@ function cleanup() {
   for (let i = sides.length - 1; i >= 0; i--) if (sides[i].z1 > behind + 10) { world.remove(sides[i].mesh); sides.splice(i, 1); }
 }
 const roofAt = (z) => roofs.find((r) => z <= r.z0 + 0.2 && z >= r.z1 - 0.2);
+function groundAt(x, z) { // kedinin altindaki zemin: cati (0), rampa ya da cati odasinin ustu
+  let g = roofAt(z) ? 0 : -Infinity;
+  for (const o of obstacles) {
+    if (o.type !== 'room' || Math.abs(LANES[o.lane] - x) > 0.62) continue;
+    if (z <= o.z && z >= o.z - o.len) g = Math.max(g, o.top);
+    else if (o.ramp && z > o.z && z < o.z + RAMP) g = Math.max(g, o.top * (1 - (z - o.z) / RAMP));
+  }
+  return g;
+}
 
 // ================= Ses (kisa, yumusak efektler) =================
 let ac = null;
@@ -367,6 +484,24 @@ function sfx(kind) {
     o.type = S[4]; o.frequency.setValueAtTime(S[0], t); o.frequency.exponentialRampToValueAtTime(S[1], t + S[2]);
     g.gain.setValueAtTime(S[3], t); g.gain.exponentialRampToValueAtTime(0.0001, t + S[2] + 0.05);
     o.start(t); o.stop(t + S[2] + 0.06);
+  } catch { /* ses yok */ }
+}
+
+let barkT = 0.5, barkOpen = 0, barkBuf = null, barkTried = false;
+async function loadBark() { if (barkTried) return; barkTried = true; try { const r = await fetch('sounds/havlama.mp3'); if (r.ok) barkBuf = await ac.decodeAudioData(await r.arrayBuffer()); } catch { /* kayit yok */ } }
+function bark() {
+  barkOpen = 0.5;
+  try {
+    ac = ac || new (window.AudioContext || window.webkitAudioContext)(); loadBark();
+    const t = ac.currentTime;
+    if (barkBuf) { const s2 = ac.createBufferSource(), g = ac.createGain(); s2.buffer = barkBuf; g.gain.value = 0.7; s2.connect(g); g.connect(ac.destination); s2.start(t); return; }
+    for (const d of [0, 0.2]) { // iki kisa, kalin "hav": testere dalga + gurultu, alcak gecis suzgeci
+      const o = ac.createOscillator(), f2 = ac.createBiquadFilter(), g = ac.createGain();
+      o.type = 'sawtooth'; o.frequency.setValueAtTime(210, t + d); o.frequency.exponentialRampToValueAtTime(120, t + d + 0.13);
+      f2.type = 'lowpass'; f2.frequency.value = 900; f2.Q.value = 6;
+      g.gain.setValueAtTime(0.0001, t + d); g.gain.exponentialRampToValueAtTime(0.22, t + d + 0.015); g.gain.exponentialRampToValueAtTime(0.0001, t + d + 0.16);
+      o.connect(f2); f2.connect(g); g.connect(ac.destination); o.start(t + d); o.stop(t + d + 0.18);
+    }
   } catch { /* ses yok */ }
 }
 
@@ -410,7 +545,7 @@ function start() {
   reset(); state = 'play';
   for (const s of ['start', 'over', 'pause']) $(s).classList.add('hidden');
   $('back').classList.remove('hidden');
-  say('Koş!', 1);
+  say('Koş! Karabaş arkanda!', 1.6); dogT = 3.2; dogGap = 1.9; barkT = 0.3; if (DEMO && params.has('dog')) dogT = 999; // test: kopek hep pesinde
 }
 function pause() { if (state !== 'play') return; state = 'pause'; $('pause').classList.remove('hidden'); }
 function resume() { if (state !== 'pause') return; state = 'play'; $('pause').classList.add('hidden'); last = performance.now(); }
@@ -419,22 +554,29 @@ function gameOver() {
   $('back').classList.add('hidden');
   try { const k = 'dz_wallet', w = JSON.parse(localStorage.getItem(k) || '0') || 0; if (!DEMO) localStorage.setItem(k, JSON.stringify(w + fishN)); } catch { /* yoksay */ }
   $('overTitle').textContent = dogT > 0 ? 'Karabaş yakaladı!' : 'Tur bitti!';
-  $('overText').textContent = `${Math.floor(dist)} m koştun · ${fishN} balık cüzdanına eklendi`;
+  const best = Number(localStorage.getItem('dz_best3d') || 0), m = Math.floor(dist), rec = m > best;
+  if (rec && !DEMO) localStorage.setItem('dz_best3d', String(m));
+  $('overText').textContent = `${m} m koştun${rec ? ' · Yeni rekor! 🏆' : ` · Rekorun ${best} m`} · ${fishN} balık cüzdanına eklendi`;
+  showBest();
   $('over').classList.remove('hidden');
 }
+function showBest() { const b = Number(localStorage.getItem('dz_best3d') || 0); $('best').textContent = b ? `En iyi: ${b} m` : ''; }
+showBest();
 const goHome = () => { location.href = 'index.html'; };
 $('play').onclick = start; $('again').onclick = start; $('resume').onclick = resume; $('back').onclick = pause;
 $('home').onclick = goHome; $('home2').onclick = goHome; $('home3').onclick = goHome;
 document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
 
+const hitLog = [];
 function crash(o, why) {
   if (P.invul > 0) return;
+  if (DEMO) hitLog.push((o ? o.type : '?') + '@' + Math.round(dist) + (o && o.type === 'room' ? '[r' + (o.ramp ? 1 : 0) + ' y' + P.y.toFixed(2) + ' dz' + (o.z - P.z).toFixed(1) + ' L' + P.lane + '/' + o.lane + ' x' + P.x.toFixed(2) + ' g' + (P.ground ? 1 : 0) + ']' : ''));
   o && (o.hit = true);
   const sideways = Math.abs(P.x - LANES[P.lane]) > 0.35;
   if (sideways && P.laneFrom !== P.lane) { // yandan carpma: geri sekersin, kopek yetisir
     P.lane = P.laneFrom; P.invul = 0.6; sfx('hit');
     if (dogT > 0) { loseLife('Karabaş yakaladı!'); return; }
-    dogT = 7; dogGap = 4; say('Takıldın! Karabaş peşinde', 1.4); return;
+    dogT = 7; dogGap = 3; say('Takıldın! Karabaş peşinde', 1.4); return;
   }
   loseLife(why);
 }
@@ -442,7 +584,7 @@ function loseLife(why) {
   lives--; P.invul = 2; speed = Math.max(9, speed * 0.75); sfx('hit'); hud();
   if (lives <= 0) { gameOver(); return; }
   say(why, 1.4);
-  dogT = 7; dogGap = 3.5;
+  dogT = 7; dogGap = 3;
 }
 
 // ================= Guncelleme =================
@@ -457,14 +599,16 @@ function update(dt) {
   // serit gecisi (yumusak, hizli)
   P.x += (LANES[P.lane] - P.x) * Math.min(1, dt * 13);
   // dikey hareket ve catilar arasi bosluk
-  const roof = roofAt(P.z);
+  const gh = groundAt(P.x, P.z);
   if (P.ground) {
-    if (!roof) { P.ground = false; P.vy = 0; }
+    if (gh === -Infinity || gh < P.y - 0.08) { P.ground = false; P.vy = 0; } // kenardan ya da odanin ucundan duser
+    else if (gh <= P.y + 0.35) P.y = gh; // rampaya tirmanir
   } else {
     P.vy -= 22 * dt; P.y += P.vy * dt;
-    if (P.y <= 0 && P.y > -0.6 && roof && P.vy < 0) { P.y = 0; P.vy = 0; P.ground = true; if (P.drop) { P.drop = false; P.slide = 0.75; sfx('slide'); } }
+    if (gh > -Infinity && P.y <= gh && P.y > gh - 0.6 && P.vy < 0) { P.y = gh; P.vy = 0; P.ground = true; if (P.drop) { P.drop = false; P.slide = 0.75; sfx('slide'); } }
     if (P.y < -4) { // dustu: bir can gider, sonraki catinin basinda dogar
       const next = roofs.filter((r) => r.z0 < P.z + 1).sort((a, b) => b.z0 - a.z0)[0];
+      if (DEMO) { const prev = roofs.filter((r) => r.z1 > P.z).sort((x, y) => x.z1 - y.z1)[0]; hitLog.push('fall@' + Math.round(dist) + '[sp' + speed.toFixed(1) + ' gap' + (prev && next ? (prev.z1 - next.z0).toFixed(1) : '?') + ']'); }
       loseLife('Aşağı düştün!');
       if (state !== 'play') return;
       if (next) P.z = next.z0 - 1;
@@ -473,12 +617,21 @@ function update(dt) {
   }
   // engeller
   const standH = P.slide > 0 ? 0.42 : 0.78;
+  clockS += dt;
   for (const o of obstacles) {
-    if (o.hit || Math.abs(o.z - P.z) > 0.42) continue;
-    if (o.type !== 'line' && Math.abs(LANES[o.lane] - P.x) > 0.72) continue;
-    if (o.type === 'basket' && P.y < 0.58) crash(o, 'Sepete takıldın!');
-    else if (o.type === 'ac') crash(o, 'Klimaya çarptın!');
-    else if ((o.type === 'sign' || o.type === 'line') && P.y + standH > 0.55 && P.y < 1.7) crash(o, o.type === 'sign' ? 'Tabelaya çarptın!' : 'İpe takıldın!');
+    const D = OBS[o.type];
+    if (o.type === 'roomba' && o.z < P.z && o.z > P.z - 40) { o.z += 2.6 * dt; o.mesh.position.z = o.z; o.mesh.rotation.y += dt * 2; } // kediye dogru gelir
+    if (o.type === 'jet') { const on = jetOn(o), warn = !on && ((clockS + o.phase) % JET_T) > JET_T - 0.5; o.mesh.userData.water.visible = on; o.mesh.userData.drips.forEach((d, i) => { d.visible = warn; d.position.y = 0.2 + ((clockS * 2 + i / 3) % 1) * 0.5; }); }
+    if (o.hit) continue;
+    if (D.kind === 'plat') { // cati odasi: onune ya da yanina carpma
+      if (Math.abs(LANES[o.lane] - P.x) < 0.7 && P.z <= o.z && P.z >= o.z - o.len && P.y < o.top - 0.25) { crash(o, D.name); if (state === 'play') { P.y = o.top; P.vy = 0; P.ground = true; } }
+      continue;
+    }
+    if (Math.abs(o.z - P.z) > 0.42) continue;
+    if (!D.full && Math.abs(LANES[o.lane] - P.x) > 0.72) continue;
+    if (D.kind === 'jump') { if ((o.type !== 'jet' || jetOn(o)) && P.y < D.h) crash(o, D.name); }
+    else if (D.kind === 'slide') { if (P.y + standH > D.low && P.y < 1.7) crash(o, D.name); }
+    else crash(o, D.name);
   }
   // baliklar
   for (let i = fishes.length - 1; i >= 0; i--) {
@@ -489,8 +642,10 @@ function update(dt) {
     }
   }
   for (const o of obstacles) if (o.mesh.userData.fans) o.mesh.userData.fans.forEach((f) => { f.rotation.y += dt * 9; });
+  if (dogT > 0) { barkT -= dt; if (barkT <= 0) { barkT = rand(1.6, 2.8); bark(); } }
   // kopek
-  if (dogT > 0) { dogT -= dt; dogGap = lerp(dogGap, dogT > 1.5 ? 2.6 : 9, Math.min(1, dt * 1.5)); }
+  if (dogT > 0) { dogT -= dt; dogGap = lerp(dogGap, dogT > 1.5 ? 1.9 : 10, Math.min(1, dt * 1.5)); } // kovalarken kedinin yan arkasinda gorunur
+  barkOpen = Math.max(0, barkOpen - dt);
   if (msgT > 0) { msgT -= dt; if (msgT <= 0) $('msg').style.opacity = 0; }
   ensureAhead(); cleanup();
   hud();
@@ -500,7 +655,7 @@ function update(dt) {
 function poseCat(t) {
   const c = cat, ph = P.gait * Math.PI;
   c.root.position.set(P.x, P.y, P.z);
-  catShadow.position.set(P.x, roofAt(P.z) ? 0.02 : -50, P.z); const ss = 1 / (1 + Math.max(0, P.y) * 0.6); catShadow.scale.set(ss, ss, ss);
+  const sg = groundAt(P.x, P.z); catShadow.position.set(P.x, sg > -Infinity ? sg + 0.02 : -50, P.z); const ss = 1 / (1 + Math.max(0, P.y - Math.max(0, sg)) * 0.6); catShadow.scale.set(ss, ss, ss);
   const sliding = P.slide > 0 && P.ground, air = !P.ground;
   // tum govde birlikte: ziplama dalgasi, hafif one-arkaya sallanma (on ve arka kopmaz)
   const bob = air || sliding ? 0 : Math.abs(Math.sin(ph)) * 0.07;
@@ -531,10 +686,22 @@ function poseCat(t) {
   // kopek
   dog.root.visible = dogT > 0 || dogGap < 8.5;
   if (dog.root.visible) {
-    dog.root.position.set(lerp(dog.root.position.x, P.x, 0.08), 0, P.z + dogGap);
-    const dp = P.gait * Math.PI * 0.9;
-    dog.body.position.y = Math.abs(Math.sin(dp)) * 0.08;
-    dog.legs.forEach((l, i) => { l.rotation.x = Math.sin(dp * 2 + (i < 2 ? 0 : Math.PI)) * 0.7; });
+    const dside = P.x > 0.1 ? -0.75 : 0.75; // kedinin hafif yan arkasinda: kedi hep gorunur
+    dog.root.position.x = lerp(dog.root.position.x, P.x + dside, 0.06); dog.root.position.z = P.z + dogGap;
+    const dp = P.gait * Math.PI * 0.85 * 2, sp = Math.sin(dp);
+    const dgh = groundAt(dog.root.position.x, P.z + dogGap); dog.root.position.y = dgh > -Infinity ? dgh : 0;
+    dog.body.position.y = Math.abs(Math.sin(dp / 2 * 2)) * 0.07;
+    dog.front.rotation.x = sp * 0.1; dog.back.rotation.x = -sp * 0.12; // omurga esner (on ve arka birlikte)
+    dog.legs.forEach((l, i) => {
+      const ph = dp + (i % 2) * 0.35, s2 = Math.sin(ph);
+      if (!l.hind) { l.up.rotation.x = s2 * 0.85; l.low.rotation.x = -Math.max(0, -Math.cos(ph)) * 0.9; }
+      else { l.up.rotation.x = -s2 * 0.75; l.low.rotation.x = Math.max(0, Math.cos(ph)) * 0.8 + 0.15; }
+    });
+    dog.head.rotation.x = -sp * 0.08;
+    const open = barkOpen > 0 ? Math.sin(Math.min(1, barkOpen / 0.25) * Math.PI) : 0.15;
+    dog.jaw.rotation.x = open * 0.5; dog.tongue.visible = barkOpen <= 0;
+    dog.tail.rotation.z = -0.3 + Math.sin(t * 9) * 0.15;
+    dog.head.children.forEach((c) => { if (c.userData.s) c.rotation.z = c.userData.s * (0.25 + Math.sin(dp) * 0.15); }); // kulaklar sallanir
   }
   // yanip sonme (carpismadan sonra korunurken)
   c.root.visible = !(P.invul > 0 && Math.floor(t * 10) % 2 === 0 && state === 'play');
@@ -574,7 +741,7 @@ function frame() {
   poseCat(now / 1000);
   placeCamera(dt);
   renderer.render(scene, camera);
-  if (DEMO) window.__s = { state, dist: Math.round(dist), fish: fishN, lives, speed: +speed.toFixed(1), lane: P.lane, obs: obstacles.length, roofs: roofs.length };
+  if (DEMO) window.__s = { state, dist: Math.round(dist), fish: fishN, lives, speed: +speed.toFixed(1), lane: P.lane, obs: obstacles.length, roofs: roofs.length, hits: hitLog.slice(-8).join(','), types: [...new Set(obstacles.map((o) => o.type))].join(',') };
 }
 function resize() {
   const w = window.innerWidth, h = window.innerHeight;
@@ -588,20 +755,26 @@ window.addEventListener('resize', resize);
 // test botu: oneki engele gore serit degistirir, ziplar, kayar
 function bot() {
   if (params.has('nobot')) return;
-  const look = speed * 0.32;
-  const ahead = obstacles.filter((o) => !o.hit && o.z < P.z - 0.3 && o.z > P.z - look - 2);
-  const inLane = (o, l) => o.type === 'line' || o.lane === l;
-  const danger = ahead.filter((o) => inLane(o, P.lane) && o.z > P.z - look);
-  const roof = roofAt(P.z - speed * 0.16);
-  if (P.ground && !roof) { act('up'); return; }
-  if (!danger.length) return;
-  const o = danger[0];
-  if (o.type === 'ac' || (o.type !== 'line' && Math.random() < 0.3)) {
-    const free = [P.lane - 1, P.lane + 1].filter((l) => l >= 0 && l <= 2 && !ahead.some((q) => inLane(q, l) && (q.type === 'ac' || Math.abs(q.z - o.z) < 3)));
+  const look = speed * 0.34;
+  const lanesOf = (o) => (OBS[o.type].full ? [0, 1, 2] : [o.lane]);
+  const front = (o) => (o.type === 'room' && o.ramp ? o.z + RAMP : o.z);
+  const blocks = (o) => OBS[o.type].kind === 'block' || (o.type === 'room' && !o.ramp && P.y < o.top - 0.2);
+  const near = obstacles.filter((o) => !o.hit && front(o) > P.z - look - 4 && (o.type === 'room' ? o.z - o.len : o.z) < P.z + 0.3); // araligi kedinin onune degen engeller
+  const ahead = near.filter((o) => lanesOf(o).includes(P.lane) && front(o) < P.z - 0.2 && front(o) > P.z - look);
+  if (P.ground && groundAt(P.x, P.z - speed * 0.16) === -Infinity) { act('up'); return; }
+  if (!ahead.length) return;
+  const o = ahead.sort((a, b) => b.z - a.z)[0];
+  if (blocks(o)) {
+    const ok = (l) => l >= 0 && l <= 2 && !near.some((q) => lanesOf(q).includes(l) && !OBS[q.type].full && (OBS[q.type].kind === 'block' || (q.type === 'room' && !q.ramp)) && Math.abs(front(q) - front(o)) < 4);
+    const wall = (l) => near.some((q) => q.type === 'room' && q.lane === l && q.z >= P.z - 3 && q.z - q.len <= P.z + 0.6) && P.y < OBS.room.top - 0.2; // yandaki odanin duvarina gecilmez
+    const free = [P.lane - 1, P.lane + 1, P.lane - 2, P.lane + 2].filter((l) => ok(l) && !wall(l) && !wall(P.lane + Math.sign(l - P.lane))); // iki serit otedeyse de oraya gider
     if (free.length) { act(free[0] < P.lane ? 'left' : 'right'); return; }
+    if (o.type === 'room' && front(o) > P.z - speed * 0.2) act('up');
+    return;
   }
-  if (o.type === 'basket' && o.z > P.z - speed * 0.22) act('up');
-  if ((o.type === 'sign' || o.type === 'line') && o.z > P.z - speed * 0.2) act('down');
+  const D = OBS[o.type], dz = P.z - front(o), v = speed + (o.type === 'roomba' ? 2.6 : 0);
+  if (D.kind === 'jump' && dz < v * 0.24 && (o.type !== 'jet' || jetOn(o) || ((clockS + o.phase + dz / v) % JET_T) < JET_T / 2)) act('up');
+  if (D.kind === 'slide' && dz < speed * 0.2) act('down');
 }
 
 resize();

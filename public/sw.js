@@ -1,6 +1,6 @@
 // Oyunu internetsiz calistirmak icin dosyalari onbellege alir.
 // Internet varsa yeni surumu getirir (en fazla 1.5 sn bekler), yoksa onbellekten acar.
-const CACHE = 'patikat-v32';
+const CACHE = 'patikat-v33';
 const FILES = [
   './', './index.html', './style.css', './game.js', './manifest.webmanifest',
   './3d.html', './3d.js', './lib/three.module.js', './lib/three.core.js',

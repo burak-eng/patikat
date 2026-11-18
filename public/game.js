@@ -390,7 +390,7 @@
     ach: store.get('ach', []),
     house: store.get('house', { owned: [], placed: {} }),
     events: store.get('events', {}),
-    tourDone: store.get('tourDone', false),
+    tourDone: store.get('tourDone', true), // eski 2B menu turu kapali
     theme: store.get('theme', 'klasik'),
     notify: store.get('notify', false),
     rival: store.get('rival', null),
@@ -5816,6 +5816,7 @@
     if (a === 'endless' || a === 'daily' || a === 'tutorial') startRun(a);
     else if (a === 'resume') loadResume();
     else if (a === 'revive') revive();
+    else if (a === 'run3d') { location.href = '3d.html'; } // Cati Kosusu artik 3B
     else if (['levels', 'chars', 'shop', 'missions', 'wardrobe', 'strays', 'board', 'settings'].includes(a)) showScreen(a);
     else if (b.dataset.tab) showScreen(TAB_TARGET[b.dataset.tab]);
     else if (a === 'menu') toMenu();
@@ -5951,7 +5952,7 @@
   reset();
   showScreen('menu');
   if (!DEMO && MENU_STATES.includes(params.get('screen'))) showScreen(params.get('screen')); // dogrudan ekran (test icin)
-  else if (!DEMO && !save.tutorialDone && save.life.runs === 0 && !save.resume) openNameBox('welcome', save.char, () => startRun('tutorial')); // yeni oyuncu: once isim, sonra egitim
+  else if (!DEMO && !save.tutorialDone && save.life.runs === 0 && !save.resume) openNameBox('welcome', save.char, () => { save.tutorialDone = true; persist('tutorialDone'); }); // yeni oyuncu: once isim (2B egitim kalkti)
   else if (!DEMO && !save.welcomed) openNameBox('welcome'); // eski oyunculara bir kez isim sorulur
   if (DEMO) {
     const lv = Number(params.get('lv'));
