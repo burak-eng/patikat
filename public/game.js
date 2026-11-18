@@ -64,10 +64,10 @@
   ];
   // Mekanlar: her biri kendi binalari, arka plani ve engel gorunumleriyle (carpisma kutulari aynidir, denge bozulmaz)
   const ZONES = [
-    { id: 'apartman', name: 'Apartmanlar', to: 'Apartmanlara', icon: '🏢', sub: 'Çamaşır ipleri ve süpürgeler', deco: ['baca', 'anten', 'canak', 'depo', 'oda'] },
-    { id: 'sahil',    name: 'Sahil',       to: 'Sahile',       icon: '⚓', sub: 'Balık kasaları, ağlar ve yengeçler', deco: ['fener', 'halat', 'fener'] },
-    { id: 'carsi',    name: 'Çarşı',       to: 'Çarşıya',      icon: '🕌', sub: 'Semaverler, halılar ve yuvarlanan narlar', deco: ['kubbe', 'baca', 'kubbe'] },
-    { id: 'santiye',  name: 'Şantiye',     to: 'Şantiyeye',    icon: '🏗️', sub: 'Çimento torbaları, kirişler ve el arabaları', deco: ['demir', 'kum', 'demir'] },
+    { id: 'apartman', name: 'Apartmanlar', to: 'Apartmanlara', at: 'Apartmanlarda', icon: '🏢', sub: 'Çamaşır ipleri ve süpürgeler', deco: ['baca', 'anten', 'canak', 'depo', 'oda'] },
+    { id: 'sahil',    name: 'Sahil',       to: 'Sahile',       at: 'Sahilde', icon: '⚓', sub: 'Balık kasaları, ağlar ve yengeçler', deco: ['fener', 'halat', 'fener'] },
+    { id: 'carsi',    name: 'Çarşı',       to: 'Çarşıya',      at: 'Çarşıda', icon: '🕌', sub: 'Semaverler, halılar ve yuvarlanan narlar', deco: ['kubbe', 'baca', 'kubbe'] },
+    { id: 'santiye',  name: 'Şantiye',     to: 'Şantiyeye',    at: 'Şantiyede', icon: '🏗️', sub: 'Çimento torbaları, kirişler ve el arabaları', deco: ['demir', 'kum', 'demir'] },
   ];
   // Patronlar: her 10. bolum. Arkadan kovalar, ekranin onunden saldirir (drop: catiya duser -> zipla, low: bas hizasi -> kay).
   // Her atlatilan saldiri patronu yorar; cani bitince pes eder. Karabas saldirmaz, temiz gecilen her engel onu yorar.
@@ -123,6 +123,26 @@
     van: 'Van Gölü kıyısından geldi. Suyu seven nadir kedilerden.',
   };
   const CAT_BY_ID = Object.fromEntries(CATS.map((c) => [c.id, c]));
+  // Sokak kedileri: kosarken catilarda bulunan kayip yavrular. Her mekanda 4 tane; kurtarilan yavrular Kedi Evi'nde yasar.
+  const STRAYS = [
+    { id: 'fistik',   name: 'Fıstık',   z: 0, fur: '#d9a066', fur2: '#b07a44', belly: '#f2dcc0', eyes: ['#8fbf6a', '#8fbf6a'], pattern: 'tabby',  note: 'Bacada ısınıyordu' },
+    { id: 'bulut',    name: 'Bulut',    z: 0, fur: '#c9ccd3', fur2: '#a9adb6', belly: '#eceef2', eyes: ['#d9b84a', '#d9b84a'], pattern: 'solid',  note: 'Anten tepesinde mahsur kalmış' },
+    { id: 'boncuk',   name: 'Boncuk',   z: 0, fur: '#f2ece3', fur2: '#d9904a', fur3: '#4a4040', belly: '#ffffff', eyes: ['#7fb3d9', '#7fb3d9'], pattern: 'calico', note: 'Çamaşır sepetinde uyuyakalmış' },
+    { id: 'komur',    name: 'Kömür',    z: 0, fur: '#3b3b42', fur2: '#3b3b42', belly: '#4a4a52', eyes: ['#e8c547', '#e8c547'], pattern: 'solid',  note: 'Gece çatıda yolunu kaybetmiş', rim: true },
+    { id: 'lokum',    name: 'Lokum',    z: 1, fur: '#f4f1ea', fur2: '#e0a070', belly: '#ffffff', eyes: ['#6fa8dc', '#d9a441'], pattern: 'van',    note: 'Balıkçı kayığından atlamış' },
+    { id: 'midye',    name: 'Midye',    z: 1, fur: '#6a6670', fur2: '#46434c', belly: '#d9d4cc', paws: '#f4f1ea', eyes: ['#9bd27a', '#9bd27a'], pattern: 'tuxedo', note: 'Ağların arasına sıkışmış' },
+    { id: 'kumsal',   name: 'Kumsal',   z: 1, fur: '#e6c9a0', fur2: '#c9a070', belly: '#f6ead8', eyes: ['#9bc46a', '#9bc46a'], pattern: 'tabby',  note: 'Martılardan saklanıyordu' },
+    { id: 'dalga',    name: 'Dalga',    z: 1, fur: '#9aa6b8', fur2: '#76829a', belly: '#d0d7e2', eyes: ['#e8c547', '#e8c547'], pattern: 'solid',  note: 'İskele babasına tırmanmış' },
+    { id: 'tarcin',   name: 'Tarçın',   z: 2, fur: '#c9844e', fur2: '#9c5f32', belly: '#ecd2b4', eyes: ['#9bc46a', '#9bc46a'], pattern: 'tabby',  note: 'Baharatçının çuvalında' },
+    { id: 'sutlac',   name: 'Sütlaç',   z: 2, fur: '#f2e9dc', fur2: '#7a5a48', belly: '#fbf6ee', eyes: ['#6fa8dc', '#6fa8dc'], pattern: 'points', note: 'Muhallebicinin önünde bekliyordu' },
+    { id: 'kurabiye', name: 'Kurabiye', z: 2, fur: '#f0e6d8', fur2: '#8a6a52', belly: '#ffffff', eyes: ['#d9b84a', '#d9b84a'], pattern: 'spots',  note: 'Halıların arasında saklambaç' },
+    { id: 'pasa',     name: 'Paşa',     z: 2, fur: '#8e8478', fur2: '#5a5249', belly: '#d6ccbf', eyes: ['#d9a441', '#d9a441'], pattern: 'tabby',  note: 'Kubbenin tepesinde oturuyordu' },
+    { id: 'cakil',    name: 'Çakıl',    z: 3, fur: '#a8a29a', fur2: '#7c766e', belly: '#dad5ce', eyes: ['#8fbf6a', '#8fbf6a'], pattern: 'tabby',  note: 'Kum yığınında oynuyordu' },
+    { id: 'kask',     name: 'Kask',     z: 3, fur: '#e8b04a', fur2: '#c48a30', belly: '#f6e2b8', eyes: ['#7fb3d9', '#7fb3d9'], pattern: 'solid',  note: 'İskele tahtasında uyuyordu' },
+    { id: 'tugla',    name: 'Tuğla',    z: 3, fur: '#f2ece3', fur2: '#c4664e', fur3: '#3a3333', belly: '#ffffff', eyes: ['#9bc46a', '#9bc46a'], pattern: 'calico', note: 'Tuğla paletinin arasında' },
+    { id: 'beton',    name: 'Beton',    z: 3, fur: '#5e6068', fur2: '#43454c', belly: '#f4f1ea', paws: '#f4f1ea', eyes: ['#e8c547', '#e8c547'], pattern: 'tuxedo', note: 'Çimento torbalarının üstünde' },
+  ];
+  const STRAY_BY_ID = Object.fromEntries(STRAYS.map((s) => [s.id, s]));
   const OLD_CHAR = {
     kubo: 'sarman', kedi: 'tekir', robot: 'pamuk', hayalet: 'kara', ninja: 'siyam', uzayli: 'benek',
     kage: 'sarman', kizil: 'tekir', bambu: 'pamuk', kar: 'kara', gece: 'siyam', usta: 'benek',
@@ -363,6 +383,7 @@
     bestDist: store.get('bestDist', { kolay: 0, normal: 0, zor: 0 }),
     wardrobe: store.get('wardrobe', { owned: [], hat: '', neck: '', face: '' }),
     tutorialDone: store.get('tutorialDone', false),
+    strays: store.get('strays', {}), // kurtarilan sokak kedileri: { id: kac kez }
     toys: store.get('toys', { owned: ['tuy'], sel: 'tuy' }),
     login: store.get('login', { last: '', streak: 0 }),
     life: store.get('life', { runs: 0, near: 0, dogs: 0, catches: 0, maxM: 0, fish: 0 }),
@@ -1018,7 +1039,7 @@
   let stage = 0, darkAmt = 0, darkTarget = 0, fogAmt = 0, weather = 'clear';
   const toastMsg = { text: '', sub: '', t: 0 };
 
-  const MENU_STATES = ['menu', 'levels', 'chars', 'shop', 'missions', 'wardrobe', 'board', 'settings', 'ach', 'photo'];
+  const MENU_STATES = ['menu', 'levels', 'chars', 'shop', 'missions', 'wardrobe', 'strays', 'board', 'settings', 'ach', 'photo'];
   const meters = () => Math.floor(dist / METER);
   const score = () => Math.floor(points) + bonus;
   const isRunMode = () => run && (run.mode === 'endless' || run.mode === 'daily');
@@ -1191,6 +1212,13 @@
       for (let x = a0 + rnd() * 60; x < a1; x += spacing * (1 + rnd() * lerp(0.75, 0.1, d))) slots.push(x);
     }
     if (!item && !led && rnd() < F.box) powerups.push({ kind: 'box', x: x0 + len * 0.5, y: ny + arcY(0.28) + 4 });
+    // kayip yavru: inis alaninda, engellerden once oturur (en fazla ~200 m'de bir)
+    if (!item && run.mode !== 'tutorial' && len > 420 && a0 - x0 > 90 && x0 > (run.nextStrayX || 2400) && rnd() < 0.14) {
+      const pool = STRAYS.filter((st) => st.z === zone), fresh = pool.filter((st) => !save.strays[st.id]);
+      const pick = fresh.length && rnd() < 0.75 ? fresh : pool;
+      powerups.push({ kind: 'stray', id: pick[Math.floor(rnd() * pick.length)].id, x: lerp(x0, a0, 0.62), y: ny - 10 });
+      run.nextStrayX = x0 + 200 * METER;
+    }
     let lastSafeEnd = x0 + 20;
     for (const sx of slots) {
       if (!item && led && sx > led.x1 - 40 && sx < led.x1 + flight * 0.85) continue; // tenteden inen kedinin onu bos kalsin
@@ -1654,7 +1682,23 @@
     }
   }
 
+  // kayip yavruyu kurtar: ilk kez bulunca +25 balik, bir mekanin dordu de bulununca +100
+  function rescueStray(p) {
+    const s = STRAY_BY_ID[p.id], first = !save.strays[p.id];
+    save.strays[p.id] = (save.strays[p.id] || 0) + 1;
+    persist('strays');
+    stats.strays = (stats.strays || 0) + 1;
+    burst(p.x, p.y, '#f6c35b', 10, 130);
+    sfx('meowHappy'); vibrate(30);
+    if (!first) { coinCount += 5; floater(`${s.name} sevindi, mama verdin! +5`, '#f6dcae'); return; }
+    coinCount += 25;
+    const zoneDone = STRAYS.filter((st) => st.z === s.z).every((st) => save.strays[st.id]);
+    if (zoneDone) coinCount += 100;
+    const n = STRAYS.filter((st) => save.strays[st.id]).length;
+    toast(`${s.name} kurtarıldı!`, `${s.note}. Artık evinde yaşıyor · +25 balık${zoneDone ? ` · ${ZONES[s.z].name} tamam! +100` : ''} · ${n}/${STRAYS.length}`, 2.8);
+  }
   function collectPower(p) {
+    if (p.kind === 'stray') { rescueStray(p); return; }
     if (p.kind === 'box') { // surpriz kutu: tur sonunda acilir
       stats.boxes++;
       floater('Sürpriz kutu! Tur sonunda açılır', '#b99be8');
@@ -2214,7 +2258,7 @@
         }
       }
       for (const pw of powerups) {
-        if (!pw.taken && Math.hypot(pw.x - p.x, pw.y - cy) < CAT_HW + 16) { pw.taken = true; collectPower(pw); }
+        if (!pw.taken && Math.hypot(pw.x - p.x, pw.y - cy) < CAT_HW + (pw.kind === 'stray' ? 30 : 16)) { pw.taken = true; collectPower(pw); }
       }
 
       // ipuclari, duyurular, gecilen engeller
@@ -4056,6 +4100,17 @@
       ctx.fillStyle = 'rgba(0,0,0,0.08)'; ctx.fillRect(l.x0, l.y + 6, w, 2);
     }
   }
+  function drawStray(p) { // catida oturan kayip yavru: gelen kediye bakar, ara sira miyavlar
+    const s = STRAY_BY_ID[p.id], y = p.y + 10;
+    ctx.fillStyle = 'rgba(246,195,91,0.18)'; ctx.beginPath(); ctx.ellipse(p.x, y - 8, 22, 18, 0, 0, TAU); ctx.fill(); // yumusak hale: dikkat ceksin
+    ctx.save(); ctx.translate(p.x, y); ctx.scale(-0.6, 0.6);
+    drawCatSide(ctx, s, { sit: true, mouth: (clock % 2.2) < 0.35 ? 1 : 0 }, clock + p.x * 0.01, {});
+    ctx.restore();
+    if ((clock % 2.2) < 0.9) {
+      ctx.fillStyle = 'rgba(255,255,255,0.88)'; rr(ctx, p.x - 22, y - 46, 44, 15, 7); ctx.fill();
+      ctx.fillStyle = '#7a5a48'; ctx.font = '700 9px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.fillText(save.strays[p.id] ? 'Miyav!' : 'Yardım!', p.x, y - 35.5);
+    }
+  }
   function drawBox(x, y) { // hediye kutusu
     ctx.fillStyle = 'rgba(185,155,232,0.25)'; ctx.beginPath(); ctx.arc(x, y, 15, 0, TAU); ctx.fill();
     ctx.fillStyle = '#b99be8'; rr(ctx, x - 9, y - 6, 18, 14, 2); ctx.fill();
@@ -4071,6 +4126,7 @@
     for (const p of powerups) {
       if (p.taken || p.x < camX - 20 || p.x > camX + VW + 20) continue;
       if (p.kind === 'box') { drawBox(p.x, p.y + Math.sin(clock * 2.5) * 2); continue; }
+      if (p.kind === 'stray') { drawStray(p); continue; }
       ctx.save();
       ctx.translate(p.x, p.y + Math.sin(clock * 2.5) * 2);
       dot(ctx, 0, 0, 15, POWERS[p.kind].color + '33');
@@ -5024,6 +5080,20 @@
     g.fillStyle = '#8a7a6a'; g.fillRect(247, 230, 6, 66); rr(g, 232, 292, 36, 6, 3); g.fill();
     g.fillStyle = night ? '#ffe2a0' : '#f6d5b0'; g.beginPath(); g.moveTo(230, 230); g.lineTo(270, 230); g.lineTo(262, 200); g.lineTo(238, 200); g.closePath(); g.fill();
   }
+  // kurtarilan yavrular odalara dagilir: oturur, uzanir ya da uyur (her odada en fazla 4)
+  const STRAY_SPOTS = [[42, 0], [262, 1], [96, 2], [214, 0]];
+  function drawHouseStrays(g) {
+    const found = STRAYS.filter((st) => save.strays[st.id]), ri = ROOMS.findIndex((q) => q.id === pet.room);
+    found.filter((_, i) => i % 4 === ri).slice(0, 4).forEach((st, j) => {
+      const [x, pose] = STRAY_SPOTS[j], dir = x < HW / 2 ? 1 : -1, k = CS * 0.5;
+      ell(g, x, FLOOR + 2, 22, 3, 0, 'rgba(0,0,0,0.12)');
+      g.save(); g.translate(x, FLOOR); g.scale(dir * k, k);
+      const t = clock + j * 1.7;
+      drawCatSide(g, st, pose === 0 ? { sit: true } : pose === 1 ? { lie: true, closed: true } : { lie: true }, t, {});
+      g.restore();
+      if (pose === 1 && (t % 3) < 2) { g.fillStyle = 'rgba(91,79,115,0.5)'; g.font = "700 9px " + ROOM_FONT; g.textAlign = 'center'; g.fillText('z', x + dir * 14, FLOOR - 30 - (t % 3) * 4); }
+    });
+  }
   function drawHouse() {
     if (state !== 'menu') return;
     const cv = $('houseCv'), g = cv.getContext('2d');
@@ -5035,6 +5105,7 @@
     else if (pet.room === 'banyo') drawBanyo(g);
     else if (pet.room === 'yatak') drawYatak(g, night);
     else drawSalon(g);
+    drawHouseStrays(g);
     drawPet(g);
     // ust serit: oda adi ve oklar
     g.fillStyle = 'rgba(255,255,255,0.72)'; rr(g, 8, 8, HW - 16, 30, 15); g.fill();
@@ -5209,8 +5280,8 @@
   $('coach').addEventListener('click', (e) => { e.stopPropagation && e.stopPropagation(); if (e.target && e.target.id === 'coachSkip') endTour(); else nextTour(); });
 
   // ================= Ekranlar =================
-  const SCREENS = ['menu', 'levels', 'chars', 'shop', 'missions', 'wardrobe', 'board', 'settings', 'ach', 'photo', 'pause', 'over', 'win'];
-  const TAB_OF = { menu: 'home', settings: 'home', photo: 'cat', ach: 'goals', levels: 'map', chars: 'cat', wardrobe: 'cat', shop: 'shop', missions: 'goals', board: 'goals' };
+  const SCREENS = ['menu', 'levels', 'chars', 'shop', 'missions', 'wardrobe', 'strays', 'board', 'settings', 'ach', 'photo', 'pause', 'over', 'win'];
+  const TAB_OF = { menu: 'home', settings: 'home', photo: 'cat', ach: 'goals', levels: 'map', chars: 'cat', wardrobe: 'cat', strays: 'cat', shop: 'shop', missions: 'goals', board: 'goals' };
   const TAB_TARGET = { home: 'menu', map: 'levels', cat: 'chars', shop: 'shop', goals: 'missions' };
   function show(id) {
     for (const s of SCREENS) $(s).classList.toggle('hidden', s !== id);
@@ -5231,6 +5302,7 @@
     if (name === 'shop') renderShop();
     if (name === 'missions') renderMissions();
     if (name === 'wardrobe') renderWardrobe();
+    if (name === 'strays') renderStrays();
     if (name === 'board') renderBoard();
     if (name !== 'menu' && pet.tool) { pet.tool = ''; purrSet(false); }
     if (name === 'settings') renderMenu();
@@ -5427,6 +5499,22 @@
     renderChars();
   }
 
+  function renderStrays() { // sokak kedileri koleksiyonu: bulunanlar renkli, bulunmayanlar golge ve ipucuyla
+    const n = STRAYS.filter((st) => save.strays[st.id]).length;
+    $('strayCount').textContent = `${n} / ${STRAYS.length}`;
+    $('strayList').innerHTML = ZONES.map((zn, zi) => {
+      const list = STRAYS.filter((st) => st.z === zi), got = list.filter((st) => save.strays[st.id]).length;
+      const items = list.map((st) => { const has = save.strays[st.id];
+        return `<div class="ch stray${has ? ' own' : ' cant'}" data-stray="${st.id}"><canvas width="96" height="96"></canvas><b>${has ? st.name : '???'}</b><span>${has ? st.note : zn.at + ' bulunur'}</span></div>`; }).join('');
+      return `<h3>${zn.icon} ${zn.name} · ${got}/${list.length}</h3><div class="grid chars-grid">${items}</div>`;
+    }).join('');
+    $('strayList').querySelectorAll('[data-stray]').forEach((el) => {
+      const st = STRAY_BY_ID[el.dataset.stray], g = el.querySelector('canvas').getContext('2d');
+      g.setTransform(2.3, 0, 0, 2.3, 50, 86);
+      if (!save.strays[st.id]) g.globalAlpha = 0.22;
+      drawCatSide(g, save.strays[st.id] ? st : { ...st, id: 'golge', fur: '#6b6474', fur2: '#6b6474', fur3: '#6b6474', belly: '#6b6474', paws: '#6b6474', pattern: 'solid' }, { sit: true }, 1, {});
+    });
+  }
   function renderWardrobe() {
     $('wallet4').textContent = save.wallet;
     const wr = save.wardrobe;
@@ -5561,7 +5649,7 @@
     if (a === 'endless' || a === 'daily' || a === 'tutorial') startRun(a);
     else if (a === 'resume') loadResume();
     else if (a === 'revive') revive();
-    else if (['levels', 'chars', 'shop', 'missions', 'wardrobe', 'board', 'settings'].includes(a)) showScreen(a);
+    else if (['levels', 'chars', 'shop', 'missions', 'wardrobe', 'strays', 'board', 'settings'].includes(a)) showScreen(a);
     else if (b.dataset.tab) showScreen(TAB_TARGET[b.dataset.tab]);
     else if (a === 'menu') toMenu();
     else if (a === 'pause') pause();
@@ -5680,7 +5768,7 @@
       document.title = `state:${state} score:${score()} m:${meters()} t:${clock.toFixed(1)} speed:${Math.round(speed)}` +
         ` shieldHits:${shieldHits} lost:${stats.livesLost} coins:${coinCount}/${coinsSpawned} near:${stats.near}` +
         ` lines:${stats.lines} jets:${stats.jets} stage:${stage} weather:${weather} lives:${lives}` +
-        ` tally:${JSON.stringify(spawnTally)} sl:${stats.slides} bx:${stats.boxes} ld:${stats.ledges} pw:${stats.powers} spd:${Math.round(speed)} dogs:${stats.dogs} crows:${stats.crows} chase:${chase ? chase.phase + Math.round(chase.gap) : '-'} boss:${boss ? boss.kind + boss.hp + (boss.beaten ? 'YENDI' : '') : '-'} x:${Math.round(player.x)} y:${Math.round(player.y)} g:${player.ground ? 1 : 0} hits:${hitLog}`;
+        ` tally:${JSON.stringify(spawnTally)} sl:${stats.slides} bx:${stats.boxes} ld:${stats.ledges} pw:${stats.powers} spd:${Math.round(speed)} dogs:${stats.dogs} crows:${stats.crows} chase:${chase ? chase.phase + Math.round(chase.gap) : '-'} yavru:${stats.strays || 0} boss:${boss ? boss.kind + boss.hp + (boss.beaten ? 'YENDI' : '') : '-'} x:${Math.round(player.x)} y:${Math.round(player.y)} g:${player.ground ? 1 : 0} hits:${hitLog}`;
     }
     requestAnimationFrame(frame);
   }

@@ -165,7 +165,7 @@
 
 <!-- ============ Kedim: kediler ve gardirop ============ -->
 <div id="chars" class="overlay tabbed hidden">
-  <div class="seg sub"><button class="on" data-act="chars">Kediler</button><button data-act="wardrobe">Gardırop</button></div>
+  <div class="seg sub"><button class="on" data-act="chars">Kediler</button><button data-act="wardrobe">Gardırop</button><button data-act="strays">Sokak Kedileri</button></div>
   <div class="wallet">🐟 <span id="wallet2">0</span></div>
   <div class="pvbox card">
     <canvas id="charPv" width="300" height="300" aria-label="Kedi önizlemesi: parmağınla çevir"></canvas>
@@ -178,7 +178,7 @@
 </div>
 
 <div id="wardrobe" class="overlay tabbed hidden">
-  <div class="seg sub"><button data-act="chars">Kediler</button><button class="on" data-act="wardrobe">Gardırop</button></div>
+  <div class="seg sub"><button data-act="chars">Kediler</button><button class="on" data-act="wardrobe">Gardırop</button><button data-act="strays">Sokak Kedileri</button></div>
   <div class="wallet">🐟 <span id="wallet4">0</span></div>
   <div class="pvbox card">
     <canvas id="wardPv" width="300" height="300" aria-label="Eşya önizlemesi: parmağınla çevir"></canvas>
@@ -189,6 +189,12 @@
 </div>
 
 <!-- ============ Harita ============ -->
+<div id="strays" class="overlay tabbed hidden">
+  <div class="seg sub"><button data-act="chars">Kediler</button><button data-act="wardrobe">Gardırop</button><button class="on" data-act="strays">Sokak Kedileri</button></div>
+  <p class="hint">Kurtarılan yavru: <span id="strayCount">0</span><br><small>Koşarken çatıda "Yardım!" diyen yavruya doğru koş. Her mekanda 4 yavru var; kurtardıkların evinde yaşar.</small></p>
+  <div id="strayList" class="ward"></div>
+</div>
+
 <div id="levels" class="overlay tabbed hidden">
   <h2>Bina Haritası</h2>
   <p class="hint">Her bölüm yeni bir sokak. Karabaş bölümlerinde köpek hep peşinde!</p>

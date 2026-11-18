@@ -415,3 +415,7 @@ a.big { text-decoration: none; display: flex; align-items: center; justify-conte
 .namecard .name { flex-direction: column; align-items: stretch; gap: 5px; font-weight: 700; text-align: left; }
 .namecard .name small { font-weight: 600; }
 .namecard .name input { width: 100%; font-size: 17px; }
+/* sokak kedileri koleksiyonu */
+.ch.stray { cursor: default; }
+.ch.stray span { font-size: 10.5px; font-weight: 600; color: var(--muted); line-height: 1.3; min-height: 28px; }
+.ch.stray.own b { color: var(--ink); }
