@@ -2758,7 +2758,8 @@
   const mixC = (a, b, k) => { const A = hexRgb(a), B = hexRgb(b); return `rgb(${A.map((v, i) => Math.round(v + (B[i] - v) * k)).join(',')})`; };
 
   // Iskelet olculeri (kedi / kopek)
-  const CAT_SK = { S: [11, -22.5], H: [-11, -21.5], fore: [10.2, 11.8], hind: [11.2, 10.6], meta: [-3.6, -6.6], stride: 24, lift: 8.5, top: 6.6, belly: 7.6, chest: 7, rump: 7.5, head: [9.4, -9.4], tailN: 12, tailL: 2.6, tailW: [4.6, 2.3] };
+  // kedi: gercek oranlar (kuyruk govdeden kisa, kalin gogus, kisa boyun, bas sirt hizasinda)
+  const CAT_SK = { S: [10.5, -21.5], H: [-10.5, -21], fore: [9.8, 11.2], hind: [11, 10.4], meta: [-3.4, -7], stride: 23, lift: 8, top: 7.2, belly: 8.4, chest: 7.8, rump: 7.8, head: [9.6, -6.6], tailN: 10, tailL: 2.35, tailW: [3.9, 2.1], tuck: 0.3 };
   const DOG_SK = { S: [19, -36], H: [-19, -35], fore: [16.5, 18.5], hind: [17.5, 16], meta: [-5.5, -10], stride: 38, lift: 13, top: 9.5, belly: 10.5, chest: 11, rump: 10.5, head: [10.5, -11], tailN: 9, tailL: 3.6, tailW: [5.2, 2.4] };
 
   // poz: { gait, ground, vy, squash, idle, stumble, lunge }
@@ -2834,7 +2835,9 @@
     g.moveTo(nx, ny);
     g.quadraticCurveTo((nx + rx) / 2, Math.min(ny, ry) - 1.5 - arch, rx, ry);                       // sirt
     g.quadraticCurveTo(Hh[0] - sk.rump, Hh[1] - 1, Hh[0] - 1, Hh[1] + sk.belly * 0.75);              // sagri
-    g.quadraticCurveTo((Hh[0] + S[0]) / 2, Math.max(Hh[1], S[1]) + sk.belly + 0.5, S[0] + 1, S[1] + sk.belly * 0.85); // karin
+    if (sk.tuck) { // kedi: bel ice cekik, gogus derin
+      g.bezierCurveTo(Hh[0] + 6, Hh[1] + sk.belly * (0.75 - sk.tuck), S[0] - 9, S[1] + sk.belly + 1.2, S[0] + 1, S[1] + sk.belly * 0.95);
+    } else g.quadraticCurveTo((Hh[0] + S[0]) / 2, Math.max(Hh[1], S[1]) + sk.belly + 0.5, S[0] + 1, S[1] + sk.belly * 0.85); // karin
     g.quadraticCurveTo(S[0] + sk.chest, S[1] + 3, S[0] + sk.chest * 0.8, S[1] - 3);                    // gogus
     g.quadraticCurveTo(S[0] + sk.chest * 0.7, ny - 0.5, nx, ny);
     g.closePath();
@@ -2848,7 +2851,41 @@
     if (soft) { const a = g.globalAlpha; g.globalAlpha = a * 0.35; g.strokeStyle = col; g.lineWidth = w + 0.8; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); g.globalAlpha = a; } // tuylu yumusak kenar
     g.strokeStyle = col; g.lineWidth = w; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke();
   }
+  // incelen uzuv: w0 kalinliktan w1 kalinliga yuvarlak uclu dolgu (kas govdeye yakin kalin, aşağı incelir)
+  function taper(g, x0, y0, x1, y1, w0, w1, col) {
+    const a = Math.atan2(y1 - y0, x1 - x0), nx = -Math.sin(a), ny = Math.cos(a), r0 = w0 / 2, r1 = w1 / 2;
+    g.fillStyle = col;
+    g.beginPath();
+    g.moveTo(x0 + nx * r0, y0 + ny * r0);
+    g.lineTo(x1 + nx * r1, y1 + ny * r1);
+    g.arc(x1, y1, r1, a + Math.PI / 2, a - Math.PI / 2, true);
+    g.lineTo(x0 - nx * r0, y0 - ny * r0);
+    g.arc(x0, y0, r0, a - Math.PI / 2, a + Math.PI / 2, true);
+    g.closePath(); g.fill();
+  }
+  function drawCatLeg(g, sk, pose, i, cols) {
+    const fore = i >= 2, far = i % 2 === 0;
+    const A = fore ? pose.S : pose.H, f = pose.feet[i];
+    const ax = A[0] + (far ? -1 : 0), ay = A[1] + 1.5;
+    const up = far ? cols.far : cols.up, low = far ? cols.farLow : cols.low, T = sk.top;
+    const ground = f[1] > -0.6;
+    if (ground) ell(g, f[0] + 1, 0.5, T * 0.45, 0.6, 0, 'rgba(0,0,0,0.18)');
+    if (fore) {
+      const [ex, ey, fx, fy] = ik(ax, ay, f[0], f[1] - 1.3, sk.fore[0], sk.fore[1], 1);
+      taper(g, ax, ay, ex, ey, T * 1.15, T * 0.52, up);          // omuz-dirsek: kasli
+      taper(g, ex, ey, fx, fy, T * 0.5, T * 0.4, low);            // on kol: ince
+      ell(g, fx + 1, fy + 0.4, T * 0.36, T * 0.21, 0, low);      // pati
+    } else {
+      const hx = f[0] + sk.meta[0], hy = f[1] + sk.meta[1];
+      const [kx, ky] = ik(ax, ay, hx, hy, sk.hind[0], sk.hind[1], -1);
+      taper(g, ax, ay, kx, ky, T * 1.3, T * 0.6, up);           // uyluk: genis ve kasli
+      taper(g, kx, ky, hx, hy, T * 0.6, T * 0.36, low);          // incik
+      taper(g, hx, hy, f[0], f[1] - 1.1, T * 0.38, T * 0.36, low); // uzun ayak tarağı (topuk yukarida)
+      ell(g, f[0] + 1, f[1] - 0.2, T * 0.37, T * 0.21, 0, low);
+    }
+  }
   function drawLeg(g, sk, pose, i, cols) {
+    if (sk === CAT_SK) return drawCatLeg(g, sk, pose, i, cols);
     const fore = i >= 2, far = i % 2 === 0;
     const A = fore ? pose.S : pose.H, f = pose.feet[i];
     const ax = A[0] + (far ? -1 : 0), ay = A[1] + 1;
@@ -3030,7 +3067,7 @@
     const fr = bodyFrame(S, Hh);
     g.lineWidth = 0.34;
     for (const light of [false, true]) {
-      g.strokeStyle = light ? `rgba(255,250,240,${0.22 * k})` : `rgba(35,22,18,${0.17 * k})`;
+      g.strokeStyle = light ? `rgba(255,250,240,${0.12 * k})` : `rgba(35,22,18,${0.09 * k})`; // hafif: yakindan bakinca hissedilir
       g.beginPath();
       for (const f of BODY_STRANDS) {
         if (f.w !== light) continue;
@@ -3044,7 +3081,7 @@
   function furEdge(g, sk, S, Hh, topCol, lowCol) {
     const fr = bodyFrame(S, Hh);
     g.lineWidth = 0.5;
-    for (const top of [true, false]) {
+    for (const top of [false]) { // yalniz karin altinda yumusak tuy; sirtta diken gibi durmasin
       g.strokeStyle = top ? topCol : lowCol;
       g.beginPath();
       for (const f of EDGE_STRANDS) {
@@ -3061,10 +3098,9 @@
     const sk = CAT_SK, pose = quadPose(sk, st, t);
     const pawCol = c.paws || (c.pattern === 'points' ? c.fur2 : c.fur);
     const legCol = c.pattern === 'points' ? c.fur2 : c.fur;
-    const cols = {
-      up: c.pattern === 'tuxedo' ? c.fur : mixC(legCol, c.fur, 0.5), low: pawCol,
-      far: shadeC(c.pattern === 'tuxedo' ? c.fur : legCol, -0.28), farLow: shadeC(pawCol, -0.28),
-    };
+    const upHex = c.pattern === 'tuxedo' ? c.fur : legCol; // hex renkler (mixC 'rgb()' dondurur, tekrar karistirilamaz)
+    const legGrad = (k) => furGrad(g, -24, -4, shadeC(upHex, k - 0.06), shadeC(upHex, k), k ? shadeC(pawCol, k) : mixC(upHex, pawCol, 0.6)); // bacak govdeyle ayni isikta
+    const cols = { up: legGrad(0), low: pawCol, far: legGrad(-0.28), farLow: shadeC(pawCol, -0.28) };
     g.save();
     g.lineCap = 'round'; g.lineJoin = 'round';
     g.translate(0, -18); g.rotate(pose.rot); g.translate(0, 18);
@@ -3084,21 +3120,24 @@
     g.fillStyle = furGrad(g, pose.S[1] - sk.top, pose.S[1] + sk.belly, shadeC(c.fur, -0.12), c.fur, bodyLow);
     g.fill();
     g.strokeStyle = 'rgba(45,30,30,0.14)'; g.lineWidth = 0.6; g.stroke();
-    furEdge(g, sk, pose.S, pose.H, shadeC(c.fur, -0.1), bodyLow);
     g.save(); bodyPath(g, sk, pose.S, pose.H, pose.arch); g.clip();
     const S = pose.S, Hh = pose.H;
     // isik ve golge: sirtta yumusak parlaklik, karin altinda golge
     const sh2 = g.createLinearGradient(0, S[1] - sk.top, 0, S[1] + sk.belly);
     sh2.addColorStop(0, 'rgba(255,255,255,0.16)'); sh2.addColorStop(0.35, 'rgba(255,255,255,0)'); sh2.addColorStop(0.8, 'rgba(0,0,0,0)'); sh2.addColorStop(1, 'rgba(40,25,25,0.16)');
     g.fillStyle = sh2; g.fillRect(Hh[0] - 14, S[1] - sk.top - 4, S[0] - Hh[0] + 28, sk.top + sk.belly + 8);
-    if (c.pattern === 'tabby') {
-      g.strokeStyle = shadeC(c.fur2, 0.06);
-      for (let i = 0; i < 7; i++) {
-        const x = Hh[0] + 1.5 + i * ((S[0] - Hh[0] - 2) / 7);
-        g.lineWidth = 1.7 - (i % 2) * 0.5;
-        g.beginPath(); g.moveTo(x - 0.5, S[1] - 9); g.quadraticCurveTo(x + 1.6, S[1] - 4.5, x + 0.4, S[1] - 0.5 + (i % 3)); g.stroke();
-      }
-      g.lineWidth = 1.4; g.beginPath(); g.moveTo(Hh[0] - 2, S[1] - 7.6); g.quadraticCurveTo((Hh[0] + S[0]) / 2, S[1] - 10, S[0] + 1, S[1] - 7.4); g.stroke(); // sirt cizgisi
+    if (c.pattern === 'tabby') { // dogal tekir: sirttan inen, egri, uca dogru incelen ve solan cizgiler (esit aralikli degil)
+      const fr = bodyFrame(S, Hh), sc = shadeC(c.fur2, 0.06);
+      const TAB = [0.04, 0.17, 0.27, 0.4, 0.5, 0.63, 0.74, 0.86, 0.97];
+      TAB.forEach((u, i) => {
+        const len = 0.55 + ((i * 37) % 5) * 0.07, w = 1.5 - ((i * 13) % 3) * 0.25;
+        const p0 = bodyPt(sk, fr, Hh, u, -0.92), p1 = bodyPt(sk, fr, Hh, u - 0.05, -0.92 + len), p2 = bodyPt(sk, fr, Hh, u + 0.02, -0.92 + len * 1.7);
+        const gr = g.createLinearGradient(p0[0], p0[1], p2[0], p2[1]); gr.addColorStop(0, sc); gr.addColorStop(0.6, sc); gr.addColorStop(1, 'rgba(0,0,0,0)');
+        g.fillStyle = gr;
+        g.beginPath(); g.moveTo(p0[0] - w * 0.6, p0[1]); g.quadraticCurveTo(p1[0] - w * 0.4, p1[1], p2[0], p2[1]); g.quadraticCurveTo(p1[0] + w * 0.5, p1[1], p0[0] + w * 0.6, p0[1]); g.closePath(); g.fill();
+      });
+      const sp = g.createLinearGradient(0, S[1] - sk.top, 0, S[1] - sk.top + 4); sp.addColorStop(0, shadeC(c.fur2, 0.02)); sp.addColorStop(1, 'rgba(0,0,0,0)');
+      g.fillStyle = sp; g.fillRect(Hh[0] - 10, S[1] - sk.top - 3, S[0] - Hh[0] + 16, 7); // sirt boyunca koyu serit
     } else if (c.pattern === 'calico') {
       ell(g, Hh[0] + 6, S[1] - 4, 8, 6, 0.2, c.fur2); ell(g, S[0] - 6, S[1] - 6, 6, 4.5, -0.2, c.fur3);
     } else if (c.pattern === 'spots') {
@@ -3117,12 +3156,9 @@
     // kalca kasi, sonra yakin bacaklar
     const thighCol = c.fur;
     g.fillStyle = furGrad(g, Hh[1] - 7, Hh[1] + 9, shadeC(thighCol, -0.1), thighCol, c.pattern === 'points' ? mixC(c.fur, c.fur2, 0.5) : thighCol);
-    g.beginPath(); g.ellipse(Hh[0] + 0.8, Hh[1] + 2, 5, 6.8, 0.35, 0, TAU); g.fill();
-    if (c.pattern === 'tabby') { g.strokeStyle = shadeC(c.fur2, 0.05); g.lineWidth = 1.2; g.beginPath(); g.arc(Hh[0] + 1.5, Hh[1] + 2.5, 3.6, -2.3, -0.9); g.stroke(); }
+    g.beginPath(); g.ellipse(Hh[0] + 0.5, Hh[1] + 1, 5.2, 6.2, 0.35, 0, TAU); g.fill(); // sagri kasi, uylukla birlesir
+    if (c.pattern === 'tabby') { g.strokeStyle = shadeC(c.fur2, 0.05); g.lineWidth = 1; g.beginPath(); g.arc(Hh[0] + 1.2, Hh[1] + 1.8, 3.6, -2.2, -1.1); g.stroke(); }
     if (c.pattern === 'spots') ell(g, Hh[0] - 1, Hh[1] - 1, 3.6, 3, 0, c.fur2);
-    g.lineWidth = 0.4; g.strokeStyle = 'rgba(35,22,18,0.22)'; g.beginPath();
-    for (let i = 0; i < 9; i++) { const a = -2.4 + i * 0.32, x = Hh[0] + 0.8 + Math.cos(a) * 4.2, y = Hh[1] + 2 + Math.sin(a) * 5.6; g.moveTo(x, y); g.lineTo(x - 1.2, y + 1.8); }
-    g.stroke();
     drawLeg(g, sk, pose, 1, cols); drawLeg(g, sk, pose, 3, cols);
     // boyun
     const [hx, hy] = pose.head;
