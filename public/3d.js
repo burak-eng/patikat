@@ -12,13 +12,12 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 // ================= Sahne =================
 const canvas = $('view');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance', preserveDrawingBuffer: DEMO });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: (window.devicePixelRatio || 1) < 2, powerPreference: 'high-performance', preserveDrawingBuffer: DEMO });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.0;
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.enabled = false; // golgeler: kedinin altinda yumusak leke (telefonu yormaz)
 
 const scene = new THREE.Scene();
 const FOG = 0xf2d8cc;
@@ -44,7 +43,7 @@ const camera = new THREE.PerspectiveCamera(62, 1, 0.1, 400);
 const hemi = new THREE.HemisphereLight(0xfff3e4, 0xb8a6cc, 1.9);
 scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xffe4c4, 2.6);
-sun.castShadow = true;
+sun.castShadow = false;
 sun.shadow.mapSize.set(1024, 1024);
 Object.assign(sun.shadow.camera, { left: -7, right: 7, top: 9, bottom: -9, near: 1, far: 40 });
 sun.shadow.bias = -0.0008;
@@ -76,13 +75,13 @@ function facadeTex(wall, trim, shutter, variant) { // 2 pencere x 2 kat (5 x 6 b
   });
 }
 const PALETTE = [['#f1d6c0', '#fff8ee', '#7fa6c9'], ['#e9c2b4', '#fbf1e6', '#c9887a'], ['#f3e2c2', '#ffffff', '#9a86c4'], ['#d6dfe9', '#ffffff', '#c97a7a'], ['#efcfd6', '#fff6f2', '#7fa6c9'], ['#e3d5ec', '#ffffff', '#d9a05f']];
-const FACADES = PALETTE.map(([w, t, s], i) => new THREE.MeshStandardMaterial({ map: facadeTex(w, t, s, i), roughness: 0.95 }));
+const FACADES = PALETTE.map(([w, t, s], i) => new THREE.MeshLambertMaterial({ map: facadeTex(w, t, s, i) })); // binalar: en hafif isik modeli
 const roofTex = canvasTex(512, 512, (g, w, h) => {
   g.fillStyle = '#d8cfc4'; g.fillRect(0, 0, w, h);
   for (let y = 0; y < h; y += 64) for (let x = 0; x < w; x += 64) { g.fillStyle = `rgba(${Math.random() < 0.5 ? '255,255,255' : '60,40,30'},${Math.random() * 0.07})`; g.fillRect(x + 2, y + 2, 60, 60); }
   g.fillStyle = 'rgba(80,60,50,0.12)'; for (let i = 0; i <= w; i += 64) { g.fillRect(i - 1, 0, 2, h); g.fillRect(0, i - 1, w, 2); }
 });
-const ROOF = new THREE.MeshStandardMaterial({ map: roofTex, roughness: 1 });
+const ROOF = new THREE.MeshLambertMaterial({ map: roofTex });
 const EDGE = new THREE.MeshStandardMaterial({ color: 0xc98d72, roughness: 0.9 });
 const DARK = new THREE.MeshStandardMaterial({ color: 0x9d8f9c, roughness: 1 });
 
@@ -100,7 +99,7 @@ function boxGeo(w, h, d, tu = 5, tv = 6) {
 
 // ================= Kedi (tombul, yumusak tuylu) =================
 function furMat(color, sheen, map) {
-  return new THREE.MeshPhysicalMaterial({ color, map: map || null, roughness: 0.85, sheen: 1, sheenRoughness: 0.55, sheenColor: new THREE.Color(sheen) });
+  return new THREE.MeshStandardMaterial({ color, map: map || null, roughness: 0.92, emissive: new THREE.Color(sheen), emissiveIntensity: 0.06 });
 }
 const tabbyTex = canvasTex(512, 256, (g, w, h) => { // kure kutuplari omurga ekseninde: halkalar = tekir cizgileri, u=0.75 sirt
   for (let x = 0; x < w; x++) {
@@ -120,7 +119,8 @@ const tabbyTex = canvasTex(512, 256, (g, w, h) => { // kure kutuplari omurga eks
 });
 tabbyTex.wrapT = THREE.ClampToEdgeWrapping;
 
-function sphere(r, mat, ws = 28, hs = 20) { const m = new THREE.Mesh(new THREE.SphereGeometry(r, ws, hs), mat); m.castShadow = true; return m; }
+const sphereCache = new Map();
+function sphere(r, mat, ws = 18, hs = 12) { const k = r.toFixed(3) + '|' + ws; if (!sphereCache.has(k)) sphereCache.set(k, new THREE.SphereGeometry(r, ws, hs)); return new THREE.Mesh(sphereCache.get(k), mat); }
 function makeCat() {
   const C = { fur: furMat(0xffffff, 0xffe6c8, tabbyTex), plain: furMat(0xe8a25c, 0xffe2bf), cream: furMat(0xf6e4cf, 0xffffff), pink: new THREE.MeshStandardMaterial({ color: 0xe8a0aa, roughness: 0.6 }),
     eye: new THREE.MeshStandardMaterial({ color: 0x2a3a24, roughness: 0.15, metalness: 0.1 }), white: new THREE.MeshBasicMaterial({ color: 0xffffff }), ring: furMat(0xc9813f, 0xffd9b0) };
@@ -133,15 +133,15 @@ function makeCat() {
   const rump = sphere(0.36, C.plain); rump.scale.set(1.05, 0.95, 0.9); rump.position.set(0, 0.5, 0.3); body.add(rump); // tombul kalca
   const chest = sphere(0.3, C.cream); chest.scale.set(1, 1, 0.8); chest.position.set(0, 0.47, -0.4); body.add(chest);
   // bas
-  const head = new THREE.Group(); head.position.set(0, 0.86, -0.5); body.add(head);
+  const head = new THREE.Group(); head.position.set(0, 0.92, -0.46); head.scale.setScalar(1.2); body.add(head); // buyuk yuvarlak bas (Kedim ekranindaki kedi gibi)
   const skullGeo = new THREE.SphereGeometry(0.31, 36, 26); skullGeo.rotateX(Math.PI / 2);
   const skull = new THREE.Mesh(skullGeo, C.fur); skull.castShadow = true; skull.scale.set(1.12, 0.96, 0.98); head.add(skull);
   for (const s of [-1, 1]) {
     const cheek = sphere(0.15, C.plain); cheek.position.set(s * 0.2, -0.09, -0.08); cheek.scale.set(1, 0.85, 1); head.add(cheek); // yanak tuyleri
-    const ear = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.24, 16), C.plain); ear.castShadow = true;
+    const ear = new THREE.Mesh(new THREE.ConeGeometry(0.13, 0.26, 16), C.plain); ear.castShadow = true;
     ear.position.set(s * 0.17, 0.27, 0.0); ear.rotation.z = -s * 0.32; head.add(ear);
     const inner = new THREE.Mesh(new THREE.ConeGeometry(0.075, 0.16, 12), C.pink); inner.position.set(s * 0.165, 0.25, -0.045); inner.rotation.z = -s * 0.32; head.add(inner);
-    const eye = sphere(0.075, C.eye, 20, 14); eye.position.set(s * 0.13, 0.04, -0.26); eye.scale.set(1, 1.15, 0.6); head.add(eye);
+    const eye = sphere(0.09, C.eye, 20, 14); eye.position.set(s * 0.13, 0.04, -0.25); eye.scale.set(1, 1.2, 0.6); head.add(eye); // iri gozler
     const glint = sphere(0.022, C.white, 8, 6); glint.position.set(s * 0.13 + 0.02, 0.08, -0.305); head.add(glint);
     const muzzle = sphere(0.085, C.cream); muzzle.position.set(s * 0.055, -0.1, -0.27); head.add(muzzle);
   }
@@ -158,7 +158,7 @@ function makeCat() {
   mkLeg(-0.17, -0.3, true); mkLeg(0.17, -0.3, true); mkLeg(-0.19, 0.3, false); mkLeg(0.19, 0.3, false);
   // kuyruk: kure zinciri, her karede egri boyunca dizilir
   const tail = [];
-  for (let i = 0; i < 26; i++) { const k = i / 25, s = sphere(0.095 - k * 0.04, Math.floor(i / 3) % 3 === 1 ? C.ring : C.plain, 16, 12); body.add(s); tail.push(s); } // sik dizili: puruzsuz, kabarik kuyruk
+  for (let i = 0; i < 16; i++) { const k = i / 15, s = sphere(0.095 - k * 0.04, Math.floor(i / 2) % 3 === 1 ? C.ring : C.plain, 12, 8); body.add(s); tail.push(s); } // kabarik kuyruk
   root.traverse((o) => { if (o.isMesh) o.receiveShadow = false; });
   return { root, body, head, legs, tail, torso };
 }
@@ -195,7 +195,7 @@ const G = {
   acBox: new THREE.BoxGeometry(0.95, 0.68, 0.6), fan: new THREE.CylinderGeometry(0.22, 0.22, 0.04, 20),
   post: new THREE.CylinderGeometry(0.035, 0.035, 2.0, 8), beam: new THREE.CylinderGeometry(0.03, 0.03, 1.3, 8), board: new THREE.BoxGeometry(1.0, 0.72, 0.06),
   shirt: new THREE.PlaneGeometry(0.42, 0.62), sock: new THREE.PlaneGeometry(0.16, 0.5),
-  fishBody: new THREE.SphereGeometry(0.17, 16, 10), fishTail: new THREE.ConeGeometry(0.12, 0.18, 4),
+  fishBody: new THREE.SphereGeometry(0.17, 12, 8), rope: new THREE.CylinderGeometry(0.012, 0.012, 4.5, 6), tank: new THREE.CylinderGeometry(0.3, 0.3, 0.7, 14), fishTail: new THREE.ConeGeometry(0.12, 0.18, 4),
 };
 G.fishBody.scale(1.6, 0.85, 0.5);
 const LANES = [-1.3, 0, 1.3];
@@ -220,7 +220,7 @@ function makeObstacle(type, lane) {
     const f = makeFish(); f.position.set(0, bd.position.y, -0.05); f.scale.setScalar(1.3); g.add(f);
   } else if (type === 'line') { // tum seritlere gerili camasir ipi: kay
     for (const s of [-2.25, 2.25]) { const p = new THREE.Mesh(G.post, M.pole); p.position.set(s, 1.0, 0); g.add(p); }
-    const rope = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 4.5, 6), M.rope); rope.rotation.z = Math.PI / 2; rope.position.y = 1.32; g.add(rope);
+    const rope = new THREE.Mesh(G.rope, M.rope); rope.rotation.z = Math.PI / 2; rope.position.y = 1.32; g.add(rope);
     for (let x2 = -1.9; x2 < 1.95; x2 += 0.5) {
       const sh = new THREE.Mesh(Math.random() < 0.7 ? G.shirt : G.sock, pick(M.cloth)); sh.position.set(x2, 1.32 - 0.31, 0); sh.castShadow = true; g.add(sh);
     }
@@ -251,7 +251,7 @@ function addRoof(z0, len) {
     const s = Math.random() < 0.5 ? -1 : 1, x = s * 2.05;
     let d;
     if (Math.random() < 0.55) { d = new THREE.Mesh(boxGeo(0.35, 1.0, 0.35, 1, 1), M.chimney); d.position.set(x, 0.5, z); }
-    else { d = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.7, 16), M.tank); d.position.set(x, 0.75, z); }
+    else { d = new THREE.Mesh(G.tank, M.tank); d.position.set(x, 0.75, z); }
     d.castShadow = true; world.add(d); grp.push(d);
   }
   const r = { z0, z1, meshes: grp };
@@ -268,18 +268,24 @@ function addSide(side, z0) { // yanlardaki alcak binalar
 const far = new THREE.Group(); scene.add(far);
 {
   const fm = new THREE.MeshBasicMaterial({ color: 0xc9b8cf, fog: true });
-  for (let i = 0; i < 60; i++) { const w = rand(6, 16), h = rand(14, 60); const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, w), fm); m.position.set(rand(-160, 160), h / 2 - 25, -rand(150, 210)); far.add(m); }
+  const fb = new THREE.BoxGeometry(1, 1, 1);
+  for (let i = 0; i < 26; i++) { const w = rand(8, 18), h = rand(14, 60); const m = new THREE.Mesh(fb, fm); m.scale.set(w, h, w); m.position.set(rand(-160, 160), h / 2 - 25, -rand(150, 210)); far.add(m); }
   const cm = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, emissive: 0xffffff, emissiveIntensity: 0.35, fog: false });
   for (let i = 0; i < 7; i++) {
     const c = new THREE.Group(); c.position.set(rand(-90, 90), rand(38, 60), -rand(120, 200));
-    for (let k = 0; k < 4; k++) { const s = new THREE.Mesh(new THREE.SphereGeometry(rand(5, 9), 16, 10), cm); s.position.set(k * 7 - 10, rand(-1, 2), 0); s.scale.y = 0.55; c.add(s); }
+    for (let k = 0; k < 4; k++) { const s = new THREE.Mesh(sphere(1, cm, 12, 8).geometry, cm); s.scale.setScalar(rand(5, 9)); s.position.set(k * 7 - 10, rand(-1, 2), 0); s.scale.y *= 0.55; c.add(s); }
     far.add(c);
   }
 }
 
 // ================= Oyun durumu =================
+const blobTex = canvasTex(64, 64, (g, w) => { const gr = g.createRadialGradient(w / 2, w / 2, 2, w / 2, w / 2, w / 2); gr.addColorStop(0, 'rgba(60,40,50,0.45)'); gr.addColorStop(1, 'rgba(60,40,50,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, w); }, false);
+const blobMat = new THREE.MeshBasicMaterial({ map: blobTex, transparent: true, depthWrite: false });
+function blob(sx, sz) { const m = new THREE.Mesh(new THREE.PlaneGeometry(sx, sz), blobMat); m.rotation.x = -Math.PI / 2; m.position.y = 0.02; return m; }
 const cat = makeCat(); scene.add(cat.root);
+const catShadow = blob(1.1, 1.5); scene.add(catShadow);
 const dog = makeDog(); scene.add(dog.root); dog.root.visible = false;
+dog.root.add(blob(1.2, 2));
 let state = 'start', genZ = 0, sideZ = [0, 0], lastRowFree = 1;
 const P = { lane: 1, x: 0, y: 0, vy: 0, z: 0, ground: true, slide: 0, invul: 0, gait: 0, laneFrom: 1, fallT: 0, drop: false };
 let speed = 9, dist = 0, fishN = 0, lives = 3, dogT = 0, dogGap = 6, msgT = 0, runT = 0;
@@ -494,6 +500,7 @@ function update(dt) {
 function poseCat(t) {
   const c = cat, ph = P.gait * Math.PI;
   c.root.position.set(P.x, P.y, P.z);
+  catShadow.position.set(P.x, roofAt(P.z) ? 0.02 : -50, P.z); const ss = 1 / (1 + Math.max(0, P.y) * 0.6); catShadow.scale.set(ss, ss, ss);
   const sliding = P.slide > 0 && P.ground, air = !P.ground;
   // tum govde birlikte: ziplama dalgasi, hafif one-arkaya sallanma (on ve arka kopmaz)
   const bob = air || sliding ? 0 : Math.abs(Math.sin(ph)) * 0.07;
@@ -516,9 +523,9 @@ function poseCat(t) {
   let y = 0.62, z = 0.48, a = air ? 0.35 : 0.85;
   for (let i = 0; i < c.tail.length; i++) {
     const k = i / c.tail.length;
-    a += 0.022 + (air ? -0.008 : 0); // yukari kalkar, ucu hafifce one kivrilir
+    a += 0.036 + (air ? -0.013 : 0); // yukari kalkar, ucu hafifce one kivrilir
     const x = Math.sin(t * 2.6 - k * 2.2) * 0.07 * k; // yumusak yana sallanma (birikmez)
-    y += Math.sin(a) * 0.036; z += Math.cos(a) * 0.036;
+    y += Math.sin(a) * 0.058; z += Math.cos(a) * 0.058;
     c.tail[i].position.set(x, y + (sliding ? -0.2 : 0), z * (sliding ? 1.05 : 1));
   }
   // kopek
@@ -547,12 +554,11 @@ let perfT = 0, perfN = 0, quality = 2;
 function adaptQuality(dt) {
   if (DEMO || state !== 'play') return;
   perfT += dt; perfN++;
-  if (perfT < 2) return;
+  if (perfT < 1.2) return;
   const fps = perfN / perfT; perfT = 0; perfN = 0;
-  if (fps < 45 && quality > 0) {
+  if (fps < 50 && quality > 0) {
     quality--;
-    if (quality === 1) renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.25));
-    else { renderer.shadowMap.enabled = false; sun.castShadow = false; renderer.setPixelRatio(1); }
+    renderer.setPixelRatio(quality === 1 ? 1 : 0.75);
     resize();
   }
 }
